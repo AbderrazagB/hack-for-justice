@@ -1,9 +1,17 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { SEVERITY, statusStyle } from "@/lib/status";
 import type { CompletenessStatus, Severity, SubmissionStatus } from "@/lib/types";
 
-export function Card({
+/* --------------------------------------------------------------- surfaces --- */
+
+/**
+ * Structural surface: border and background only. Deliberately flat — shadow is
+ * reserved for `FloatingPanel`, so elevation means "this floats", not "this is
+ * a box". See docs/DESIGN.md section 6, item 3.
+ */
+export function Panel({
   children,
   className = "",
 }: {
@@ -12,82 +20,126 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-[var(--border)] bg-[var(--surface)] ${className}`}
+      className={`rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] ${className}`}
     >
       {children}
     </div>
   );
 }
 
-export function SectionTitle({
+/** The one surface allowed to cast a shadow: it genuinely floats above content. */
+export function FloatingPanel({
   children,
-  hint,
+  className = "",
+  accent,
 }: {
   children: ReactNode;
-  hint?: string;
+  className?: string;
+  /** CSS colour for the 3px top edge, used to carry status. */
+  accent?: string;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-      <h2 className="text-lg font-semibold">{children}</h2>
-      {hint && <span className="text-sm opacity-60">{hint}</span>}
+    <div
+      className={`overflow-hidden rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] shadow-[0_1px_2px_rgba(14,39,71,0.06),0_12px_28px_-12px_rgba(14,39,71,0.18)] ${className}`}
+    >
+      {accent && <div aria-hidden className="h-[3px] w-full" style={{ background: accent }} />}
+      {children}
     </div>
   );
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  SUBMITTED: "bg-[var(--surface-muted)] text-[var(--foreground)]",
-  PRE_VALIDATED: "bg-[var(--brand-soft)] text-[var(--brand-strong)]",
-  UNDER_INSTITUTIONAL_REVIEW: "bg-[var(--accent-soft)] text-[var(--accent)]",
-  APPROVED: "bg-[var(--success-soft)] text-[var(--success)]",
-  REJECTED: "bg-[var(--danger-soft)] text-[var(--danger)]",
-  NEEDS_CORRECTION: "bg-[var(--accent-soft)] text-[var(--accent)]",
-  COMPLETE: "bg-[var(--success-soft)] text-[var(--success)]",
-  INCOMPLETE: "bg-[var(--danger-soft)] text-[var(--danger)]",
-  NEEDS_REVIEW: "bg-[var(--accent-soft)] text-[var(--accent)]",
-};
+/* ------------------------------------------------------------------ text --- */
 
-export const STATUS_LABELS_FR: Record<string, string> = {
-  SUBMITTED: "Déposé",
-  PRE_VALIDATED: "Pré-validé",
-  UNDER_INSTITUTIONAL_REVIEW: "En cours d'examen",
-  APPROVED: "Approuvé",
-  REJECTED: "Rejeté",
-  NEEDS_CORRECTION: "À corriger",
-  COMPLETE: "Complet",
-  INCOMPLETE: "Incomplet",
-  NEEDS_REVIEW: "À vérifier",
-};
-
-export function StatusBadge({
-  status,
+export function SectionHeading({
+  children,
+  hint,
+  className = "",
 }: {
-  status: SubmissionStatus | CompletenessStatus | string;
+  children: ReactNode;
+  hint?: ReactNode;
+  className?: string;
 }) {
-  const style = STATUS_STYLES[status] ?? "bg-[var(--surface-muted)]";
   return (
-    <span
-      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ${style}`}
-    >
-      {STATUS_LABELS_FR[status] ?? status}
+    <div className={`mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 ${className}`}>
+      <h2 className="t-h2">{children}</h2>
+      {hint && <span className="t-meta">{hint}</span>}
+    </div>
+  );
+}
+
+/** A French line with its Arabic counterpart directly beneath, direction-isolated. */
+export function Bilingual({
+  fr,
+  ar,
+  className = "",
+  arClassName = "",
+}: {
+  fr: string;
+  ar: string;
+  className?: string;
+  arClassName?: string;
+}) {
+  return (
+    <span className={className}>
+      <span className="block">{fr}</span>
+      <span className={`ar block text-[var(--ink-muted)] ${arClassName}`}>{ar}</span>
     </span>
   );
 }
 
-export function SeverityDot({ severity }: { severity: Severity }) {
-  const color =
-    severity === "ERROR"
-      ? "var(--danger)"
-      : severity === "WARNING"
-        ? "var(--accent)"
-        : "var(--brand)";
+/* ---------------------------------------------------------------- status --- */
+
+export function StatusBadge({
+  status,
+  size = "md",
+}: {
+  status: SubmissionStatus | CompletenessStatus | string;
+  size?: "sm" | "md";
+}) {
+  const style = statusStyle(status);
+  const Icon = style.icon;
+  const compact = size === "sm";
+
   return (
     <span
-      aria-hidden
-      className="mt-1.5 inline-block size-2 shrink-0 rounded-full"
-      style={{ background: color }}
-    />
+      className={`inline-flex items-center gap-1.5 rounded-[var(--r-control)] font-medium whitespace-nowrap ${
+        compact ? "px-2 py-0.5 text-[0.75rem]" : "px-2.5 py-1 text-[0.8125rem]"
+      }`}
+      style={{ background: style.wash, color: style.ink }}
+    >
+      <Icon size={compact ? 12 : 14} strokeWidth={2.25} aria-hidden />
+      {style.fr}
+    </span>
   );
 }
+
+export function SeverityTag({ severity }: { severity: Severity }) {
+  const tone = SEVERITY[severity];
+  return (
+    <span
+      className="inline-flex shrink-0 items-center rounded-[var(--r-control)] px-1.5 py-0.5 text-[0.6875rem] font-semibold"
+      style={{ background: tone.wash, color: tone.ink }}
+    >
+      {tone.fr}
+    </span>
+  );
+}
+
+/* --------------------------------------------------------------- controls --- */
+
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+
+const BUTTON_STYLES: Record<ButtonVariant, string> = {
+  // The single teal element per screen. Scarcity is the system.
+  primary:
+    "bg-[var(--teal)] text-white hover:bg-[var(--teal-ink)] disabled:bg-[var(--line-strong)] disabled:text-[var(--ink-faint)]",
+  secondary:
+    "border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--ink)] hover:border-[var(--ink-faint)] hover:bg-[var(--canvas)] disabled:text-[var(--ink-faint)]",
+  ghost:
+    "text-[var(--ink-muted)] hover:bg-[var(--canvas)] hover:text-[var(--ink)]",
+  danger:
+    "border border-[var(--st-rejected-ink)] text-[var(--st-rejected-ink)] hover:bg-[var(--st-rejected-wash)]",
+};
 
 export function Button({
   children,
@@ -96,63 +148,91 @@ export function Button({
   variant = "primary",
   type = "button",
   className = "",
+  icon: Icon,
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
-  variant?: "primary" | "secondary" | "danger";
+  variant?: ButtonVariant;
   type?: "button" | "submit";
   className?: string;
+  icon?: React.ComponentType<{ size?: number; strokeWidth?: number }>;
 }) {
-  const styles = {
-    primary:
-      "bg-[var(--brand)] text-white hover:bg-[var(--brand-strong)] disabled:opacity-50",
-    secondary:
-      "border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-muted)] disabled:opacity-50",
-    danger:
-      "bg-[var(--danger)] text-white hover:opacity-90 disabled:opacity-50",
-  }[variant];
-
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed ${styles} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-[var(--r-control)] px-4 py-2.5 text-[0.875rem] font-medium transition-colors duration-150 disabled:cursor-not-allowed ${BUTTON_STYLES[variant]} ${className}`}
     >
+      {Icon && <Icon size={16} strokeWidth={2} />}
       {children}
     </button>
   );
 }
 
-export function Header({ trailing }: { trailing?: ReactNode }) {
+export function TextLink({
+  href,
+  children,
+  icon: Icon,
+  className = "",
+}: {
+  href: string;
+  children: ReactNode;
+  icon?: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  className?: string;
+}) {
   return (
-    <header className="border-b border-[var(--border)] bg-[var(--surface)]">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <Link href="/" className="flex items-baseline gap-2">
-          <span className="text-xl font-bold tracking-tight text-[var(--brand)]">
-            Sahilli
-          </span>
-          <span className="ar text-lg text-[var(--brand)] opacity-70">سهّلي</span>
-        </Link>
-        {trailing}
-      </div>
-    </header>
+    <Link
+      href={href}
+      className={`inline-flex items-center gap-1.5 text-[0.875rem] font-medium text-[var(--teal-ink)] hover:underline ${className}`}
+    >
+      {Icon && <Icon size={15} strokeWidth={2} />}
+      {children}
+    </Link>
   );
 }
 
-export function ErrorNote({ children }: { children: ReactNode }) {
+/* ------------------------------------------------------------------ notes --- */
+
+export function Notice({
+  children,
+  tone = "error",
+}: {
+  children: ReactNode;
+  tone?: "error" | "info";
+}) {
+  const style =
+    tone === "error"
+      ? { background: "var(--st-rejected-wash)", color: "var(--st-rejected-ink)" }
+      : { background: "var(--teal-wash)", color: "var(--teal-ink)" };
+
   return (
-    <div className="rounded-lg bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
+    <div
+      role={tone === "error" ? "alert" : undefined}
+      className="rounded-[var(--r-control)] px-4 py-3 text-[0.875rem]"
+      style={style}
+    >
       {children}
     </div>
   );
 }
 
-export function Empty({ children }: { children: ReactNode }) {
+export function EmptyState({
+  title,
+  children,
+}: {
+  title: string;
+  children?: ReactNode;
+}) {
   return (
-    <div className="rounded-xl border border-dashed border-[var(--border)] px-6 py-12 text-center text-sm opacity-70">
-      {children}
+    <div className="rounded-[var(--r-panel)] border border-dashed border-[var(--line-strong)] px-6 py-12 text-center">
+      <p className="t-h3">{title}</p>
+      {children && (
+        <p className="mx-auto mt-2 max-w-md text-[0.875rem] text-[var(--ink-muted)]">
+          {children}
+        </p>
+      )}
     </div>
   );
 }

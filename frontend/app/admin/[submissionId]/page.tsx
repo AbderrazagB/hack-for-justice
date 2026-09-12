@@ -1,5 +1,6 @@
 import { SubmissionReview } from "@/components/submission-review";
-import { Empty, ErrorNote, Header } from "@/components/ui";
+import { AdminBar } from "@/components/chrome";
+import { EmptyState, Notice } from "@/components/ui";
 import { getSubmission } from "@/lib/api";
 import type { Submission } from "@/lib/types";
 
@@ -29,9 +30,16 @@ export default async function SubmissionDetail({
   if (!submission) {
     return (
       <div className="min-h-screen">
-        <Header />
+        <AdminBar />
         <main className="mx-auto max-w-3xl px-5 py-12">
-          {error ? <ErrorNote>{error}</ErrorNote> : <Empty>Introuvable.</Empty>}
+          {error ? (
+            <Notice>{error}</Notice>
+          ) : (
+            <EmptyState title="Dossier introuvable">
+              Aucun dossier ne porte cette référence. Revenez à la file pour le
+              retrouver.
+            </EmptyState>
+          )}
         </main>
       </div>
     );

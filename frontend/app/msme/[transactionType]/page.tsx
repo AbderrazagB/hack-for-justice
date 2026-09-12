@@ -1,23 +1,18 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ShieldCheck } from "lucide-react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AssistantPanel } from "@/components/assistant-panel";
+import { AppBar } from "@/components/chrome";
+import { DocumentRail } from "@/components/document-rail";
 import { StatusTracker } from "@/components/status-tracker";
-import {
-  Button,
-  Card,
-  Empty,
-  ErrorNote,
-  Header,
-  SectionTitle,
-  SeverityDot,
-  StatusBadge,
-} from "@/components/ui";
+import { Button, Notice, Panel, SectionHeading } from "@/components/ui";
+import { VerdictPanel } from "@/components/verdict-panel";
 import { createSubmission, listTransactions } from "@/lib/api";
 import type { SubmissionResult, TransactionInfo } from "@/lib/types";
 
-export default function SubmissionFlow({
+export default function FilingFlow({
   params,
 }: {
   params: Promise<{ transactionType: string }>;
@@ -27,7 +22,7 @@ export default function SubmissionFlow({
   const [transaction, setTransaction] = useState<TransactionInfo | null>(null);
   const [files, setFiles] = useState<Record<string, File>>({});
   const [result, setResult] = useState<SubmissionResult | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -44,10 +39,8 @@ export default function SubmissionFlow({
     () => transaction?.required_documents ?? [],
     [transaction],
   );
-  const missing = useMemo(
-    () => required.filter((doc) => !files[doc.key]),
-    [required, files],
-  );
+  const attachedCount = required.filter((d) => files[d.key]).length;
+  const missingCount = required.length - attachedCount;
 
   const attach = useCallback((key: string, file: File | null) => {
     setFiles((current) => {
@@ -58,9 +51,9 @@ export default function SubmissionFlow({
     });
   }, []);
 
-  async function submit() {
+  async function check() {
     if (!transaction) return;
-    setSubmitting(true);
+    setChecking(true);
     setError("");
     try {
       const documents = Object.entries(files).map(([documentType, file]) => ({
@@ -69,18 +62,22 @@ export default function SubmissionFlow({
       }));
       setResult(await createSubmission(transaction.transaction_type, documents));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Le dépôt a échoué.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "La vérification n'a pas abouti. Réessayez dans un instant.",
+      );
     } finally {
-      setSubmitting(false);
+      setChecking(false);
     }
   }
 
   if (error && !transaction) {
     return (
       <div className="min-h-screen">
-        <Header />
-        <main className="mx-auto max-w-3xl px-5 py-12">
-          <ErrorNote>{error}</ErrorNote>
+        <AppBar />
+        <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+          <Notice>{error}</Notice>
         </main>
       </div>
     );
@@ -88,264 +85,115 @@ export default function SubmissionFlow({
 
   return (
     <div className="min-h-screen">
-      <Header />
-      <main className="mx-auto max-w-6xl px-5 py-10">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[var(--brand)]">
-          Réf. {transaction?.official_reference ?? "…"}
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">
-          {transaction?.display_name_fr ?? "Chargement…"}
-        </h1>
-        {transaction && (
-          <p className="ar mt-1 text-lg opacity-70">
-            {transaction.display_name_ar}
-          </p>
-        )}
+      <AppBar />
+
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <div>
+            <h1 className="t-h1">
+              {transaction?.display_name_fr ?? "Chargement du formulaire"}
+            </h1>
+            {transaction && (
+              <p className="ar mt-0.5 text-[1.0625rem] text-[var(--ink-muted)]">
+                {transaction.display_name_ar}
+              </p>
+            )}
+          </div>
+          {transaction && (
+            <p className="t-data text-[var(--ink-muted)]">
+              {transaction.official_reference}
+            </p>
+          )}
+        </div>
 
         {result && (
-          <div className="mt-8">
+          <div className="mt-7">
             <StatusTracker status={result.status} />
           </div>
         )}
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-          {/* ---------------------------------------------- upload checklist */}
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8">
+          {/* ------------------------------------------------ upload rail --- */}
           <section>
-            <SectionTitle
+            <SectionHeading
               hint={
                 required.length
-                  ? `${required.length - missing.length}/${required.length} jointes`
+                  ? `${attachedCount} sur ${required.length}`
                   : undefined
               }
             >
-              Pièces requises
-            </SectionTitle>
+              Vos pièces
+            </SectionHeading>
 
-            <Card className="divide-y divide-[var(--border)]">
-              {required.map((doc) => (
-                <DocumentRow
-                  key={doc.key}
-                  labelFr={doc.label_fr}
-                  labelAr={doc.label_ar}
-                  file={files[doc.key]}
-                  onChange={(file) => attach(doc.key, file)}
-                />
-              ))}
-              {!required.length && (
-                <div className="p-6 text-sm opacity-60">Chargement…</div>
-              )}
-            </Card>
-
-            {missing.length > 0 && (
-              <p className="mt-3 text-sm text-[var(--accent)]">
-                Il manque encore {missing.length} pièce
-                {missing.length > 1 ? "s" : ""} :{" "}
-                {missing.map((doc) => doc.label_fr).join(", ")}.
-              </p>
+            {required.length ? (
+              <DocumentRail
+                documents={required}
+                files={files}
+                onAttach={attach}
+              />
+            ) : (
+              <Panel className="p-5 text-[0.875rem] text-[var(--ink-muted)]">
+                Chargement de la liste des pièces requises.
+              </Panel>
             )}
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button
-                onClick={submit}
-                disabled={submitting || Object.keys(files).length === 0}
+                onClick={check}
+                disabled={checking || attachedCount === 0}
+                icon={ShieldCheck}
               >
-                {submitting ? "Vérification…" : "Vérifier mon dossier"}
+                {checking ? "Vérification en cours" : "Vérifier mes pièces"}
               </Button>
-              <span className="text-xs opacity-60">
-                Vous pouvez vérifier un dossier incomplet : Sahilli vous dira ce
-                qui manque.
-              </span>
+              {missingCount > 0 && attachedCount > 0 && (
+                <p className="text-[0.8125rem] text-[var(--ink-muted)]">
+                  Il manque {missingCount} pièce{missingCount > 1 ? "s" : ""}.
+                  Vous pouvez vérifier maintenant pour savoir ce qui bloque.
+                </p>
+              )}
+              {attachedCount === 0 && (
+                <p className="text-[0.8125rem] text-[var(--ink-faint)]">
+                  Joignez au moins une pièce pour lancer la vérification.
+                </p>
+              )}
             </div>
 
             {error && (
               <div className="mt-4">
-                <ErrorNote>{error}</ErrorNote>
+                <Notice>{error}</Notice>
               </div>
             )}
           </section>
 
-          {/* ------------------------------------------------------- results */}
-          <section>
-            <SectionTitle>Résultat de la vérification</SectionTitle>
+          {/* --------------------------------------------- verdict panel --- */}
+          <section className="lg:sticky lg:top-6">
+            <SectionHeading>Résultat</SectionHeading>
             {result ? (
-              <ResultPanel result={result} />
+              <VerdictPanel result={result} />
             ) : (
-              <Empty>
-                Joignez vos pièces puis lancez la vérification pour voir le
-                résultat ici.
-              </Empty>
+              <Panel className="p-6">
+                <p className="text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
+                  Le résultat s&apos;affichera ici : pièces manquantes,
+                  informations qui ne concordent pas entre vos documents, et
+                  respect du délai légal de 30 jours.
+                </p>
+                <p className="mt-3 text-[0.8125rem] text-[var(--ink-faint)]">
+                  Rien n&apos;est transmis au registre à cette étape.
+                </p>
+              </Panel>
             )}
           </section>
         </div>
 
         {result && (
-          <div className="mt-10">
-            <SectionTitle hint="Réponses fondées sur les textes officiels du RNE">
-              Poser une question
-            </SectionTitle>
+          <section className="mt-12">
+            <SectionHeading hint="Réponses fondées sur les textes officiels du RNE">
+              Comprendre le résultat
+            </SectionHeading>
             <AssistantPanel submissionId={result.submission_id} />
-          </div>
+          </section>
         )}
       </main>
-    </div>
-  );
-}
-
-function DocumentRow({
-  labelFr,
-  labelAr,
-  file,
-  onChange,
-}: {
-  labelFr: string;
-  labelAr: string;
-  file?: File;
-  onChange: (file: File | null) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 p-4">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span
-            aria-hidden
-            className={`inline-block size-2 shrink-0 rounded-full ${
-              file ? "bg-[var(--success)]" : "bg-[var(--border)]"
-            }`}
-          />
-          <p className="truncate text-sm font-medium">{labelFr}</p>
-        </div>
-        <p className="ar mt-0.5 truncate pl-4 text-xs opacity-60">{labelAr}</p>
-        {file && (
-          <p className="mt-1 truncate pl-4 text-xs text-[var(--success)]">
-            {file.name}
-          </p>
-        )}
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          className="hidden"
-          onChange={(event) => onChange(event.target.files?.[0] ?? null)}
-        />
-        <Button variant="secondary" onClick={() => inputRef.current?.click()}>
-          {file ? "Remplacer" : "Joindre"}
-        </Button>
-        {file && (
-          <button
-            type="button"
-            onClick={() => {
-              onChange(null);
-              if (inputRef.current) inputRef.current.value = "";
-            }}
-            className="text-xs underline opacity-60 hover:opacity-100"
-          >
-            Retirer
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ResultPanel({ result }: { result: SubmissionResult }) {
-  const { completeness, flags } = result;
-
-  return (
-    <div className="space-y-4">
-      <Card className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <StatusBadge status={completeness.status} />
-          <span className="font-mono text-xs opacity-50">
-            #{result.submission_id}
-          </span>
-        </div>
-
-        <dl className="mt-4 grid grid-cols-3 gap-3 text-center">
-          <Stat label="Anomalies" value={result.flag_summary.total} />
-          <Stat
-            label="Bloquantes"
-            value={result.flag_summary.errors}
-            tone="danger"
-          />
-          <Stat
-            label="À vérifier"
-            value={result.flag_summary.warnings}
-            tone="accent"
-          />
-        </dl>
-      </Card>
-
-      {completeness.missing_documents.length > 0 && (
-        <Card className="p-5">
-          <h3 className="text-sm font-semibold">Pièces manquantes</h3>
-          <ul className="mt-3 space-y-2">
-            {completeness.missing_documents.map((doc) => (
-              <li key={doc.key} className="text-sm">
-                <span className="text-[var(--danger)]">•</span> {doc.label_fr}
-                <span className="ar block pl-3 text-xs opacity-60">
-                  {doc.label_ar}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {flags.length > 0 && (
-        <Card className="p-5">
-          <h3 className="text-sm font-semibold">Points à corriger</h3>
-          <ul className="mt-3 space-y-3">
-            {flags.map((flag, index) => (
-              <li key={`${flag.code}-${index}`} className="flex gap-2">
-                <SeverityDot severity={flag.severity} />
-                <div className="min-w-0">
-                  <p className="text-sm">{flag.message_fr}</p>
-                  <p className="ar mt-0.5 text-xs opacity-60">
-                    {flag.message_ar}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {flags.length === 0 && completeness.status === "COMPLETE" && (
-        <Card className="bg-[var(--success-soft)] p-5">
-          <p className="text-sm font-medium text-[var(--success)]">
-            Aucune anomalie détectée. Votre dossier est prêt à être déposé sur le
-            portail du RNE.
-          </p>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: "danger" | "accent";
-}) {
-  const color =
-    tone === "danger"
-      ? "text-[var(--danger)]"
-      : tone === "accent"
-        ? "text-[var(--accent)]"
-        : "";
-  return (
-    <div>
-      <dd className={`text-2xl font-bold ${color}`}>{value}</dd>
-      <dt className="mt-0.5 text-xs opacity-60">{label}</dt>
     </div>
   );
 }

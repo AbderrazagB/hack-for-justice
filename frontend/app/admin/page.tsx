@@ -1,23 +1,23 @@
+import { Flag, Inbox } from "lucide-react";
 import Link from "next/link";
 
-import {
-  Card,
-  Empty,
-  ErrorNote,
-  Header,
-  SectionTitle,
-  StatusBadge,
-} from "@/components/ui";
+import { AdminBar } from "@/components/chrome";
+import { StatBand, type Figure } from "@/components/stat-band";
+import { EmptyState, Notice, StatusBadge } from "@/components/ui";
 import { getStats, listSubmissions } from "@/lib/api";
+import { statusStyle } from "@/lib/status";
 import type { Stats, SubmissionSummary } from "@/lib/types";
 
 /**
- * Officer queue. Fetched on the server so the first paint already has data and
- * the page needs no client-side loading state; the review action calls
- * router.refresh() to pull fresh figures.
+ * Officer queue.
+ *
+ * Three distinct objects, not three paddings of one card: the navy stat band
+ * (glanceable), the filter row, and the queue as a dense table (scannable).
+ * Rows carry a left border in their status colour so the queue can be read by
+ * colour alone.
  */
 
-const STATUS_FILTERS = [
+const FILTERS = [
   { value: "", label: "Toutes" },
   { value: "SUBMITTED", label: "Déposées" },
   { value: "PRE_VALIDATED", label: "Pré-validées" },
@@ -25,6 +25,69 @@ const STATUS_FILTERS = [
   { value: "APPROVED", label: "Approuvées" },
   { value: "REJECTED", label: "Rejetées" },
 ];
+
+function figures(stats: Stats | null): Figure[] {
+  if (!stats) {
+    return [
+      { label: "Demandes reçues", value: 0, placeholder: "—" },
+      { label: "Délai moyen de décision", value: 0, placeholder: "—" },
+      { label: "Taux d'anomalie", value: 0, placeholder: "—" },
+      { label: "Anomalies par dossier", value: 0, placeholder: "—" },
+    ];
+  }
+
+  const latency = stats.average_review_seconds;
+  const latencyFigure: Figure =
+    latency === null
+      ? {
+          label: "Délai moyen de décision",
+          value: 0,
+          placeholder: "—",
+          hint: "aucune décision encore",
+        }
+      : latency < 60
+        ? {
+            label: "Délai moyen de décision",
+            value: Math.round(latency),
+            suffix: " s",
+            hint: "du dépôt à la décision",
+          }
+        : latency < 3600
+          ? {
+              label: "Délai moyen de décision",
+              value: Math.round(latency / 60),
+              suffix: " min",
+              hint: "du dépôt à la décision",
+            }
+          : {
+              label: "Délai moyen de décision",
+              value: Math.round(latency / 3600),
+              suffix: " h",
+              hint: "du dépôt à la décision",
+            };
+
+  return [
+    {
+      label: "Demandes reçues",
+      value: stats.total,
+      hint: `${stats.reviewed} décidée${stats.reviewed > 1 ? "s" : ""}`,
+    },
+    latencyFigure,
+    {
+      label: "Taux d'anomalie",
+      value: Math.round(stats.flag_rate * 100),
+      suffix: " %",
+      hint: `${stats.flagged} dossier${stats.flagged > 1 ? "s" : ""} signalé${stats.flagged > 1 ? "s" : ""}`,
+    },
+    {
+      label: "Anomalies par dossier",
+      value: stats.total
+        ? Math.round(stats.average_flags_per_submission * 10) / 10
+        : 0,
+      hint: "moyenne",
+    },
+  ];
+}
 
 export default async function OfficerQueue({
   searchParams,
@@ -38,124 +101,138 @@ export default async function OfficerQueue({
   let error = "";
 
   try {
-    const [queue, figures] = await Promise.all([
+    const [queue, figuresData] = await Promise.all([
       listSubmissions(status ? { status } : {}),
       getStats(),
     ]);
     submissions = queue.submissions;
-    stats = figures;
+    stats = figuresData;
   } catch (requestError) {
     error =
       requestError instanceof Error
         ? requestError.message
-        : "Chargement impossible.";
+        : "La file n'a pas pu être chargée.";
   }
 
   return (
     <div className="min-h-screen">
-      <Header
-        trailing={
-          <span className="rounded-full bg-[var(--brand-soft)] px-3 py-1 text-xs font-semibold text-[var(--brand-strong)]">
-            Espace agent RNE
-          </span>
-        }
-      />
+      <AdminBar />
 
-      <main className="mx-auto max-w-6xl px-5 py-10">
-        <h1 className="text-3xl font-bold tracking-tight">File de traitement</h1>
+      {/* ---------------------------------------------- navy masthead --- */}
+      <div className="bg-[var(--navy)]">
+        <div className="mx-auto max-w-6xl px-4 pb-6 sm:px-6">
+          <h1 className="t-h1 pb-5 text-white">File de traitement</h1>
+          <StatBand figures={figures(stats)} />
+        </div>
+      </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            label="Demandes traitées"
-            value={stats ? String(stats.total) : "—"}
-            hint={stats ? `${stats.reviewed} décidées` : undefined}
-          />
-          <StatCard
-            label="Délai moyen de décision"
-            value={formatLatency(stats?.average_review_seconds ?? null)}
-            hint="dépôt → décision"
-          />
-          <StatCard
-            label="Taux d'anomalie"
-            value={stats ? `${Math.round(stats.flag_rate * 100)} %` : "—"}
-            hint={stats ? `${stats.flagged} dossiers signalés` : undefined}
-            tone={stats && stats.flag_rate > 0.5 ? "accent" : undefined}
-          />
-          <StatCard
-            label="Anomalies par dossier"
-            value={stats ? stats.average_flags_per_submission.toFixed(1) : "—"}
-            hint="moyenne"
-          />
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        {error && <Notice>{error}</Notice>}
+
+        <div className="flex flex-wrap gap-1.5">
+          {FILTERS.map((filter) => {
+            const active = status === filter.value;
+            const count = stats && filter.value ? stats.by_status[filter.value] : null;
+            return (
+              <Link
+                key={filter.value}
+                href={filter.value ? `/admin?status=${filter.value}` : "/admin"}
+                aria-current={active ? "page" : undefined}
+                className={`rounded-[var(--r-control)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors ${
+                  active
+                    ? "bg-[var(--navy)] text-white"
+                    : "border border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+                }`}
+              >
+                {filter.label}
+                {count !== null && (
+                  <span className={active ? "text-white/60" : "text-[var(--ink-faint)]"}>
+                    {" "}
+                    {count ?? 0}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </div>
 
-        <div className="mt-8 flex flex-wrap gap-1.5">
-          {STATUS_FILTERS.map((filter) => (
-            <Link
-              key={filter.value}
-              href={filter.value ? `/admin?status=${filter.value}` : "/admin"}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                status === filter.value
-                  ? "bg-[var(--brand)] text-white"
-                  : "border border-[var(--border)] hover:bg-[var(--surface-muted)]"
-              }`}
-            >
-              {filter.label}
-              {stats && filter.value
-                ? ` (${stats.by_status[filter.value] ?? 0})`
-                : ""}
-            </Link>
-          ))}
-        </div>
-
-        {error && (
-          <div className="mt-6">
-            <ErrorNote>{error}</ErrorNote>
-          </div>
-        )}
-
+        {/* --------------------------------------------- queue table --- */}
         <div className="mt-5">
-          <SectionTitle hint={`${submissions.length} dossier(s)`}>
-            Demandes
-          </SectionTitle>
-
           {submissions.length === 0 && !error ? (
-            <Empty>
-              Aucun dossier pour ce filtre. Lancez{" "}
-              <code className="font-mono text-xs">
+            <EmptyState title="Aucun dossier pour ce filtre">
+              Lancez{" "}
+              <code className="t-data text-[var(--ink)]">
                 ./scripts/seed_demo_data.sh
               </code>{" "}
-              pour peupler la file.
-            </Empty>
+              pour remplir la file avec des dossiers de démonstration.
+            </EmptyState>
           ) : (
-            <Card className="divide-y divide-[var(--border)]">
-              {submissions.map((submission) => (
-                <Link
-                  key={submission.id}
-                  href={`/admin/${submission.id}`}
-                  className="flex flex-wrap items-center gap-3 p-4 transition hover:bg-[var(--surface-muted)]"
-                >
-                  <span className="font-mono text-xs opacity-50">
-                    #{submission.id}
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      Modification Entreprise
-                    </p>
-                    <p className="text-xs opacity-55">
-                      {new Date(submission.created_at).toLocaleString("fr-FR")} ·{" "}
-                      {submission.document_count} pièces
-                    </p>
-                  </div>
-
-                  <FlagBadge
-                    total={submission.flag_count}
-                    errors={submission.error_flag_count}
-                  />
-                  <StatusBadge status={submission.status} />
-                </Link>
-              ))}
-            </Card>
+            <div className="overflow-hidden rounded-[var(--r-panel)] border border-[var(--line)]">
+              {/* The table is the one element allowed to scroll sideways on a
+                  narrow screen; the page body itself never does. */}
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[34rem] border-collapse text-left">
+                  <thead>
+                    <tr className="border-b border-[var(--line-strong)] bg-[var(--canvas)]">
+                      <Th className="w-[7.5rem]">Référence</Th>
+                      <Th>Démarche</Th>
+                      <Th className="hidden w-[11rem] sm:table-cell">Reçu le</Th>
+                      <Th className="w-[8.5rem]">Anomalies</Th>
+                      <Th className="w-[9rem]">État</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {submissions.map((submission) => {
+                      const tone = statusStyle(submission.status).ink;
+                      return (
+                        <tr
+                          key={submission.id}
+                          className="border-b border-[var(--line)] bg-[var(--surface)] last:border-b-0 hover:bg-[var(--canvas)]"
+                        >
+                          <td className="relative py-0 pl-4">
+                            <span
+                              aria-hidden
+                              className="absolute top-0 bottom-0 left-0 w-[3px]"
+                              style={{ background: tone }}
+                            />
+                            <Link
+                              href={`/admin/${submission.id}`}
+                              className="t-data block py-3.5 text-[var(--ink)] hover:text-[var(--teal-ink)]"
+                            >
+                              {submission.id}
+                            </Link>
+                          </td>
+                          <td className="px-3 py-3.5 text-[0.875rem]">
+                            Modification Entreprise
+                            <span className="ar block text-[0.75rem] text-[var(--ink-faint)]">
+                              تحيين مؤسسة
+                            </span>
+                          </td>
+                          <td className="hidden px-3 py-3.5 text-[0.8125rem] text-[var(--ink-muted)] sm:table-cell">
+                            {new Date(submission.created_at).toLocaleString("fr-FR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                          <td className="px-3 py-3.5">
+                            <FlagCell
+                              total={submission.flag_count}
+                              errors={submission.error_flag_count}
+                            />
+                          </td>
+                          <td className="px-3 py-3.5">
+                            <StatusBadge status={submission.status} size="sm" />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </div>
       </main>
@@ -163,56 +240,46 @@ export default async function OfficerQueue({
   );
 }
 
-function StatCard({
-  label,
-  value,
-  hint,
-  tone,
+function Th({
+  children,
+  className = "",
 }: {
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: "accent";
+  children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <Card className="p-4">
-      <p className="text-xs opacity-60">{label}</p>
-      <p
-        className={`mt-1 text-2xl font-bold ${
-          tone === "accent" ? "text-[var(--accent)]" : ""
-        }`}
-      >
-        {value}
-      </p>
-      {hint && <p className="mt-0.5 text-xs opacity-45">{hint}</p>}
-    </Card>
+    <th
+      scope="col"
+      className={`px-3 py-2.5 text-[0.6875rem] font-semibold text-[var(--ink-muted)] first:pl-4 ${className}`}
+    >
+      {children}
+    </th>
   );
 }
 
-function FlagBadge({ total, errors }: { total: number; errors: number }) {
+function FlagCell({ total, errors }: { total: number; errors: number }) {
   if (!total) {
     return (
-      <span className="rounded-full bg-[var(--success-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--success)]">
-        0 anomalie
+      <span className="inline-flex items-center gap-1.5 text-[0.8125rem] text-[var(--ink-faint)]">
+        <Inbox size={13} strokeWidth={1.75} aria-hidden />
+        Aucune
       </span>
     );
   }
-  const tone = errors > 0 ? "danger" : "accent";
+
+  const tone = errors > 0 ? "var(--st-rejected-ink)" : "var(--st-correction-ink)";
   return (
     <span
-      className="rounded-full px-2.5 py-1 text-xs font-semibold"
-      style={{ background: `var(--${tone}-soft)`, color: `var(--${tone})` }}
+      className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium"
+      style={{ color: tone }}
     >
-      {total} anomalie{total > 1 ? "s" : ""}
-      {errors > 0 ? ` · ${errors} bloquante${errors > 1 ? "s" : ""}` : ""}
+      <Flag size={13} strokeWidth={2} aria-hidden />
+      {total}
+      {errors > 0 && (
+        <span className="text-[0.75rem] font-normal">
+          ({errors} bloquant{errors > 1 ? "s" : ""})
+        </span>
+      )}
     </span>
   );
-}
-
-function formatLatency(seconds: number | null): string {
-  if (seconds === null) return "—";
-  if (seconds < 60) return `${seconds.toFixed(1)} s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
-  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} h`;
-  return `${(seconds / 86400).toFixed(1)} j`;
 }

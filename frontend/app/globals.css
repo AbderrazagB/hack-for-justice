@@ -1,77 +1,173 @@
 @import "tailwindcss";
 
-/* Sahilli's own visual identity. Deliberately NOT derived from RNE's colours,
-   layout or government branding -- Sahilli sits in front of the registry, it
-   does not impersonate it. Deep teal reads institutional without being
-   national-flag red; amber carries warnings without alarm. */
+/* ===========================================================================
+   Sahilli design tokens. See docs/DESIGN.md for the rationale and the measured
+   contrast ratios behind every value here. Nothing in a component should carry
+   a raw hex value; everything resolves through these.
+   =========================================================================== */
+
 :root {
-  --background: #f6f7f5;
-  --foreground: #14201f;
+  /* Structure */
+  --navy: #0e2747;
+  --navy-deep: #081a31;
+  --navy-soft: #1b3a63;
 
+  /* The single accent. Bright teal is FILL-ONLY: it measures 2.79:1 on white
+     and fails AA for text. Use --teal-ink for teal text on light surfaces. */
+  --teal: #15ada2;
+  --teal-ink: #0b6e68;
+  --teal-wash: #e6f6f4;
+
+  /* Neutrals, all pulled toward the navy hue so they sit beside it. */
+  --canvas: #fafbfc;
   --surface: #ffffff;
-  --surface-muted: #eef1ee;
-  --border: #d9ded9;
+  --ink: #16273b;
+  --ink-muted: #5a6e85;
+  --ink-faint: #7d8fa2;
+  --line: #dee5ec;
+  --line-strong: #c2ceda;
 
-  --brand: #0f5b58;
-  --brand-strong: #0a423f;
-  --brand-soft: #e3f0ee;
+  /* Status system — one ink + one wash per state, used identically in the
+     MSME tracker, the officer queue and the review screen. */
+  --st-submitted-ink: #5a6e85;
+  --st-submitted-wash: #eef1f5;
+  --st-prevalidated-ink: #0b6e68;
+  --st-prevalidated-wash: #e6f6f4;
+  --st-review-ink: #0e2747;
+  --st-review-wash: #e7ecf3;
+  --st-approved-ink: #0f7b5a;
+  --st-approved-wash: #e5f3ed;
+  --st-rejected-ink: #a5231c;
+  --st-rejected-wash: #fbeae8;
+  --st-correction-ink: #8f5206;
+  --st-correction-wash: #fbf1e3;
 
-  --accent: #b4731a;
-  --accent-soft: #fbf0dd;
-
-  --danger: #9d2f2f;
-  --danger-soft: #fbe9e7;
-  --success: #2c6b41;
-  --success-soft: #e5f2e8;
+  /* Radius is tiered by function, not uniform. */
+  --r-panel: 10px;
+  --r-control: 6px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-navy: var(--navy);
+  --color-navy-deep: var(--navy-deep);
+  --color-navy-soft: var(--navy-soft);
+  --color-teal: var(--teal);
+  --color-teal-ink: var(--teal-ink);
+  --color-teal-wash: var(--teal-wash);
+  --color-canvas: var(--canvas);
   --color-surface: var(--surface);
-  --color-surface-muted: var(--surface-muted);
-  --color-border-subtle: var(--border);
-  --color-brand: var(--brand);
-  --color-brand-strong: var(--brand-strong);
-  --color-brand-soft: var(--brand-soft);
-  --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
-  --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: var(--font-plex-arabic), var(--font-plex-sans), sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0e1514;
-    --foreground: #e8ede9;
-    --surface: #161f1e;
-    --surface-muted: #1d2827;
-    --border: #2a3736;
-    --brand: #4fb3a8;
-    --brand-strong: #7fd0c6;
-    --brand-soft: #17302e;
-    --accent: #d9a049;
-    --accent-soft: #2e2415;
-    --danger: #e07a6f;
-    --danger-soft: #2e1a18;
-    --success: #6fb98a;
-    --success-soft: #16291d;
-  }
+/* ---------------------------------------------------------------- base --- */
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Arabic strings sit alongside French throughout; give them their own
-   direction without flipping the whole layout. */
+/* Type scale. Explicit — no default browser sizing anywhere. */
+.t-display {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: clamp(1.875rem, 1.2rem + 2.6vw, 2.5rem);
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.t-h1 {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 1.875rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.t-h2 {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.t-h3 {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.t-stat {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: clamp(1.75rem, 1.2rem + 1.4vw, 2.25rem);
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.t-label {
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.t-meta {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--ink-muted);
+}
+.t-data {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Arabic runs inside an otherwise LTR layout: isolate direction per string,
+   and switch to the Arabic face of the same superfamily. */
 .ar {
   direction: rtl;
   unicode-bidi: isolate;
+  font-family: var(--font-plex-arabic), var(--font-plex-sans), sans-serif;
+  line-height: 1.75;
+}
+
+/* --------------------------------------------------------------- focus --- */
+/* Visible on every interactive element, on light and on navy. */
+
+:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.on-navy :focus-visible {
+  outline-color: #6ee0d6;
+}
+
+/* ------------------------------------------------------------- motion --- */
+/* React Bits ships no reduced-motion handling; components are additionally
+   guarded in React (see components/motion.tsx). This is the CSS backstop. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

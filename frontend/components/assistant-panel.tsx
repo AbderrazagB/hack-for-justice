@@ -1,8 +1,9 @@
 "use client";
 
+import { BookOpen, CornerDownLeft, Info } from "lucide-react";
 import { type FormEvent, useState } from "react";
 
-import { Button, Card, ErrorNote } from "@/components/ui";
+import { Notice, Panel } from "@/components/ui";
 import { explainSubmission } from "@/lib/api";
 import type { ExplainResponse } from "@/lib/types";
 
@@ -11,13 +12,13 @@ type Turn = { question: string; response: ExplainResponse };
 const SUGGESTIONS = [
   "Qu'est-ce qui manque dans mon dossier ?",
   "Quel est le délai légal pour déposer ?",
-  "Que risque-je si je dépose en retard ?",
+  "Que se passe-t-il si je dépose en retard ?",
 ];
 
 /**
- * Chat panel over POST /assistant/explain. Answers are grounded in retrieved
- * RNE text; when the backend reports grounded=false we say so rather than
- * presenting an ungrounded answer as authoritative.
+ * Grounded assistant. Every answer carries the official references it was built
+ * from; when the backend reports grounded=false we say the answer is unsourced
+ * rather than presenting it as authoritative.
  */
 export function AssistantPanel({ submissionId }: { submissionId: string }) {
   const [question, setQuestion] = useState("");
@@ -34,7 +35,11 @@ export function AssistantPanel({ submissionId }: { submissionId: string }) {
       setTurns((current) => [...current, { question: asked, response }]);
       setQuestion("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "La demande a échoué.");
+      setError(
+        e instanceof Error
+          ? e.message
+          : "La réponse n'a pas pu être générée. Réessayez dans un instant.",
+      );
     } finally {
       setLoading(false);
     }
@@ -46,32 +51,33 @@ export function AssistantPanel({ submissionId }: { submissionId: string }) {
   }
 
   return (
-    <Card className="p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1.5">
+    <Panel className="overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] px-5 py-3">
+        <div className="flex flex-wrap gap-1.5">
           {SUGGESTIONS.map((suggestion) => (
             <button
               key={suggestion}
               type="button"
               onClick={() => void ask(suggestion)}
               disabled={loading}
-              className="rounded-full border border-[var(--border)] px-3 py-1 text-xs transition hover:bg-[var(--surface-muted)] disabled:opacity-50"
+              className="rounded-[var(--r-control)] border border-[var(--line)] px-2.5 py-1 text-[0.75rem] text-[var(--ink-muted)] transition-colors hover:border-[var(--line-strong)] hover:text-[var(--ink)] disabled:opacity-50"
             >
               {suggestion}
             </button>
           ))}
         </div>
 
-        <div className="flex gap-1" role="group" aria-label="Langue">
+        <div className="flex gap-0.5 rounded-[var(--r-control)] bg-[var(--canvas)] p-0.5" role="group" aria-label="Langue de la réponse">
           {(["fr", "ar"] as const).map((code) => (
             <button
               key={code}
               type="button"
               onClick={() => setLang(code)}
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold uppercase transition ${
+              aria-pressed={lang === code}
+              className={`rounded-[4px] px-2.5 py-1 text-[0.75rem] font-medium uppercase transition-colors ${
                 lang === code
-                  ? "bg-[var(--brand)] text-white"
-                  : "border border-[var(--border)]"
+                  ? "bg-[var(--navy)] text-white"
+                  : "text-[var(--ink-muted)] hover:text-[var(--ink)]"
               }`}
             >
               {code}
@@ -80,12 +86,12 @@ export function AssistantPanel({ submissionId }: { submissionId: string }) {
         </div>
       </div>
 
-      <div className="mt-5 space-y-5">
+      <div className="space-y-6 px-5 py-5">
         {turns.map((turn, index) => (
-          <div key={index} className="space-y-2">
-            <p className="text-sm font-semibold opacity-80">{turn.question}</p>
+          <div key={index}>
+            <p className="t-label text-[var(--ink-muted)]">{turn.question}</p>
             <div
-              className={`rounded-lg bg-[var(--surface-muted)] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+              className={`mt-2 text-[0.9375rem] leading-relaxed whitespace-pre-wrap ${
                 turn.response.lang === "ar" ? "ar" : ""
               }`}
             >
@@ -93,12 +99,18 @@ export function AssistantPanel({ submissionId }: { submissionId: string }) {
             </div>
 
             {turn.response.citations.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <BookOpen
+                  size={13}
+                  strokeWidth={1.75}
+                  className="text-[var(--ink-faint)]"
+                  aria-hidden
+                />
                 {turn.response.citations.map((citation) => (
                   <span
                     key={citation.entry_id}
                     title={citation.title}
-                    className="rounded-full bg-[var(--brand-soft)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--brand-strong)]"
+                    className="rounded-[var(--r-control)] bg-[var(--teal-wash)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--teal-ink)]"
                   >
                     {citation.official_reference}
                   </span>
@@ -107,31 +119,38 @@ export function AssistantPanel({ submissionId }: { submissionId: string }) {
             )}
 
             {!turn.response.grounded && (
-              <p className="text-xs text-[var(--accent)]">
-                Réponse non sourcée : les textes de référence du RNE
-                n&apos;ont pas pu être consultés. Seul le résultat de la
-                vérification est affiché.
+              <p className="mt-2 flex items-start gap-1.5 text-[0.75rem] text-[var(--st-correction-ink)]">
+                <Info size={13} strokeWidth={2} className="mt-0.5 shrink-0" aria-hidden />
+                Les textes de référence du RNE n&apos;ont pas pu être consultés.
+                Seul le résultat de la vérification est affiché ci-dessus.
               </p>
             )}
           </div>
         ))}
 
         {!turns.length && !loading && (
-          <p className="text-sm opacity-60">
-            Posez une question sur votre dossier. Les réponses s&apos;appuient
-            uniquement sur les textes officiels du RNE.
+          <p className="text-[0.875rem] text-[var(--ink-muted)]">
+            Posez une question sur votre dossier. Chaque réponse s&apos;appuie
+            uniquement sur les textes officiels du RNE, et cite lesquels.
           </p>
         )}
-        {loading && <p className="text-sm opacity-60">Recherche en cours…</p>}
+        {loading && (
+          <p className="text-[0.875rem] text-[var(--ink-muted)]">
+            Recherche dans les textes du RNE
+          </p>
+        )}
       </div>
 
       {error && (
-        <div className="mt-4">
-          <ErrorNote>{error}</ErrorNote>
+        <div className="px-5 pb-4">
+          <Notice>{error}</Notice>
         </div>
       )}
 
-      <form className="mt-5 flex gap-2" onSubmit={onSubmit}>
+      <form
+        className="flex gap-2 border-t border-[var(--line)] bg-[var(--canvas)] px-5 py-3"
+        onSubmit={onSubmit}
+      >
         <label className="sr-only" htmlFor="assistant-question">
           Votre question
         </label>
@@ -139,13 +158,18 @@ export function AssistantPanel({ submissionId }: { submissionId: string }) {
           id="assistant-question"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
-          placeholder="Posez votre question…"
-          className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm outline-none focus:border-[var(--brand)]"
+          placeholder="Posez votre question"
+          className="min-w-0 flex-1 rounded-[var(--r-control)] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[0.875rem] outline-none focus:border-[var(--teal)]"
         />
-        <Button type="submit" disabled={loading}>
-          {loading ? "…" : "Envoyer"}
-        </Button>
+        <button
+          type="submit"
+          disabled={loading}
+          className="inline-flex items-center gap-1.5 rounded-[var(--r-control)] bg-[var(--navy)] px-3.5 py-2 text-[0.8125rem] font-medium text-white transition-colors hover:bg-[var(--navy-deep)] disabled:opacity-50"
+        >
+          <CornerDownLeft size={14} strokeWidth={2} aria-hidden />
+          Envoyer
+        </button>
       </form>
-    </Card>
+    </Panel>
   );
 }
