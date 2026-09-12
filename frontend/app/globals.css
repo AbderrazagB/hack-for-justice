@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
+/* Sahilli's own visual identity. Deliberately NOT derived from RNE's colours,
+   layout or government branding -- Sahilli sits in front of the registry, it
+   does not impersonate it. Deep teal reads institutional without being
+   national-flag red; amber carries warnings without alarm. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f7f5;
+  --foreground: #14201f;
+
+  --surface: #ffffff;
+  --surface-muted: #eef1ee;
+  --border: #d9ded9;
+
+  --brand: #0f5b58;
+  --brand-strong: #0a423f;
+  --brand-soft: #e3f0ee;
+
+  --accent: #b4731a;
+  --accent-soft: #fbf0dd;
+
+  --danger: #9d2f2f;
+  --danger-soft: #fbe9e7;
+  --success: #2c6b41;
+  --success-soft: #e5f2e8;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border-subtle: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0e1514;
+    --foreground: #e8ede9;
+    --surface: #161f1e;
+    --surface-muted: #1d2827;
+    --border: #2a3736;
+    --brand: #4fb3a8;
+    --brand-strong: #7fd0c6;
+    --brand-soft: #17302e;
+    --accent: #d9a049;
+    --accent-soft: #2e2415;
+    --danger: #e07a6f;
+    --danger-soft: #2e1a18;
+    --success: #6fb98a;
+    --success-soft: #16291d;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Arabic strings sit alongside French throughout; give them their own
+   direction without flipping the whole layout. */
+.ar {
+  direction: rtl;
+  unicode-bidi: isolate;
 }
