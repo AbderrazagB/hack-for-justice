@@ -64,11 +64,26 @@ class Settings(BaseSettings):
     cookie_secure: bool = Field(default=False, validation_alias="COOKIE_SECURE")
     cookie_domain: str | None = Field(default=None, validation_alias="COOKIE_DOMAIN")
 
+    # Comma-separated list. Wildcards are not supported on purpose: credentials
+    # are sent with every request, and "*" plus credentials is not permitted.
+    cors_origins: str = Field(
+        default="http://localhost:3000", validation_alias="CORS_ORIGINS"
+    )
+
+    # Only trust X-Forwarded-For when actually behind a proxy. Otherwise a
+    # client could spoof the header and evade rate limiting by rotating it.
+    trust_proxy_headers: bool = Field(default=False, validation_alias="TRUST_PROXY_HEADERS")
+
     model_config = SettingsConfigDict(
         env_file=("../.env", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 @lru_cache

@@ -13,6 +13,20 @@ import type {
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+/**
+ * Forward the caller's session cookie from a Server Component.
+ *
+ * `credentials: "include"` only means anything in the browser. A server-side
+ * fetch has no cookie jar, so the officer pages have to read the incoming
+ * request's cookies and pass them on explicitly.
+ */
+export async function serverAuthHeaders(): Promise<HeadersInit> {
+  const { cookies } = await import("next/headers");
+  const jar = await cookies();
+  const header = jar.toString();
+  return header ? { Cookie: header } : {};
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -99,24 +113,27 @@ export function createSubmission(
   );
 }
 
-export function getSubmission(id: string): Promise<Submission> {
-  return request<Submission>(`/submissions/${id}`);
+export function getSubmission(
+  id: string,
+  headers: HeadersInit = {},
+): Promise<Submission> {
+  return request<Submission>(`/submissions/${id}`, { headers });
 }
 
-export function listSubmissions(filters: {
-  status?: string;
-  transactionType?: string;
-} = {}): Promise<{ count: number; submissions: SubmissionSummary[] }> {
+export function listSubmissions(
+  filters: { status?: string; transactionType?: string } = {},
+  headers: HeadersInit = {},
+): Promise<{ count: number; submissions: SubmissionSummary[] }> {
   const params = new URLSearchParams();
   if (filters.status) params.set("status", filters.status);
   if (filters.transactionType)
     params.set("transaction_type", filters.transactionType);
   const query = params.toString();
-  return request(`/submissions${query ? `?${query}` : ""}`);
+  return request(`/submissions${query ? `?${query}` : ""}`, { headers });
 }
 
-export function getStats(): Promise<Stats> {
-  return request<Stats>("/submissions/stats");
+export function getStats(headers: HeadersInit = {}): Promise<Stats> {
+  return request<Stats>("/submissions/stats", { headers });
 }
 
 export function reviewSubmission(

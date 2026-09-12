@@ -6,8 +6,9 @@ Pre-validation and institutional review for RNE filings.
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api import assistant, auth, health, query, submissions, upload
 from app.core.config import settings
@@ -51,11 +52,53 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    # Explicit origins from config, never "*": credentials are sent with every
+    # request and a wildcard plus credentials is not permitted.
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,  # required for the session cookie to cross ports
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+    max_age=600,
 )
+
+# Uploads are capped per file and per batch in app/core/uploads.py, but that
+# happens after the body is read. This refuses an oversized request up front.
+MAX_REQUEST_BYTES = 48 * 1024 * 1024
+
+
+@app.middleware("http")
+async def guard_request_size(request: Request, call_next):
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_REQUEST_BYTES:
+        return JSONResponse(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            content={"detail": "Requête trop volumineuse."},
+        )
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Baseline response headers.
+
+    The API serves JSON and uploaded documents, never HTML, so the strictest
+    useful policy is to forbid framing and content sniffing outright. HSTS is
+    only sent when the deployment says it is behind TLS -- asserting it over
+    plain HTTP would pin a browser to a scheme this instance cannot serve.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+    response.headers.setdefault(
+        "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+    )
+    if settings.cookie_secure:
+        response.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
+    return response
 
 app.include_router(health.router)
 app.include_router(auth.router)

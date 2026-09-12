@@ -147,32 +147,32 @@ def test_unknown_submission_is_404(client) -> None:
 
 # --------------------------------------------------------------------- queue
 
-def test_queue_lists_newest_first(client, png) -> None:
-    first = _upload(client, png).json()["submission_id"]
-    second = _upload(client, png).json()["submission_id"]
+def test_queue_lists_newest_first(officer_client, png) -> None:
+    first = _upload(officer_client, png).json()["submission_id"]
+    second = _upload(officer_client, png).json()["submission_id"]
 
-    body = client.get("/submissions").json()
+    body = officer_client.get("/submissions").json()
     assert body["count"] == 2
     assert next(s["id"] for s in body["submissions"]) in {first, second}
 
 
-def test_queue_filters_by_status(client, png) -> None:
-    _upload(client, png)  # PRE_VALIDATED
-    _upload(client, png, doc_types=[d for d in CLEAN_FIELDS if d != "rne_extract"])  # SUBMITTED
+def test_queue_filters_by_status(officer_client, png) -> None:
+    _upload(officer_client, png)  # PRE_VALIDATED
+    _upload(officer_client, png, doc_types=[d for d in CLEAN_FIELDS if d != "rne_extract"])  # SUBMITTED
 
-    assert client.get("/submissions?status=PRE_VALIDATED").json()["count"] == 1
-    assert client.get("/submissions?status=SUBMITTED").json()["count"] == 1
-
-
-def test_queue_filters_by_transaction_type(client, png) -> None:
-    _upload(client, png)
-    assert client.get(f"/submissions?transaction_type={TXN}").json()["count"] == 1
-    assert client.get("/submissions?transaction_type=OTHER").json()["count"] == 0
+    assert officer_client.get("/submissions?status=PRE_VALIDATED").json()["count"] == 1
+    assert officer_client.get("/submissions?status=SUBMITTED").json()["count"] == 1
 
 
-def test_queue_summary_carries_flag_counts(client, png) -> None:
-    _upload(client, png, doc_types=[d for d in CLEAN_FIELDS if d != "rne_extract"])
-    summary = client.get("/submissions").json()["submissions"][0]
+def test_queue_filters_by_transaction_type(officer_client, png) -> None:
+    _upload(officer_client, png)
+    assert officer_client.get(f"/submissions?transaction_type={TXN}").json()["count"] == 1
+    assert officer_client.get("/submissions?transaction_type=OTHER").json()["count"] == 0
+
+
+def test_queue_summary_carries_flag_counts(officer_client, png) -> None:
+    _upload(officer_client, png, doc_types=[d for d in CLEAN_FIELDS if d != "rne_extract"])
+    summary = officer_client.get("/submissions").json()["submissions"][0]
     assert summary["flag_count"] >= 1
     assert summary["error_flag_count"] >= 1
     assert summary["completeness_status"] == "INCOMPLETE"
@@ -188,59 +188,61 @@ def test_queue_summary_carries_flag_counts(client, png) -> None:
         ("request_correction", "NEEDS_CORRECTION"),
     ],
 )
-def test_review_actions_set_status(client, png, action: str, expected: str) -> None:
-    submission_id = _upload(client, png).json()["submission_id"]
+def test_review_actions_set_status(officer_client, png, action: str, expected: str) -> None:
+    submission_id = _upload(officer_client, png).json()["submission_id"]
 
-    response = client.post(
+    response = officer_client.post(
         f"/submissions/{submission_id}/review",
         json={"action": action, "note": "vu par l'agent"},
     )
     assert response.status_code == 200
     assert response.json()["status"] == expected
 
-    assert client.get(f"/submissions/{submission_id}").json()["status"] == expected
+    assert officer_client.get(f"/submissions/{submission_id}").json()["status"] == expected
 
 
-def test_review_records_note_and_officer(client, png) -> None:
-    submission_id = _upload(client, png).json()["submission_id"]
-    client.post(
+def test_review_records_note_and_officer(officer_client, png) -> None:
+    submission_id = _upload(officer_client, png).json()["submission_id"]
+    officer_client.post(
         f"/submissions/{submission_id}/review",
-        json={"action": "request_correction", "note": "Extrait trop ancien", "officer": "agent-07"},
+        json={"action": "request_correction", "note": "Extrait trop ancien"},
     )
-    review = client.get(f"/submissions/{submission_id}").json()["reviews"][0]
+    review = officer_client.get(f"/submissions/{submission_id}").json()["reviews"][0]
     assert review["note"] == "Extrait trop ancien"
-    assert review["officer"] == "agent-07"
+    # The acting officer comes from the session, never the request body, so the
+    # audit trail cannot be forged by the caller.
+    assert review["officer"] == "officer@rne.tn"
     assert review["at"]
 
 
-def test_review_history_accumulates(client, png) -> None:
-    submission_id = _upload(client, png).json()["submission_id"]
-    client.post(f"/submissions/{submission_id}/review", json={"action": "request_correction"})
-    client.post(f"/submissions/{submission_id}/review", json={"action": "approve"})
+def test_review_history_accumulates(officer_client, png) -> None:
+    submission_id = _upload(officer_client, png).json()["submission_id"]
+    officer_client.post(f"/submissions/{submission_id}/review", json={"action": "request_correction"})
+    officer_client.post(f"/submissions/{submission_id}/review", json={"action": "approve"})
 
-    detail = client.get(f"/submissions/{submission_id}").json()
+    detail = officer_client.get(f"/submissions/{submission_id}").json()
     assert len(detail["reviews"]) == 2
     assert detail["status"] == "APPROVED"
 
 
-def test_review_on_unknown_submission_is_404(client) -> None:
-    response = client.post("/submissions/nope/review", json={"action": "approve"})
+def test_review_on_unknown_submission_is_404(officer_client) -> None:
+    response = officer_client.post("/submissions/nope/review", json={"action": "approve"})
     assert response.status_code == 404
 
 
-def test_invalid_review_action_is_422(client, png) -> None:
-    submission_id = _upload(client, png).json()["submission_id"]
-    response = client.post(f"/submissions/{submission_id}/review", json={"action": "shred"})
+def test_invalid_review_action_is_422(officer_client, png) -> None:
+    submission_id = _upload(officer_client, png).json()["submission_id"]
+    response = officer_client.post(f"/submissions/{submission_id}/review", json={"action": "shred"})
     assert response.status_code == 422
 
 
 # --------------------------------------------------------------------- stats
 
-def test_stats_are_computed_from_stored_data(client, png) -> None:
-    _upload(client, png)
-    _upload(client, png, doc_types=[d for d in CLEAN_FIELDS if d != "rne_extract"])
+def test_stats_are_computed_from_stored_data(officer_client, png) -> None:
+    _upload(officer_client, png)
+    _upload(officer_client, png, doc_types=[d for d in CLEAN_FIELDS if d != "rne_extract"])
 
-    stats = client.get("/submissions/stats").json()
+    stats = officer_client.get("/submissions/stats").json()
     assert stats["total"] == 2
     assert stats["flagged"] == 1
     assert stats["flag_rate"] == 0.5
@@ -249,18 +251,18 @@ def test_stats_are_computed_from_stored_data(client, png) -> None:
     assert stats["average_review_seconds"] is None
 
 
-def test_stats_report_review_latency_once_reviewed(client, png) -> None:
-    submission_id = _upload(client, png).json()["submission_id"]
-    client.post(f"/submissions/{submission_id}/review", json={"action": "approve"})
+def test_stats_report_review_latency_once_reviewed(officer_client, png) -> None:
+    submission_id = _upload(officer_client, png).json()["submission_id"]
+    officer_client.post(f"/submissions/{submission_id}/review", json={"action": "approve"})
 
-    stats = client.get("/submissions/stats").json()
+    stats = officer_client.get("/submissions/stats").json()
     assert stats["reviewed"] == 1
     assert stats["average_review_seconds"] is not None
     assert stats["average_review_seconds"] >= 0
 
 
-def test_stats_on_empty_store_do_not_divide_by_zero(client) -> None:
-    stats = client.get("/submissions/stats").json()
+def test_stats_on_empty_store_do_not_divide_by_zero(officer_client) -> None:
+    stats = officer_client.get("/submissions/stats").json()
     assert stats == {
         "total": 0,
         "by_status": {},
@@ -272,27 +274,27 @@ def test_stats_on_empty_store_do_not_divide_by_zero(client) -> None:
     }
 
 
-def test_stats_path_is_not_captured_as_a_submission_id(client, png) -> None:
+def test_stats_path_is_not_captured_as_a_submission_id(officer_client, png) -> None:
     """/submissions/stats must not resolve to /submissions/{id}."""
-    _upload(client, png)
-    assert client.get("/submissions/stats").status_code == 200
-    assert "total" in client.get("/submissions/stats").json()
+    _upload(officer_client, png)
+    assert officer_client.get("/submissions/stats").status_code == 200
+    assert "total" in officer_client.get("/submissions/stats").json()
 
 
 # ----------------------------------------------------------- document serving
 
-def test_uploaded_document_can_be_fetched_back(client, png) -> None:
-    submission_id = _upload(client, png).json()["submission_id"]
-    detail = client.get(f"/submissions/{submission_id}").json()
+def test_uploaded_document_can_be_fetched_back(officer_client, png) -> None:
+    submission_id = _upload(officer_client, png).json()["submission_id"]
+    detail = officer_client.get(f"/submissions/{submission_id}").json()
     stored = detail["documents"]["rne_extract"]
 
-    response = client.get(f"/documents/rne_extract/{stored['stored_path']}")
+    response = officer_client.get(f"/documents/rne_extract/{stored['stored_path']}")
     assert response.status_code == 200
     assert response.content == png
 
 
-def test_missing_document_is_404(client) -> None:
-    assert client.get("/documents/rne_extract/nope.png").status_code == 404
+def test_missing_document_is_404(officer_client) -> None:
+    assert officer_client.get("/documents/rne_extract/nope.png").status_code == 404
 
 
 @pytest.mark.parametrize(

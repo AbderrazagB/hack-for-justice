@@ -1,11 +1,17 @@
-import { Flag, Inbox } from "lucide-react";
+import { Flag, Inbox, LogIn, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
 import { AdminBar } from "@/components/chrome";
 import { HeroAurora } from "@/components/hero-aurora";
 import { StatBand, type Figure } from "@/components/stat-band";
 import { EmptyState, Notice, StatusBadge } from "@/components/ui";
-import { getStats, listSubmissions, listTransactions } from "@/lib/api";
+import {
+  ApiError,
+  getStats,
+  listSubmissions,
+  listTransactions,
+  serverAuthHeaders,
+} from "@/lib/api";
 import { statusStyle } from "@/lib/status";
 import type { Stats, SubmissionSummary, TransactionInfo } from "@/lib/types";
 
@@ -101,24 +107,43 @@ export default async function OfficerQueue({
   let stats: Stats | null = null;
   let transactions: TransactionInfo[] = [];
   let error = "";
+  let unauthorised = false;
+
+  const headers = await serverAuthHeaders();
 
   try {
     const [queue, figuresData, transactionList] = await Promise.all([
-      listSubmissions({
-        ...(status ? { status } : {}),
-        ...(transaction ? { transactionType: transaction } : {}),
-      }),
-      getStats(),
+      listSubmissions(
+        {
+          ...(status ? { status } : {}),
+          ...(transaction ? { transactionType: transaction } : {}),
+        },
+        headers,
+      ),
+      getStats(headers),
       listTransactions(),
     ]);
     submissions = queue.submissions;
     stats = figuresData;
     transactions = transactionList;
   } catch (requestError) {
-    error =
-      requestError instanceof Error
-        ? requestError.message
-        : "La file n'a pas pu être chargée.";
+    // The queue lists every applicant's filing, so the backend requires an
+    // officer session. Distinguish "not signed in" from a genuine failure.
+    if (
+      requestError instanceof ApiError &&
+      (requestError.status === 401 || requestError.status === 403)
+    ) {
+      unauthorised = true;
+    } else {
+      error =
+        requestError instanceof Error
+          ? requestError.message
+          : "La file n'a pas pu être chargée.";
+    }
+  }
+
+  if (unauthorised) {
+    return <OfficerSignInRequired />;
   }
 
   return (
@@ -361,5 +386,45 @@ function FilterChip({
     >
       {children}
     </Link>
+  );
+}
+
+/**
+ * Shown when the officer surfaces are reached without an officer session.
+ *
+ * A bare 401 would read as a broken page. This says what is needed and where
+ * to go, without hinting at what the queue contains.
+ */
+function OfficerSignInRequired() {
+  return (
+    <div className="min-h-screen">
+      <AdminBar />
+      <main className="mx-auto max-w-xl px-4 py-20 sm:px-8">
+        <div className="rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-8 text-center">
+          <span
+            aria-hidden
+            className="mx-auto flex size-12 items-center justify-center rounded-full bg-[var(--brand-soft,var(--teal-wash))] text-[var(--teal-ink)]"
+          >
+            <ShieldAlert size={24} strokeWidth={1.8} />
+          </span>
+          <h1 className="t-h2 mt-5 text-[var(--navy)]">Accès réservé aux agents</h1>
+          <p className="ar ar-center mt-1 text-[0.9375rem] text-[var(--ink-muted)]">
+            فضاء محجوز لأعوان السجل
+          </p>
+          <p className="mx-auto mt-4 max-w-sm text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
+            La file de traitement contient les dossiers déposés par les
+            entreprises. Connectez-vous avec un compte agent du registre pour y
+            accéder.
+          </p>
+          <Link
+            href="/login"
+            className="mt-6 inline-flex items-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-5 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-[var(--teal-ink)]"
+          >
+            <LogIn size={17} strokeWidth={2} aria-hidden />
+            Se connecter
+          </Link>
+        </div>
+      </main>
+    </div>
   );
 }

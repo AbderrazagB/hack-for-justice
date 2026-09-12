@@ -247,6 +247,44 @@ cd backend && uv run python ../scripts/create_officer.py agent@rne.tn "Nom Agent
 > this repository, so anyone who has read it could mint a valid session. The
 > backend logs a warning at startup while the default is in use.
 
+## Security posture
+
+What is enforced today, and what is deliberately not.
+
+**Authorization.** The officer surfaces — the queue, the live stats, the stored
+documents and the review decision — require an officer session. An applicant
+account receives 403, an anonymous caller 401. Submitting stays open to guests,
+because checking a dossier without an account is a product requirement; a guest
+submission is then readable by anyone holding its id, which is a capability URL
+and the price of that choice. The acting officer on a review comes from the
+session, never the request body, so the audit trail cannot be forged.
+
+**Uploads.** Each file is capped at 10 MB, a submission at 12 files and 40 MB,
+and the request body at 48 MB. The declared `Content-Type` is ignored: the file
+is identified from its own magic bytes against an allowlist, so a script
+renamed `.png` is refused. Document types must belong to the transaction being
+filed.
+
+**Credentials.** Argon2id hashes, JWT sessions in an httpOnly SameSite=lax
+cookie, algorithm pinned on decode. Login is rate limited to 10 attempts per 5
+minutes per client, signup to 5 per hour, submissions to 20 per hour, the
+assistant to 30 per 10 minutes.
+
+**Responses** carry `nosniff`, `X-Frame-Options: DENY`, `no-referrer`, a
+`frame-ancestors 'none'` CSP, and HSTS only when `COOKIE_SECURE=true` — a
+plain-HTTP deployment must not pin a scheme it cannot serve.
+
+> **Known limits.** Rate limiting is in-process: it resets on restart and does
+> not coordinate across workers, so it is a speed bump rather than a defence
+> against a distributed attacker. Put a real limiter at the edge before this is
+> public. `JWT_SECRET` must be replaced; the default is in this repository.
+
+Create an officer account (never self-registerable):
+
+```bash
+cd backend && uv run python ../scripts/create_officer.py agent@rne.tn "Nom Agent"
+```
+
 ## Project structure
 
 ```text

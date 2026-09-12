@@ -1,7 +1,9 @@
+import { redirect } from "next/navigation";
+
 import { SubmissionReview } from "@/components/submission-review";
 import { AdminBar } from "@/components/chrome";
 import { EmptyState, Notice } from "@/components/ui";
-import { getSubmission } from "@/lib/api";
+import { ApiError, getSubmission, serverAuthHeaders } from "@/lib/api";
 import type { Submission } from "@/lib/types";
 
 /**
@@ -19,8 +21,14 @@ export default async function SubmissionDetail({
   let error = "";
 
   try {
-    submission = await getSubmission(submissionId);
+    submission = await getSubmission(submissionId, await serverAuthHeaders());
   } catch (requestError) {
+    if (
+      requestError instanceof ApiError &&
+      (requestError.status === 401 || requestError.status === 403)
+    ) {
+      redirect("/login");
+    }
     error =
       requestError instanceof Error
         ? requestError.message

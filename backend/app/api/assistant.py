@@ -13,10 +13,11 @@ from __future__ import annotations
 import logging
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.core.llm_client import LLMClient
+from app.core.rate_limit import ASSISTANT_LIMIT, enforce
 from app.models.submission import SubmissionStore, get_store
 from app.services.retrieval_service import RetrievalService
 
@@ -59,6 +60,7 @@ class ExplainRequest(BaseModel):
     submission_id: str
     question: str = Field(
         default="",
+        max_length=500,
         description="Optional user question; defaults to explaining what is wrong.",
     )
     lang: Literal["fr", "ar"] = "fr"
@@ -92,10 +94,14 @@ def get_llm_client() -> LLMClient:
 @router.post("/assistant/explain", response_model=ExplainResponse)
 def explain(
     request: ExplainRequest,
+    http_request: Request,
     store: SubmissionStore = Depends(get_store),
     retrieval: RetrievalService = Depends(get_retrieval_service),
     llm: Annotated[LLMClient, Depends(get_llm_client)] = None,
 ) -> ExplainResponse:
+    # Each call costs an embedding round-trip and an LLM completion.
+    enforce(http_request, "assistant", ASSISTANT_LIMIT)
+
     submission = store.get(request.submission_id)
     if submission is None:
         raise HTTPException(

@@ -93,6 +93,8 @@ class Submission:
     # fiscal_year_end for the financial statements filing. Kept generic so a
     # third workflow needs no model change.
     context: dict[str, Any] = field(default_factory=dict)
+    # Account that filed it, when signed in. None for guest filings.
+    owner_id: str | None = None
 
     # -- derived ------------------------------------------------------------
 
@@ -131,6 +133,7 @@ class Submission:
             "updated_at": self.updated_at,
             "submitted_at": self.submitted_at,
             "context": self.context,
+            "owner_id": self.owner_id,
             "documents": self.documents,
             "completeness": self.completeness,
             "flags": self.flags,
@@ -173,6 +176,7 @@ class Submission:
             updated_at=raw["updated_at"],
             submitted_at=raw.get("submitted_at"),
             context=raw.get("context", {}),
+            owner_id=raw.get("owner_id"),
             documents=raw.get("documents", {}),
             completeness=raw.get("completeness", {}),
             flags=raw.get("flags", []),
@@ -221,6 +225,7 @@ class SubmissionStore:
         status: str,
         submitted_at: str | None = None,
         context: dict[str, Any] | None = None,
+        owner_id: str | None = None,
     ) -> Submission:
         submission = Submission(
             id=uuid.uuid4().hex[:12],
@@ -230,6 +235,7 @@ class SubmissionStore:
             updated_at=_now(),
             submitted_at=submitted_at,
             context=context or {},
+            owner_id=owner_id,
             documents=documents,
             completeness=completeness,
             flags=flags,

@@ -166,10 +166,10 @@ def test_shareholder_without_id_is_flagged(client, png) -> None:
     assert "shareholder_list_ids_present_for_each_entry" in codes
 
 
-def test_unregistered_pv_is_a_warning_not_an_error(client, png) -> None:
+def test_unregistered_pv_is_a_warning_not_an_error(officer_client, png) -> None:
     fields = {**CLEAN_FIELDS}
     fields["general_assembly_pv_approval"] = {"full_text": "Procès-verbal"}
-    body = _submit(client, png, fields=fields).json()
+    body = _submit(officer_client, png, fields=fields).json()
 
     flag = next(
         f
@@ -181,20 +181,22 @@ def test_unregistered_pv_is_a_warning_not_an_error(client, png) -> None:
 
 # -------------------------------------------------------------- queue/review
 
-def test_queue_filters_by_transaction_type(client, png) -> None:
-    _submit(client, png)
-    assert client.get(f"/submissions?transaction_type={TXN}").json()["count"] == 1
+def test_queue_filters_by_transaction_type(officer_client, png) -> None:
+    _submit(officer_client, png)
     assert (
-        client.get(
+        officer_client.get(f"/submissions?transaction_type={TXN}").json()["count"] == 1
+    )
+    assert (
+        officer_client.get(
             "/submissions?transaction_type=RNE_MODIFICATION_ENTREPRISE"
         ).json()["count"]
         == 0
     )
 
 
-def test_review_works_for_this_workflow(client, png) -> None:
-    submission_id = _submit(client, png).json()["submission_id"]
-    response = client.post(
+def test_review_works_for_this_workflow(officer_client, png) -> None:
+    submission_id = _submit(officer_client, png).json()["submission_id"]
+    response = officer_client.post(
         f"/submissions/{submission_id}/review",
         json={"action": "approve", "note": "Comptes conformes"},
     )
@@ -202,6 +204,6 @@ def test_review_works_for_this_workflow(client, png) -> None:
     assert response.json()["status"] == "APPROVED"
 
 
-def test_stats_count_both_workflows_together(client, png) -> None:
-    _submit(client, png)
-    assert client.get("/submissions/stats").json()["total"] == 1
+def test_stats_count_both_workflows_together(officer_client, png) -> None:
+    _submit(officer_client, png)
+    assert officer_client.get("/submissions/stats").json()["total"] == 1

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_session
+from app.core.rate_limit import LOGIN_LIMIT, SIGNUP_LIMIT, enforce
 from app.core.security import (
     SESSION_COOKIE,
     TokenError,
@@ -131,6 +132,22 @@ async def current_user(
     return user
 
 
+async def optional_user(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> User | None:
+    """The signed-in user, or None. Never raises.
+
+    Used where a route serves both guests and account holders -- creating a
+    submission, reading one back -- so the absence of a session is a valid
+    state rather than an error.
+    """
+    try:
+        return await current_user(request, session)
+    except HTTPException:
+        return None
+
+
 async def current_officer(
     user: Annotated[User, Depends(current_user)],
 ) -> User:
@@ -148,6 +165,7 @@ async def current_officer(
 @router.post("/signup", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def signup(
     request: SignupRequest,
+    http_request: Request,
     response: Response,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SessionResponse:
@@ -157,6 +175,8 @@ async def signup(
     hand anyone the review dashboard, so officer accounts are created out of
     band (see scripts/create_officer.py).
     """
+    enforce(http_request, "signup", SIGNUP_LIMIT)
+
     try:
         user = await create_user(
             session,
@@ -183,9 +203,14 @@ async def signup(
 @router.post("/login", response_model=SessionResponse)
 async def login(
     request: LoginRequest,
+    http_request: Request,
     response: Response,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> SessionResponse:
+    # Rate limited before the password is even checked: this is the endpoint a
+    # credential-stuffing run targets.
+    enforce(http_request, "login", LOGIN_LIMIT)
+
     user = await authenticate(
         session, email=request.email, password=request.password
     )

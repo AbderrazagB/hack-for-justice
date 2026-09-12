@@ -14,12 +14,17 @@ from fastapi import (
     Form,
     HTTPException,
     Query,
+    Request,
     UploadFile,
     status,
 )
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from app.api.auth import current_officer, optional_user
+from app.core.rate_limit import SUBMISSION_LIMIT, enforce
+from app.core.uploads import validate_batch, validate_upload
 from app.models.submission import (
     DEFAULT_UPLOAD_DIR,
     ReviewAction,
@@ -28,6 +33,7 @@ from app.models.submission import (
     SubmissionStore,
     get_store,
 )
+from app.models.user import User, UserRole
 from app.services.ocr_service import OCRService
 from app.services.rules_engine import (
     COMPANY_TYPES,
@@ -52,8 +58,7 @@ def get_upload_dir() -> Path:
 
 class ReviewRequest(BaseModel):
     action: ReviewAction
-    note: str = ""
-    officer: str = "officer"
+    note: str = Field(default="", max_length=2000)
 
 
 class ContextField(BaseModel):
@@ -172,6 +177,7 @@ def list_transactions() -> list[TransactionInfo]:
     status_code=status.HTTP_201_CREATED,
 )
 async def create_submission(
+    request: Request,
     transaction_type: str,
     # NOTE: these must be declared as bare `list[...]`. Writing `list[str] | None`
     # makes FastAPI treat the field as a single optional value, so repeated form
@@ -189,6 +195,7 @@ async def create_submission(
     auditor_required: Annotated[bool, Form()] = False,
     store: SubmissionStore = Depends(get_store),
     upload_dir: Path = Depends(get_upload_dir),
+    user: User | None = Depends(optional_user),
 ) -> dict[str, Any]:
     """Accept documents, run OCR + completeness + flagging, return the verdict.
 
@@ -203,8 +210,24 @@ async def create_submission(
             f"Known: {', '.join(TRANSACTION_RULES)}",
         )
 
+    enforce(request, "submission", SUBMISSION_LIMIT)
+
     files = files or []
     document_types = document_types or []
+
+    # A document type outside the transaction's own list would be stored under
+    # an arbitrary directory name and silently ignored by the rules engine.
+    allowed = set(TRANSACTION_RULES[transaction_type]["required_documents"])
+    unknown = sorted({d for d in document_types if d not in allowed})
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Type de document inconnu pour cette démarche : "
+                f"{', '.join(unknown)}."
+            ),
+        )
+
     if len(files) != len(document_types):
         raise HTTPException(
             status_code=400,
@@ -214,16 +237,27 @@ async def create_submission(
 
     ocr = OCRService()
     documents: dict[str, Any] = {}
+    total_bytes = 0
 
     for upload, doc_type in zip(files, document_types):
         content = await upload.read()
+        # Validate before writing anything: the declared Content-Type is
+        # attacker-controlled, so the file's own bytes decide what it is.
+        detected_type = validate_upload(content, upload.filename or doc_type)
+        total_bytes += len(content)
+        validate_batch(len(files), total_bytes)
+
         stored_path = _persist(content, upload.filename or doc_type, doc_type, upload_dir)
-        result = ocr.extract(content, upload.filename or "", doc_type)
+        # OCR is synchronous and can take seconds per page. Called directly it
+        # would block the event loop and stall every other request behind it.
+        result = await run_in_threadpool(
+            ocr.extract, content, upload.filename or "", doc_type
+        )
 
         documents[doc_type] = {
             "filename": Path(upload.filename or doc_type).name,
             "stored_path": stored_path.name,
-            "content_type": upload.content_type,
+            "content_type": detected_type,
             "size_bytes": len(content),
             **result.to_dict(),
         }
@@ -261,6 +295,7 @@ async def create_submission(
         status=_initial_status(completeness.status).value,
         submitted_at=submitted_at,
         context=context,
+        owner_id=str(user.id) if user else None,
     )
 
     return {
@@ -324,6 +359,7 @@ def get_document(
     document_type: str,
     filename: str,
     upload_dir: Path = Depends(get_upload_dir),
+    officer: User = Depends(current_officer),
 ) -> FileResponse:
     """Serve an uploaded document so the officer can read it beside the
     extracted fields.
@@ -354,8 +390,12 @@ def list_submissions(
     status_filter: Annotated[str | None, Query(alias="status")] = None,
     transaction_type: Annotated[str | None, Query()] = None,
     store: SubmissionStore = Depends(get_store),
+    officer: User = Depends(current_officer),
 ) -> dict[str, Any]:
-    """Officer queue, newest first, filterable by status and transaction type."""
+    """Officer queue, newest first, filterable by status and transaction type.
+
+    Officer-only: the queue lists every applicant's filing and its anomalies.
+    """
     submissions = store.list(status=status_filter, transaction_type=transaction_type)
     return {
         "count": len(submissions),
@@ -364,7 +404,10 @@ def list_submissions(
 
 
 @router.get("/submissions/stats", response_model=StatsResponse)
-def submission_stats(store: SubmissionStore = Depends(get_store)) -> StatsResponse:
+def submission_stats(
+    store: SubmissionStore = Depends(get_store),
+    officer: User = Depends(current_officer),
+) -> StatsResponse:
     """Live dashboard figures, computed from stored submissions.
 
     Declared before /submissions/{submission_id} so "stats" is not captured as
@@ -400,10 +443,30 @@ def submission_stats(store: SubmissionStore = Depends(get_store)) -> StatsRespon
 
 @router.get("/submissions/{submission_id}")
 def get_submission(
-    submission_id: str, store: SubmissionStore = Depends(get_store)
+    submission_id: str,
+    store: SubmissionStore = Depends(get_store),
+    user: User | None = Depends(optional_user),
 ) -> dict[str, Any]:
-    """Full detail: status, extracted fields, flags, and review history."""
+    """Full detail: status, extracted fields, flags, and review history.
+
+    Readable by an officer, by the applicant who filed it, or by anyone holding
+    the id of a guest filing. That last case is a capability URL: guest filings
+    have no owner to check against, and the id is a random 12-hex token. It is
+    the price of letting people check a dossier without an account -- an
+    accounts-only product would drop this branch.
+    """
     submission = _require(store.get(submission_id), submission_id)
+
+    owner_id = submission.owner_id
+    is_owner = user is not None and str(user.id) == owner_id
+    is_officer = user is not None and user.role == UserRole.OFFICER.value
+
+    if owner_id and not (is_owner or is_officer):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ce dossier ne vous appartient pas.",
+        )
+
     return submission.to_dict()
 
 
@@ -412,12 +475,19 @@ def review_submission(
     submission_id: str,
     request: ReviewRequest,
     store: SubmissionStore = Depends(get_store),
+    officer: User = Depends(current_officer),
 ) -> dict[str, Any]:
-    """Officer decision: approve, reject, or request a correction."""
+    """Officer decision: approve, reject, or request a correction.
+
+    Officer-only. This endpoint decides whether a citizen's filing is accepted;
+    leaving it open would let anyone approve or reject any dossier.
+    """
     _require(store.get(submission_id), submission_id)
 
+    # The acting officer comes from the session, never from the request body --
+    # otherwise the audit trail is whatever the caller typed.
     updated = store.add_review(
-        submission_id, request.action, note=request.note, officer=request.officer
+        submission_id, request.action, note=request.note, officer=officer.email
     )
     updated = _require(updated, submission_id)
     return {
