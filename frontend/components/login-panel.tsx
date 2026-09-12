@@ -1,15 +1,14 @@
 "use client";
 
 import {
-  ArrowLeft,
-  BadgeCheck,
+  ArrowRight,
   Building2,
-  Fingerprint,
   Info,
   KeyRound,
   Lock,
   Mail,
   UserRound,
+  type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -33,30 +32,51 @@ import { Logo } from "@/components/logo";
  */
 
 /**
- * Identity providers Sahilli would federate with.
+ * The four ways in, matching the registry portal's own sign-in options.
  *
- * These carry lucide icons, not the providers' own marks. We do not ship the
- * e-Houwiya or TunTrust logo files: they could not be sourced from an official
- * channel (both sites serve their branding through JavaScript), and putting a
- * national identity provider's mark on a sign-in screen reads as an
- * integration and an endorsement that do not exist yet. Drop authentic assets
- * into public/brand/providers/ and swap `icon` for an <Image> when there is a
- * real agreement to point at.
+ * Digigo and MobileID carry their real marks, downloaded rather than drawn.
+ * "Compte entreprise" and "Compte invité" are account types rather than
+ * branded products, so they take icons.
+ *
+ * Only the guest route works today; the rest are marked "Bientôt". Showing a
+ * provider's mark must not imply the integration exists.
  */
-const FEDERATED = [
+const OPTIONS: {
+  id: string;
+  logo?: string;
+  icon?: LucideIcon;
+  label: string;
+  description: string;
+  href?: string;
+}[] = [
   {
-    icon: Fingerprint,
-    label: "e-Houwiya",
-    sub: "Identité numérique nationale",
-    labelAr: "الهوية الرقمية",
-    note: "Nécessite une convention avec l'opérateur national",
+    id: "digigo",
+    logo: "/brand/providers/tuntrust.png",
+    label: "Digigo",
+    description:
+      "Identité numérique TunTrust pour confirmer votre profil et accéder aux espaces liés à votre e-mail.",
   },
   {
-    icon: BadgeCheck,
-    label: "Certificat électronique",
-    sub: "Signature qualifiée TunTrust",
-    labelAr: "الشهادة الإلكترونية",
-    note: "Nécessite un lecteur de certificat",
+    id: "mobileid",
+    logo: "/brand/providers/ehouwiya.png",
+    label: "MobileID",
+    description:
+      "Validation sécurisée avec votre identité mobile, sans ressaisir vos justificatifs RNE.",
+  },
+  {
+    id: "entreprise",
+    icon: Building2,
+    label: "Compte entreprise",
+    description:
+      "Connexion avec les identifiants de votre espace entreprise.",
+  },
+  {
+    id: "invite",
+    icon: UserRound,
+    label: "Compte invité",
+    description:
+      "Accès temporaire, sans création de compte. Vérifiez un dossier immédiatement.",
+    href: "/msme",
   },
 ];
 
@@ -73,12 +93,12 @@ export function LoginPanel() {
         </div>
 
         <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">
-          <div className="w-full max-w-[26rem]">
+          <div className="w-full max-w-[44rem]">
             <h1 className="t-h1 text-[var(--navy)]">Connexion</h1>
             <p className="ar ar-left mt-1 text-[1.125rem] text-[var(--ink-muted)]">
               تسجيل الدخول
             </p>
-            <p className="mt-4 text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
+            <p className="mt-4 max-w-[34rem] text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
               Retrouvez vos dossiers et leur avancement. Vous pouvez aussi
               vérifier un dossier sans compte.
             </p>
@@ -86,7 +106,7 @@ export function LoginPanel() {
             {/* The honesty notice. Do not remove while the form is inert. */}
             <div
               role="note"
-              className="mt-6 flex gap-2.5 rounded-[var(--r-control)] border border-[var(--st-correction-ink)]/25 bg-[var(--st-correction-wash)] px-3.5 py-3"
+              className="mt-6 max-w-[26rem] flex gap-2.5 rounded-[var(--r-control)] border border-[var(--st-correction-ink)]/25 bg-[var(--st-correction-wash)] px-3.5 py-3"
             >
               <Info
                 size={16}
@@ -102,7 +122,7 @@ export function LoginPanel() {
             </div>
 
             <form
-              className="mt-6 space-y-4"
+              className="mt-6 max-w-[26rem] space-y-4"
               onSubmit={(event) => event.preventDefault()}
             >
               <Field
@@ -158,70 +178,11 @@ export function LoginPanel() {
               <span className="h-px flex-1 bg-[var(--line)]" />
             </div>
 
-            {/* The one route that actually works today. */}
-            <Link
-              href="/msme"
-              className="flex items-center gap-3 rounded-[var(--r-control)] border border-[var(--teal)] bg-[var(--teal-wash)] px-4 py-3.5 transition-colors hover:bg-[var(--teal)]/15"
-            >
-              <UserRound
-                size={18}
-                strokeWidth={1.9}
-                className="shrink-0 text-[var(--teal-ink)]"
-                aria-hidden
-              />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[0.9375rem] font-semibold text-[var(--teal-ink)]">
-                  Continuer sans compte
-                </span>
-                <span className="ar ar-left block text-[0.8125rem] text-[var(--teal-ink)]/75">
-                  المتابعة دون حساب
-                </span>
-              </span>
-              <ArrowLeft
-                size={16}
-                strokeWidth={2}
-                className="shrink-0 rotate-180 text-[var(--teal-ink)]"
-                aria-hidden
-              />
-            </Link>
-
-            <ul className="mt-3 space-y-2.5">
-              {FEDERATED.map((option) => {
-                const Icon = option.icon;
-                return (
-                  <li
-                    key={option.label}
-                    title={option.note}
-                    className="flex items-center gap-3.5 rounded-[var(--r-control)] border border-[var(--line)] bg-[var(--canvas)] px-4 py-3"
-                  >
-                    {/* Circular outlined mark, matching the pattern the
-                        registry portal uses for its own utility actions. */}
-                    <span
-                      aria-hidden
-                      className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--ink-muted)]"
-                    >
-                      <Icon size={19} strokeWidth={1.6} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex flex-wrap items-baseline gap-x-2">
-                        <span className="text-[0.9375rem] font-medium text-[var(--ink)]">
-                          {option.label}
-                        </span>
-                        <span className="ar text-[0.8125rem] text-[var(--ink-faint)]">
-                          {option.labelAr}
-                        </span>
-                      </span>
-                      <span className="block text-[0.75rem] text-[var(--ink-faint)]">
-                        {option.sub}
-                      </span>
-                    </span>
-                    <span className="shrink-0 rounded-full bg-[var(--surface-muted,#EEF1F5)] px-2.5 py-1 text-[0.6875rem] font-medium whitespace-nowrap text-[var(--ink-faint)]">
-                      Bientôt
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {OPTIONS.map((option) => (
+                <OptionCard key={option.id} option={option} />
+              ))}
+            </div>
 
             <p className="mt-8 flex items-start gap-2 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
               <Building2 size={13} strokeWidth={1.8} className="mt-0.5 shrink-0" aria-hidden />
@@ -303,5 +264,96 @@ function Field({
         />
       </div>
     </div>
+  );
+}
+
+function OptionCard({
+  option,
+}: {
+  option: {
+    logo?: string;
+    icon?: LucideIcon;
+    label: string;
+    description: string;
+    href?: string;
+  };
+}) {
+  const Icon = option.icon;
+  const live = Boolean(option.href);
+
+  const body = (
+    <>
+      <span
+        className={`flex h-[4.25rem] w-[7.5rem] shrink-0 items-center justify-center rounded-xl border ${
+          live
+            ? "border-[var(--teal)]/30 bg-[var(--teal-wash)]"
+            : "border-[var(--line)] bg-[var(--surface)]"
+        }`}
+      >
+        {option.logo ? (
+          <Image
+            src={option.logo}
+            alt=""
+            aria-hidden
+            width={256}
+            height={256}
+            sizes="96px"
+            className="h-9 w-auto max-w-[5.5rem] object-contain"
+          />
+        ) : Icon ? (
+          <Icon
+            size={26}
+            strokeWidth={1.5}
+            className={live ? "text-[var(--teal-ink)]" : "text-[var(--ink-muted)]"}
+            aria-hidden
+          />
+        ) : null}
+      </span>
+
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="font-[family-name:var(--font-space-grotesk)] text-[1.0625rem] font-semibold text-[var(--navy)]">
+            {option.label}
+          </span>
+          {!live && (
+            <span className="rounded-full bg-[var(--canvas)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--ink-faint)]">
+              Bientôt
+            </span>
+          )}
+        </span>
+        <span className="mt-1.5 block text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
+          {option.description}
+        </span>
+        {live && (
+          <span className="mt-2 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-[var(--teal-ink)]">
+            Continuer
+            <ArrowRight size={14} strokeWidth={2} aria-hidden />
+          </span>
+        )}
+      </span>
+    </>
+  );
+
+  const shell =
+    "flex h-full items-start gap-4 rounded-2xl border p-5 transition-all duration-200";
+
+  if (!live) {
+    return (
+      <div
+        aria-disabled
+        className={`${shell} border-[var(--line)] bg-[var(--surface)] opacity-75`}
+      >
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={option.href!}
+      className={`${shell} border-[var(--teal)] bg-[var(--surface)] hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-16px_rgba(14,39,71,0.4)]`}
+    >
+      {body}
+    </Link>
   );
 }
