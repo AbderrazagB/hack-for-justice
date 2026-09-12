@@ -88,12 +88,14 @@ export function LoginPanel() {
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
       {/* ------------------------------------------------------- form side --- */}
       <div className="flex flex-col bg-[var(--surface)]">
-        <div className="border-b border-[var(--line)] px-6 py-5 sm:px-10">
-          <Logo size="lg" />
+        <div className="border-b border-[var(--line)]">
+          <div className="mx-auto w-full max-w-[60rem] px-6 py-5 sm:px-10">
+            <Logo size="lg" />
+          </div>
         </div>
 
-        <div className="flex flex-1 items-center px-6 py-10 sm:px-10">
-          <div className="mx-auto w-full max-w-[58rem]">
+        <div className="flex flex-1 items-center">
+          <div className="mx-auto w-full max-w-[60rem] px-6 py-10 sm:px-10">
             <header>
               <h1 className="t-h1 text-[var(--navy)]">Connexion</h1>
               <p className="ar ar-left mt-1 text-[1.125rem] text-[var(--ink-muted)]">
@@ -107,12 +109,14 @@ export function LoginPanel() {
 
             {/* Two columns instead of one long stack: the credentials path on
                 the left, every other way in on the right. */}
-            <div className="mt-8 grid gap-x-10 gap-y-9 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+            <div className="mt-9 grid gap-x-10 gap-y-9 lg:grid-cols-2">
               <section>
+                <ColumnHeading fr="Avec vos identifiants" ar="بمعرّفاتك" />
+
                 {/* The honesty notice. Do not remove while the form is inert. */}
                 <div
                   role="note"
-                  className="flex gap-2.5 rounded-[var(--r-control)] border border-[var(--st-correction-ink)]/25 bg-[var(--st-correction-wash)] px-3.5 py-3"
+                  className="mt-4 flex gap-2.5 rounded-[var(--r-control)] border border-[var(--st-correction-ink)]/25 bg-[var(--st-correction-wash)] px-3.5 py-3"
                 >
                   <Info
                     size={16}
@@ -178,12 +182,7 @@ export function LoginPanel() {
               </section>
 
               <section>
-                <h2 className="t-h3 text-[var(--navy)]">
-                  Autres moyens de connexion
-                </h2>
-                <p className="ar ar-left mt-0.5 text-[0.875rem] text-[var(--ink-faint)]">
-                  طرق أخرى للدخول
-                </p>
+                <ColumnHeading fr="Autres moyens de connexion" ar="طرق أخرى للدخول" />
 
                 <ul className="mt-4 space-y-2.5">
                   {OPTIONS.map((option) => (
@@ -193,18 +192,19 @@ export function LoginPanel() {
                   ))}
                 </ul>
 
-                <p className="mt-6 flex items-start gap-2 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
-                  <Building2
-                    size={13}
-                    strokeWidth={1.8}
-                    className="mt-0.5 shrink-0"
-                    aria-hidden
-                  />
-                  Sahilli est un service indépendant de pré-validation. Le dépôt
-                  officiel reste à effectuer sur le portail du RNE.
-                </p>
               </section>
             </div>
+
+            <p className="mt-9 flex items-start gap-2 border-t border-[var(--line)] pt-5 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
+              <Building2
+                size={13}
+                strokeWidth={1.8}
+                className="mt-0.5 shrink-0"
+                aria-hidden
+              />
+              Sahilli est un service indépendant de pré-validation. Le dépôt
+              officiel reste à effectuer sur le portail du RNE.
+            </p>
           </div>
         </div>
       </div>
@@ -327,34 +327,34 @@ function OptionCard({
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="flex items-center gap-3">
           <span className="font-[family-name:var(--font-space-grotesk)] text-[1rem] leading-none font-semibold whitespace-nowrap text-[var(--navy)]">
             {option.label}
           </span>
-          {!live && (
-            <span className="rounded-full bg-[var(--canvas)] px-2 py-0.5 text-[0.6875rem] leading-none font-medium text-[var(--ink-faint)]">
-              Bientôt
-            </span>
-          )}
+          <span className="ml-auto shrink-0">
+            {live ? (
+              <ArrowRight
+                size={16}
+                strokeWidth={2}
+                className="text-[var(--teal-ink)]"
+                aria-hidden
+              />
+            ) : (
+              <span className="rounded-full bg-[var(--canvas)] px-2 py-0.5 text-[0.6875rem] leading-none font-medium text-[var(--ink-faint)]">
+                Bientôt
+              </span>
+            )}
+          </span>
         </span>
         <span className="mt-1 block text-[0.8125rem] leading-snug text-[var(--ink-muted)]">
           {option.description}
         </span>
       </span>
-
-      {live && (
-        <ArrowRight
-          size={16}
-          strokeWidth={2}
-          className="ml-auto shrink-0 text-[var(--teal-ink)]"
-          aria-hidden
-        />
-      )}
     </>
   );
 
   const shell =
-    "flex w-full items-center gap-3.5 rounded-xl border px-4 py-3 transition-all duration-200";
+    "flex w-full items-center gap-3.5 rounded-xl border px-4 py-3.5 transition-colors duration-200";
 
   if (!live) {
     return (
@@ -374,5 +374,16 @@ function OptionCard({
     >
       {body}
     </Link>
+  );
+}
+
+function ColumnHeading({ fr, ar }: { fr: string; ar: string }) {
+  return (
+    <div className="flex h-10 flex-col justify-start">
+      <h2 className="t-h3 leading-none text-[var(--navy)]">{fr}</h2>
+      <p className="ar ar-left mt-1 text-[0.8125rem] leading-none text-[var(--ink-faint)]">
+        {ar}
+      </p>
+    </div>
   );
 }
