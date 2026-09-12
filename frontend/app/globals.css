@@ -258,6 +258,14 @@ body {
   }
 }
 
+/* BorderGlow on the service cards.
+   Upstream's inner wrapper is `overflow: auto` and does not stretch, which on a
+   fixed-height card adds a scrollbar and leaves the content short. */
+.sahilli-glow-card > .border-glow-inner {
+  height: 100%;
+  overflow: visible;
+}
+
 /* Browsers paint autofilled inputs with their own yellow, which overrides the
    field styling entirely. Repaint them with our own surface and text colour. */
 input:-webkit-autofill,

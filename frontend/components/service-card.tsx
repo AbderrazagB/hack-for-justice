@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { ServiceGlow } from "@/components/service-glow";
+
 /**
  * Icons are selected by name rather than passed as components: these cards are
  * rendered from Server Components, and React cannot serialise a function across
@@ -132,14 +134,16 @@ export function ServiceCard({
     </>
   );
 
-  const shell =
-    "group relative isolate flex min-h-[292px] h-full flex-col overflow-hidden rounded-[22px] border px-5 pt-5 pb-5 transition-all duration-300";
+  const inner =
+    "group relative flex min-h-[292px] h-full flex-col px-5 pt-5 pb-5";
 
+  // Unavailable services get no glow: the effect is an affordance, and giving
+  // it to a card you cannot open would be a lie about where the page goes.
   if (!available) {
     return (
       <div
         aria-disabled
-        className={`${shell} border-[var(--line)] bg-[var(--surface)]/72 shadow-[0_18px_45px_-38px_rgba(8,26,49,0.55)] backdrop-blur-sm hover:border-[var(--line-strong)] hover:bg-[var(--surface)]`}
+        className={`${inner} rounded-[22px] border border-[var(--line)] bg-[var(--surface)]/72 backdrop-blur-sm`}
       >
         {body}
       </div>
@@ -147,11 +151,10 @@ export function ServiceCard({
   }
 
   return (
-    <Link
-      href={href!}
-      className={`${shell} border-[var(--teal)]/25 bg-[var(--surface)] shadow-[0_22px_60px_-35px_rgba(8,26,49,0.5)] hover:-translate-y-1.5 hover:border-[var(--teal)]/50 hover:shadow-[0_28px_70px_-34px_rgba(21,173,162,0.55)]`}
-    >
-      {body}
-    </Link>
+    <ServiceGlow>
+      <Link href={href!} className={inner}>
+        {body}
+      </Link>
+    </ServiceGlow>
   );
 }
