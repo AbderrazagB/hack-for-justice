@@ -21,11 +21,43 @@ import { useReducedMotion } from "@/components/motion";
 
 type Variant = "primary" | "navy" | "ghost";
 
-/** Base colour drives the specular material; text and line ride on top of it. */
-const VARIANTS: Record<Variant, { base: string; text: string; line: string }> = {
-  primary: { base: "#15ADA2", text: "#ffffff", line: "#d6fbf6" },
-  navy: { base: "#0E2747", text: "#ffffff", line: "#7fd0c6" },
-  ghost: { base: "#1B3A63", text: "#ffffff", line: "#ffffff" },
+/**
+ * SpecularButton's shader draws an edge stroke and a rim highlight only -- its
+ * `base` term is non-zero just around the boundary. `baseColor` is therefore
+ * the edge colour, NOT a fill, and the button's actual background comes from
+ * `tint` x `tintOpacity`.
+ *
+ * The upstream example ships `tintOpacity: 0`, which is a transparent button
+ * carrying only a rim. That reads on a dark showcase page and disappears on
+ * our light surfaces, so every solid variant sets its own fill here.
+ */
+const VARIANTS: Record<
+  Variant,
+  { fill: string; fillOpacity: number; edge: string; text: string; line: string }
+> = {
+  primary: {
+    fill: "#15ADA2",
+    fillOpacity: 1,
+    edge: "#0B6E68",
+    text: "#ffffff",
+    line: "#eafffb",
+  },
+  navy: {
+    fill: "#0E2747",
+    fillOpacity: 1,
+    edge: "#081A31",
+    text: "#ffffff",
+    line: "#7fd0c6",
+  },
+  // Deliberately translucent: this one sits on the navy hero and is meant to
+  // read as secondary.
+  ghost: {
+    fill: "#ffffff",
+    fillOpacity: 0.1,
+    edge: "#ffffff",
+    text: "#ffffff",
+    line: "#ffffff",
+  },
 };
 
 const FALLBACK: Record<Variant, string> = {
@@ -34,10 +66,15 @@ const FALLBACK: Record<Variant, string> = {
   ghost: "border border-white/25 text-white hover:bg-white/10",
 };
 
+/**
+ * Must match SpecularButton's own SIZES exactly. The server renders the
+ * fallback and the specular version mounts after hydration, so any difference
+ * here shows up as the button resizing on load.
+ */
 const PADDING: Record<"sm" | "md" | "lg", string> = {
-  sm: "px-4 py-2.5 text-[0.875rem]",
-  md: "px-6 py-3 text-[0.9375rem]",
-  lg: "px-7 py-4 text-[1rem]",
+  sm: "text-[0.85rem] px-[22px] py-[10px]",
+  md: "text-[1rem] px-[30px] py-[14px]",
+  lg: "text-[1.15rem] px-10 py-[18px]",
 };
 
 export function ActionButton({
@@ -86,7 +123,7 @@ export function ActionButton({
 
   // A disabled control must not look interactive, so the sheen is dropped too.
   if (reduced || disabled) {
-    const shell = `inline-flex items-center justify-center gap-2 rounded-[14px] font-semibold transition-colors ${PADDING[size]} ${
+    const shell = `inline-flex items-center justify-center gap-2 rounded-[14px] leading-none font-medium tracking-[0.01em] transition-colors ${PADDING[size]} ${
       disabled
         ? "cursor-not-allowed bg-[var(--line-strong)] text-[var(--ink-faint)]"
         : FALLBACK[variant]
@@ -113,11 +150,11 @@ export function ActionButton({
       onClick={href ? navigate : onClick}
       size={size}
       radius={14}
-      baseColor={tone.base}
+      baseColor={tone.edge}
       textColor={tone.text}
       lineColor={tone.line}
-      tint="#ffffff"
-      tintOpacity={0}
+      tint={tone.fill}
+      tintOpacity={tone.fillOpacity}
       blur={0}
       intensity={1}
       shineSize={10}
