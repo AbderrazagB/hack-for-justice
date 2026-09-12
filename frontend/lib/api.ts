@@ -78,12 +78,18 @@ export function listTransactions(): Promise<TransactionInfo[]> {
 export function createSubmission(
   transactionType: string,
   documents: { documentType: string; file: File }[],
+  /** Answers to the transaction's context_fields, keyed by field name. */
+  context: Record<string, string | boolean> = {},
   submittedAt?: string,
 ): Promise<SubmissionResult> {
   const form = new FormData();
   for (const { documentType, file } of documents) {
     form.append("files", file);
     form.append("document_types", documentType);
+  }
+  for (const [name, value] of Object.entries(context)) {
+    if (value === "" || value === false) continue;
+    form.append(name, String(value));
   }
   if (submittedAt) form.append("submitted_at", submittedAt);
 

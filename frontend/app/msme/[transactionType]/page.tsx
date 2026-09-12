@@ -7,6 +7,7 @@ import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { AssistantPanel } from "@/components/assistant-panel";
 import { PortalBar } from "@/components/chrome";
 import { SiteFooter } from "@/components/site-footer";
+import { ContextForm } from "@/components/context-form";
 import { DocumentRail } from "@/components/document-rail";
 import { StatusTracker } from "@/components/status-tracker";
 import { Button, Notice, Panel, SectionHeading } from "@/components/ui";
@@ -23,6 +24,7 @@ export default function FilingFlow({
 
   const [transaction, setTransaction] = useState<TransactionInfo | null>(null);
   const [files, setFiles] = useState<Record<string, File>>({});
+  const [context, setContext] = useState<Record<string, string | boolean>>({});
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
@@ -37,9 +39,40 @@ export default function FilingFlow({
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [transactionType]);
 
-  const required = useMemo(
-    () => transaction?.required_documents ?? [],
+  const contextFields = useMemo(
+    () => transaction?.context_fields ?? [],
     [transaction],
+  );
+
+  /**
+   * Documents actually owed for this filing. The auditor report is only
+   * required for some legal forms, so the checklist has to follow the answers
+   * given above it rather than the transaction's full static list.
+   */
+  const required = useMemo(() => {
+    const all = transaction?.required_documents ?? [];
+    const conditional = transaction?.conditional_documents ?? [];
+    if (conditional.length === 0) return all;
+
+    const auditorOwed =
+      context.company_type === "SA" ||
+      context.company_type === "SCA" ||
+      context.auditor_required === true;
+
+    return all.filter(
+      (document) =>
+        !conditional.includes(document.key) ||
+        (document.key === "auditor_report" && auditorOwed),
+    );
+  }, [transaction, context]);
+
+  /** Context questions that still need an answer before a check is meaningful. */
+  const unanswered = useMemo(
+    () =>
+      contextFields.filter(
+        (field) => field.required && !context[field.name],
+      ),
+    [contextFields, context],
   );
   const attachedCount = required.filter((d) => files[d.key]).length;
   const missingCount = required.length - attachedCount;
@@ -62,7 +95,13 @@ export default function FilingFlow({
         documentType,
         file,
       }));
-      setResult(await createSubmission(transaction.transaction_type, documents));
+      setResult(
+        await createSubmission(
+          transaction.transaction_type,
+          documents,
+          context,
+        ),
+      );
     } catch (e) {
       setError(
         e instanceof Error
@@ -135,6 +174,18 @@ export default function FilingFlow({
         <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8">
           {/* ------------------------------------------------ upload rail --- */}
           <section>
+            {contextFields.length > 0 && (
+              <div className="mb-8">
+                <ContextForm
+                  fields={contextFields}
+                  values={context}
+                  onChange={(name, value) =>
+                    setContext((current) => ({ ...current, [name]: value }))
+                  }
+                />
+              </div>
+            )}
+
             <SectionHeading
               hint={
                 required.length
@@ -160,7 +211,7 @@ export default function FilingFlow({
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Button
                 onClick={check}
-                disabled={checking || attachedCount === 0}
+                disabled={checking || attachedCount === 0 || unanswered.length > 0}
                 icon={ShieldCheck}
               >
                 {checking ? "Vérification en cours" : "Vérifier mes pièces"}
@@ -171,9 +222,16 @@ export default function FilingFlow({
                   Vous pouvez vérifier maintenant pour savoir ce qui bloque.
                 </p>
               )}
-              {attachedCount === 0 && (
+              {attachedCount === 0 && unanswered.length === 0 && (
                 <p className="text-[0.8125rem] text-[var(--ink-faint)]">
                   Joignez au moins une pièce pour lancer la vérification.
+                </p>
+              )}
+              {unanswered.length > 0 && (
+                <p className="text-[0.8125rem] text-[var(--ink-muted)]">
+                  Renseignez d&apos;abord{" "}
+                  {unanswered.map((field) => field.label_fr.toLowerCase()).join(" et ")}
+                  .
                 </p>
               )}
             </div>

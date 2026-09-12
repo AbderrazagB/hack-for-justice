@@ -36,8 +36,10 @@ const SERVICES: {
   },
   {
     icon: "financials",
-    titleAr: "إيداع القوائم المالية",
-    titleFr: "Dépôt des états financiers",
+    titleAr: "إيداع القوائم المالية السنوية",
+    titleFr: "Dépôt des États Financiers Annuels",
+    href: "/msme/RNE_FINANCIAL_STATEMENTS",
+    reference: "Obligation annuelle",
   },
   {
     icon: "denomination",

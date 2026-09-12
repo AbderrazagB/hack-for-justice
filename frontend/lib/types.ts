@@ -6,13 +6,32 @@ export type BilingualLabel = {
   label_ar: string;
 };
 
+export type ContextFieldOption = {
+  value: string;
+  label_fr: string;
+  label_ar: string;
+};
+
+/** A question asked before upload, described by the backend so the form is data. */
+export type ContextField = {
+  name: string;
+  label_fr: string;
+  label_ar: string;
+  type: "select" | "date" | "checkbox";
+  required: boolean;
+  options: ContextFieldOption[];
+  help_fr: string | null;
+};
+
 export type TransactionInfo = {
   transaction_type: string;
   display_name_fr: string;
   display_name_ar: string;
   official_reference: string;
   required_documents: BilingualLabel[];
+  conditional_documents: string[];
   checks: string[];
+  context_fields: ContextField[];
 };
 
 export type CheckOutcome = "PASS" | "FAIL" | "INDETERMINATE";
@@ -118,6 +137,7 @@ export type FlagSummary = {
 export type SubmissionResult = {
   submission_id: string;
   status: SubmissionStatus;
+  required_documents: string[];
   completeness: Completeness;
   flags: Flag[];
   flag_summary: FlagSummary;

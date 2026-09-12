@@ -15,7 +15,6 @@ import type { TransactionInfo } from "@/lib/types";
 
 const PLANNED: { icon: ServiceIcon; titleAr: string; titleFr: string }[] = [
   { icon: "immatriculation", titleAr: "ترسيم مؤسسة", titleFr: "Immatriculation Entreprise" },
-  { icon: "financials", titleAr: "إيداع القوائم المالية", titleFr: "Dépôt des états financiers" },
   { icon: "denomination", titleAr: "حجز التسمية", titleFr: "Réservation dénomination" },
   { icon: "assembly", titleAr: "دعوة للجلسة العامة", titleFr: "Convocation Assemblée Générale" },
   { icon: "extract", titleAr: "إستخراج مضمون من السجل", titleFr: "Extrait du Registre" },
@@ -73,7 +72,11 @@ export default async function ServiceCatalogue() {
             {transactions.map((transaction) => (
               <ServiceCard
                 key={transaction.transaction_type}
-                icon="modification"
+                icon={
+                  transaction.transaction_type === "RNE_FINANCIAL_STATEMENTS"
+                    ? "financials"
+                    : "modification"
+                }
                 titleAr={transaction.display_name_ar}
                 titleFr={transaction.display_name_fr}
                 href={`/msme/${transaction.transaction_type}`}
