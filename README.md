@@ -22,8 +22,8 @@ layer that sits in front of it.
 - **Frontend:** Next.js (App Router), TypeScript, Tailwind CSS
 - **Vector database:** Qdrant (self-hosted)
 - **Embeddings:** BAAI/bge-m3 via HuggingFace Text Embeddings Inference (self-hosted)
-- **OCR / vision:** Pixtral (Apache-2.0, open-weight) via Mistral's API, with a
-  local Tesseract fallback
+- **OCR / vision:** an open-weight, Apache-2.0 multimodal model via Mistral's
+  API, with a local Tesseract fallback
 - **LLM reasoning:** Mistral with a Google Gemini fallback
 
 ## Local AI Infrastructure
@@ -37,10 +37,39 @@ companies' filing documents never leave national infrastructure. Data
 sovereignty is a hard requirement for a registry, and the retrieval stack is
 built that way from day one.
 
-The LLM reasoning layer (Mistral / Gemini / Pixtral) currently runs on vendor
-APIs for hackathon speed. That layer has a credible self-hosting path too —
-Pixtral-12B is Apache-2.0 licensed and can be run locally — so "sovereign
-Sahilli" is an incremental step, not a rewrite.
+The LLM reasoning layer currently runs on vendor APIs for hackathon speed. That
+layer has a credible self-hosting path too, because we deliberately use only
+**open-weight, Apache-2.0 models** there — so "sovereign Sahilli" is an
+incremental step, not a rewrite. See *Document OCR* below.
+
+### Document OCR
+
+Sahilli does **not** use Mistral's dedicated `mistral-ocr-*` product. That
+product is a proprietary commercial API and is not open-weight; self-hosting it
+requires a separate commercial licence. For a registry that must eventually run
+this on its own infrastructure, "the weights are Apache-2.0" is a much stronger
+guarantee than "you may self-host if you sign a contract".
+
+Sahilli was originally specced around **Pixtral-12B** for that reason. Checking
+Mistral's live model list rather than assuming turned out to matter: **Pixtral
+has been retired from the API** — `pixtral-12b-2409` retired 2025-12-02 and
+`pixtral-large-2411` retired 2026-02-27. The rationale carries over to its
+open-weight successors:
+
+| Model | Role |
+|---|---|
+| `mistral-large-2512` (Mistral Large 3, Apache-2.0) | default — best extraction quality |
+| `ministral-8b-2512` (Ministral 3 8B, Apache-2.0) | the realistic sovereign self-hosting target |
+
+Because model IDs churn, `ocr_service.py` queries the API for the models that
+actually exist and picks the best available from a preference list. Override
+with `VISION_MODEL` in `.env`.
+
+**Tesseract fallback.** `pytesseract` provides a fully local, zero-cost, offline
+path used when no API key is set, the API fails, or quota runs out. It is
+markedly weaker — raw text only, no structured fields — so its results are
+always marked `degraded=True` and should be treated as unverified. It exists so
+a live demo never hard-fails on a conference network.
 
 ### What this repo expects to already be running
 

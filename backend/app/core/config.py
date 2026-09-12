@@ -30,10 +30,11 @@ class Settings(BaseSettings):
     # collection must be created with a matching size.
     embedding_dim: int = Field(default=1024, validation_alias="EMBEDDING_DIM")
 
-    # Vision model used for document OCR. See app/services/ocr_service.py for why
-    # Pixtral is preferred over Mistral's proprietary OCR product.
-    pixtral_model: str = Field(
-        default="pixtral-12b-2409", validation_alias="PIXTRAL_MODEL"
+    # Open-weight (Apache-2.0) multimodal model used for document OCR. NOTE:
+    # Pixtral is retired from the Mistral API -- see app/services/ocr_service.py
+    # for the full rationale and the successor models.
+    vision_model: str = Field(
+        default="mistral-large-2512", validation_alias="VISION_MODEL"
     )
 
     model_config = SettingsConfigDict(
