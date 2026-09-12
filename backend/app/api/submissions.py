@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from app.models.submission import (
@@ -222,6 +223,36 @@ def _parse_iso_date(value: str | None) -> date | None:
         return date.fromisoformat(value[:10])
     except ValueError:
         return None
+
+
+# ---------------------------------------------------------------- documents
+
+@router.get("/documents/{document_type}/{filename}")
+def get_document(
+    document_type: str,
+    filename: str,
+    upload_dir: Path = Depends(get_upload_dir),
+) -> FileResponse:
+    """Serve an uploaded document so the officer can read it beside the
+    extracted fields.
+
+    Both path segments come from the URL, so they are treated as hostile: we
+    take only the final path component of each and then confirm the resolved
+    file really sits inside the upload directory. That blocks `../` traversal
+    and absolute paths, including forms that survive one round of stripping.
+    """
+    safe_type = Path(document_type).name
+    safe_name = Path(filename).name
+    if not safe_type or not safe_name:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    root = upload_dir.resolve()
+    candidate = (root / safe_type / safe_name).resolve()
+
+    if not candidate.is_relative_to(root) or not candidate.is_file():
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return FileResponse(candidate)
 
 
 # -------------------------------------------------------------------- queue

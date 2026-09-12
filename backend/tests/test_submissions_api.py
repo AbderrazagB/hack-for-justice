@@ -277,3 +277,35 @@ def test_stats_path_is_not_captured_as_a_submission_id(client, png) -> None:
     _upload(client, png)
     assert client.get("/submissions/stats").status_code == 200
     assert "total" in client.get("/submissions/stats").json()
+
+
+# ----------------------------------------------------------- document serving
+
+def test_uploaded_document_can_be_fetched_back(client, png) -> None:
+    submission_id = _upload(client, png).json()["submission_id"]
+    detail = client.get(f"/submissions/{submission_id}").json()
+    stored = detail["documents"]["rne_extract"]
+
+    response = client.get(f"/documents/rne_extract/{stored['stored_path']}")
+    assert response.status_code == 200
+    assert response.content == png
+
+
+def test_missing_document_is_404(client) -> None:
+    assert client.get("/documents/rne_extract/nope.png").status_code == 404
+
+
+@pytest.mark.parametrize(
+    "attack",
+    [
+        "/documents/rne_extract/..%2F..%2F..%2Fetc%2Fpasswd",
+        "/documents/..%2F..%2Fetc/passwd",
+        "/documents/rne_extract/....//....//etc/passwd",
+        "/documents/%2Fetc%2Fpasswd/passwd",
+    ],
+)
+def test_path_traversal_is_refused(client, attack: str) -> None:
+    """A URL must never reach a file outside the upload directory."""
+    response = client.get(attack)
+    assert response.status_code in {404, 400}
+    assert b"root:" not in response.content
