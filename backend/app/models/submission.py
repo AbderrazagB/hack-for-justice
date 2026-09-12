@@ -89,6 +89,10 @@ class Submission:
     flags: list[dict[str, Any]] = field(default_factory=list)
     reviews: list[dict[str, Any]] = field(default_factory=list)
     submitted_at: str | None = None
+    # Workflow context collected before upload -- e.g. company_type and
+    # fiscal_year_end for the financial statements filing. Kept generic so a
+    # third workflow needs no model change.
+    context: dict[str, Any] = field(default_factory=dict)
 
     # -- derived ------------------------------------------------------------
 
@@ -126,6 +130,7 @@ class Submission:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "submitted_at": self.submitted_at,
+            "context": self.context,
             "documents": self.documents,
             "completeness": self.completeness,
             "flags": self.flags,
@@ -157,6 +162,7 @@ class Submission:
             created_at=raw["created_at"],
             updated_at=raw["updated_at"],
             submitted_at=raw.get("submitted_at"),
+            context=raw.get("context", {}),
             documents=raw.get("documents", {}),
             completeness=raw.get("completeness", {}),
             flags=raw.get("flags", []),
@@ -204,6 +210,7 @@ class SubmissionStore:
         flags: list[dict[str, Any]],
         status: str,
         submitted_at: str | None = None,
+        context: dict[str, Any] | None = None,
     ) -> Submission:
         submission = Submission(
             id=uuid.uuid4().hex[:12],
@@ -212,6 +219,7 @@ class SubmissionStore:
             created_at=_now(),
             updated_at=_now(),
             submitted_at=submitted_at,
+            context=context or {},
             documents=documents,
             completeness=completeness,
             flags=flags,

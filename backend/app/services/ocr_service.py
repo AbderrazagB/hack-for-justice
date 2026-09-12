@@ -109,6 +109,36 @@ DOCUMENT_TYPE_HINTS: dict[str, str] = {
         "the newly appointed representative with their ID number, and whether "
         "the document carries signatures and a signature date."
     ),
+    "financial_statements_signed": (
+        "Annual financial statements (états financiers / القوائم المالية): "
+        "balance sheet, income statement and notes. Extract the fiscal year end "
+        "date, the company name and identifier, and report whether the document "
+        "carries a handwritten signature (has_signature) and a company stamp or "
+        "seal (has_stamp). Report those two as booleans only when you can "
+        "actually see them; use null when the page is cut off or illegible."
+    ),
+    "general_assembly_pv_approval": (
+        "Minutes of the ordinary general assembly approving the annual accounts "
+        "(procès-verbal de l'AGO / محضر الجلسة العامة العادية). Extract the "
+        "meeting date, the fiscal year the accounts cover, the company name, "
+        "and any registration reference from the recette des finances -- a "
+        "stamp, number or date of registration -- into registration_reference. "
+        "Report signature and stamp presence."
+    ),
+    "auditor_report": (
+        "Report of the statutory auditor (rapport du commissaire aux comptes / "
+        "تقرير مراقب الحسابات). Extract the auditor's name, their registration "
+        "with the order of chartered accountants if stated, the fiscal year "
+        "covered, the date of the report, and whether it is signed."
+    ),
+    "updated_shareholder_list": (
+        "Updated list of shareholders or partners (liste des actionnaires ou "
+        "associés / قائمة المساهمين أو الشركاء). Extract EVERY row into the "
+        "`shareholders` array: for each, the person or entity name, their "
+        "national ID or company identifier if shown, and the number of shares "
+        "or units. A row with no identifier must still appear, with id_number "
+        "null -- do not omit it and do not invent a number for it."
+    ),
     "general": "A business or administrative document.",
 }
 
@@ -124,6 +154,10 @@ _EXTRACTION_SCHEMA = """{
   "decision_date": "date of the decision recorded, YYYY-MM-DD, else null",
   "signature_date": "date next to signatures, YYYY-MM-DD, else null",
   "has_signature": true,
+  "has_stamp": true,
+  "fiscal_year_end": "fiscal year close date if stated, YYYY-MM-DD, else null",
+  "registration_reference": "recette des finances registration ref, else null",
+  "shareholders": [{"name": "...", "id_number": "digits only or null", "shares": "or null"}],
   "other_id_numbers": ["any other ID numbers appearing anywhere"],
   "notes": "anything illegible, missing, or suspicious"
 }"""
@@ -397,6 +431,10 @@ def _fields_from_plain_text(text: str) -> dict[str, Any]:
         "decision_date": None,
         "signature_date": None,
         "has_signature": None,
+        "has_stamp": None,
+        "fiscal_year_end": None,
+        "registration_reference": None,
+        "shareholders": [],
         "other_id_numbers": ids[1:],
         "notes": "Extracted by local Tesseract fallback; fields are unverified.",
     }

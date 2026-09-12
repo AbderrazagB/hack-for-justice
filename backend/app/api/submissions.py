@@ -30,10 +30,12 @@ from app.models.submission import (
 )
 from app.services.ocr_service import OCRService
 from app.services.rules_engine import (
+    COMPANY_TYPES,
     TRANSACTION_RULES,
     Status,
     UnknownTransactionType,
     check_completeness,
+    required_documents_for,
 )
 from app.services.scoring import flag_summary, flags_from_result
 
@@ -54,13 +56,33 @@ class ReviewRequest(BaseModel):
     officer: str = "officer"
 
 
+class ContextField(BaseModel):
+    """A question the applicant answers before uploading.
+
+    Some rules cannot be evaluated from the documents -- a company's legal form
+    and its fiscal year close are declared, not extracted. The frontend renders
+    this list generically, so a new workflow needs no frontend change.
+    """
+
+    name: str
+    label_fr: str
+    label_ar: str
+    type: str  # "select" | "date" | "checkbox"
+    required: bool = True
+    options: list[dict[str, str]] = []
+    help_fr: str | None = None
+
+
 class TransactionInfo(BaseModel):
     transaction_type: str
     display_name_fr: str
     display_name_ar: str
     official_reference: str
     required_documents: list[dict[str, str]]
+    # Documents required only under some answers to the context fields.
+    conditional_documents: list[str] = []
     checks: list[str]
+    context_fields: list[ContextField] = []
 
 
 class StatsResponse(BaseModel):
@@ -74,6 +96,47 @@ class StatsResponse(BaseModel):
 
 
 # -------------------------------------------------------------- transactions
+
+# Context questions per workflow. Declared here rather than in the rules engine
+# because they describe a form, not a rule.
+CONTEXT_FIELDS: dict[str, list[ContextField]] = {
+    "RNE_FINANCIAL_STATEMENTS": [
+        ContextField(
+            name="company_type",
+            label_fr="Forme juridique",
+            label_ar="الشكل القانوني",
+            type="select",
+            options=[
+                {"value": key, "label_fr": names["fr"], "label_ar": names["ar"]}
+                for key, names in COMPANY_TYPES.items()
+            ],
+            help_fr=(
+                "Détermine si le rapport du commissaire aux comptes est requis "
+                "et le montant de la pénalité de retard."
+            ),
+        ),
+        ContextField(
+            name="fiscal_year_end",
+            label_fr="Date de clôture de l'exercice",
+            label_ar="تاريخ ختم السنة المحاسبية",
+            type="date",
+            help_fr="Le dépôt est dû dans les 7 mois suivant cette date.",
+        ),
+        ContextField(
+            name="auditor_required",
+            label_fr="La société dépasse les seuils imposant un commissaire aux comptes",
+            label_ar="الشركة تتجاوز العتبات الموجبة لمراقب حسابات",
+            type="checkbox",
+            required=False,
+            help_fr="À cocher pour une SARL concernée. Inutile pour une SA ou une SCA.",
+        ),
+    ],
+}
+
+CONDITIONAL_DOCUMENTS: dict[str, list[str]] = {
+    "RNE_FINANCIAL_STATEMENTS": ["auditor_report"],
+}
+
 
 @router.get("/transactions", response_model=list[TransactionInfo])
 def list_transactions() -> list[TransactionInfo]:
@@ -94,7 +157,9 @@ def list_transactions() -> list[TransactionInfo]:
                 }
                 for doc in rules["required_documents"]
             ],
+            conditional_documents=CONDITIONAL_DOCUMENTS.get(key, []),
             checks=rules["checks"],
+            context_fields=CONTEXT_FIELDS.get(key, []),
         )
         for key, rules in TRANSACTION_RULES.items()
     ]
@@ -117,6 +182,11 @@ async def create_submission(
         Form(description="Document key per file, parallel to `files`"),
     ] = [],
     submitted_at: Annotated[str | None, Form()] = None,
+    # Workflow context. Declared rather than extracted: a company's legal form
+    # and fiscal year close are not reliably readable from the documents.
+    company_type: Annotated[str | None, Form()] = None,
+    fiscal_year_end: Annotated[str | None, Form()] = None,
+    auditor_required: Annotated[bool, Form()] = False,
     store: SubmissionStore = Depends(get_store),
     upload_dir: Path = Depends(get_upload_dir),
 ) -> dict[str, Any]:
@@ -158,10 +228,19 @@ async def create_submission(
             **result.to_dict(),
         }
 
+    context: dict[str, Any] = {}
+    if company_type:
+        context["company_type"] = company_type.upper()
+    if fiscal_year_end:
+        context["fiscal_year_end"] = fiscal_year_end
+    if auditor_required:
+        context["auditor_required"] = True
+
     submission_payload = {
         "transaction_type": transaction_type,
         "documents": documents,
         "submitted_at": submitted_at,
+        **context,
     }
 
     try:
@@ -181,11 +260,15 @@ async def create_submission(
         flags=[flag.to_dict() for flag in flags],
         status=_initial_status(completeness.status).value,
         submitted_at=submitted_at,
+        context=context,
     )
 
     return {
         "submission_id": submission.id,
         "status": submission.status,
+        "required_documents": required_documents_for(
+            TRANSACTION_RULES[transaction_type], submission_payload
+        ),
         "completeness": submission.completeness,
         "flags": submission.flags,
         "flag_summary": flag_summary(flags),
