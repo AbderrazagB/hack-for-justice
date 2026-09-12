@@ -32,16 +32,29 @@ import { Logo } from "@/components/logo";
  * them would require.
  */
 
+/**
+ * Identity providers Sahilli would federate with.
+ *
+ * These carry lucide icons, not the providers' own marks. We do not ship the
+ * e-Houwiya or TunTrust logo files: they could not be sourced from an official
+ * channel (both sites serve their branding through JavaScript), and putting a
+ * national identity provider's mark on a sign-in screen reads as an
+ * integration and an endorsement that do not exist yet. Drop authentic assets
+ * into public/brand/providers/ and swap `icon` for an <Image> when there is a
+ * real agreement to point at.
+ */
 const FEDERATED = [
   {
     icon: Fingerprint,
-    label: "Identité numérique nationale",
-    labelAr: "الهوية الرقمية الوطنية",
+    label: "e-Houwiya",
+    sub: "Identité numérique nationale",
+    labelAr: "الهوية الرقمية",
     note: "Nécessite une convention avec l'opérateur national",
   },
   {
     icon: BadgeCheck,
     label: "Certificat électronique",
+    sub: "Signature qualifiée TunTrust",
     labelAr: "الشهادة الإلكترونية",
     note: "Nécessite un lecteur de certificat",
   },
@@ -52,7 +65,7 @@ export function LoginPanel() {
   const [password, setPassword] = useState("");
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+    <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
       {/* ------------------------------------------------------- form side --- */}
       <div className="flex flex-col bg-[var(--surface)]">
         <div className="border-b border-[var(--line)] px-6 py-5 sm:px-10">
@@ -178,27 +191,32 @@ export function LoginPanel() {
                 return (
                   <li
                     key={option.label}
-                    className="flex items-center gap-3 rounded-[var(--r-control)] border border-dashed border-[var(--line-strong)] px-4 py-3"
+                    title={option.note}
+                    className="flex items-center gap-3.5 rounded-[var(--r-control)] border border-[var(--line)] bg-[var(--canvas)] px-4 py-3"
                   >
-                    <Icon
-                      size={18}
-                      strokeWidth={1.7}
-                      className="shrink-0 text-[var(--ink-faint)]"
+                    {/* Circular outlined mark, matching the pattern the
+                        registry portal uses for its own utility actions. */}
+                    <span
                       aria-hidden
-                    />
+                      className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--ink-muted)]"
+                    >
+                      <Icon size={19} strokeWidth={1.6} />
+                    </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[0.875rem] text-[var(--ink-muted)]">
-                        {option.label}
+                      <span className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="text-[0.9375rem] font-medium text-[var(--ink)]">
+                          {option.label}
+                        </span>
+                        <span className="ar text-[0.8125rem] text-[var(--ink-faint)]">
+                          {option.labelAr}
+                        </span>
                       </span>
-                      <span className="ar ar-left block text-[0.75rem] text-[var(--ink-faint)]">
-                        {option.labelAr}
+                      <span className="block text-[0.75rem] text-[var(--ink-faint)]">
+                        {option.sub}
                       </span>
                     </span>
-                    <span
-                      title={option.note}
-                      className="shrink-0 text-[0.6875rem] whitespace-nowrap text-[var(--ink-faint)]"
-                    >
-                      Indisponible
+                    <span className="shrink-0 rounded-full bg-[var(--surface-muted,#EEF1F5)] px-2.5 py-1 text-[0.6875rem] font-medium whitespace-nowrap text-[var(--ink-faint)]">
+                      Bientôt
                     </span>
                   </li>
                 );
@@ -221,20 +239,20 @@ export function LoginPanel() {
           alt=""
           aria-hidden
           fill
-          sizes="50vw"
+          sizes="34vw"
           className="object-cover object-[58%_center]"
           priority
         />
         <div className="login-visual-scrim absolute inset-0" />
 
-        <div className="relative flex h-full flex-col justify-end p-12">
-          <p className="max-w-md font-[family-name:var(--font-space-grotesk)] text-[2rem] leading-[1.15] font-semibold tracking-[-0.03em] text-white">
+        <div className="relative flex h-full flex-col justify-end p-9">
+          <p className="max-w-sm font-[family-name:var(--font-space-grotesk)] text-[1.625rem] leading-[1.18] font-semibold tracking-[-0.03em] text-white">
             Un dossier vérifié
             <span className="block text-[var(--teal)]">
               part sans surprise.
             </span>
           </p>
-          <p className="ar ar-left mt-3 max-w-md text-[1.0625rem] text-white/70">
+          <p className="ar ar-left mt-3 max-w-sm text-[0.9375rem] text-white/70">
             ملف تم التثبّت منه يُودَع دون مفاجآت
           </p>
         </div>
