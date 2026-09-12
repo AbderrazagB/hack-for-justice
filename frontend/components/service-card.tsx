@@ -112,7 +112,7 @@ export function ServiceCard({
 
       <span className="relative mt-auto w-full pt-5">
         {available ? (
-          <span className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--navy)] px-3 py-3 text-white shadow-[0_10px_24px_-14px_rgba(8,26,49,0.8)] transition-all group-hover:bg-[var(--teal-ink)]">
+          <span className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--navy)] px-3 py-3 text-white shadow-[0_10px_24px_-14px_rgba(8,26,49,0.8)] transition-all group-hover:bg-[var(--navy-deep)]">
             <ArrowLeft size={15} strokeWidth={2} className="shrink-0" aria-hidden />
             <span className="text-[0.875rem] font-medium whitespace-nowrap">
               Accès au service
