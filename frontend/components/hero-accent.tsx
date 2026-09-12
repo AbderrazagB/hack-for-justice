@@ -32,8 +32,14 @@ export function HeroAccent({ children }: { children: string }) {
       fillDelay={0.15}
       stagger={0.035}
       ease="power2.out"
-      trigger="mount"
+      // Redraws every so often rather than settling once. The gap is long on
+      // purpose: a headline redrawing every second is a distraction, not an
+      // accent.
+      trigger="loop"
+      loopDelay={7}
       fillMode="wipe"
+      // Left-aligned under the live line above it, not centred in the column.
+      align="start"
       // Measurement resolution only; the viewBox scales the result. Weight and
       // tracking mirror .hero-title so the two lines read as one headline.
       fontSize={128}

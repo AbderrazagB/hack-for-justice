@@ -26,6 +26,14 @@ export interface StrokeTextProps {
   fontWeight?: number | string;
   letterSpacing?: number;
   reverse?: boolean;
+  /**
+   * Horizontal alignment of the glyphs inside the full-width SVG box.
+   * Upstream centres them, which indents a phrase set under a left-aligned
+   * heading. Added so the caller can left-align instead.
+   */
+  align?: 'start' | 'center' | 'end';
+  /** Seconds between repeats when trigger is "loop". */
+  loopDelay?: number;
   className?: string;
   style?: CSSProperties;
 }
@@ -38,6 +46,12 @@ interface StrokeTextBox {
 }
 
 const DEFAULT_TEXT = 'Draw Attention';
+
+const ALIGN_X: Record<string, string> = {
+  start: 'xMin',
+  center: 'xMid',
+  end: 'xMax'
+};
 
 const StrokeText = ({
   text = DEFAULT_TEXT,
@@ -54,6 +68,8 @@ const StrokeText = ({
   fontWeight = 800,
   letterSpacing = -4,
   reverse = false,
+  align = 'center',
+  loopDelay = 0.9,
   className = '',
   style = {}
 }: StrokeTextProps) => {
@@ -163,7 +179,7 @@ const StrokeText = ({
       const tl = gsap.timeline({
         paused: true,
         repeat: trigger === 'loop' ? -1 : 0,
-        repeatDelay: trigger === 'loop' ? 0.9 : 0,
+        repeatDelay: trigger === 'loop' ? loopDelay : 0,
         defaults: { overwrite: 'auto' }
       });
 
@@ -219,7 +235,7 @@ const StrokeText = ({
       timeline?.kill();
       gsap.killTweensOf(targets);
     };
-  }, [box, dash, drawDuration, fillDelay, stagger, ease, trigger, fillMode, reverse]);
+  }, [box, dash, drawDuration, fillDelay, stagger, ease, trigger, fillMode, reverse, loopDelay]);
 
   const viewBox = box ? `${box.x} ${box.y} ${box.width} ${box.height}` : `0 ${-fontSize} 600 ${fontSize * 1.3}`;
 
@@ -231,7 +247,12 @@ const StrokeText = ({
       role="img"
       aria-label={String(text ?? '')}
     >
-      <svg className="stroke-text__svg" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <svg
+        className="stroke-text__svg"
+        viewBox={viewBox}
+        preserveAspectRatio={`${ALIGN_X[align] ?? 'xMid'}YMid meet`}
+        aria-hidden="true"
+      >
         {fillMode === 'wipe' && box && (
           <defs>
             <clipPath id={wipeId} clipPathUnits="userSpaceOnUse">
