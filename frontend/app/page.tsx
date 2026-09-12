@@ -11,7 +11,6 @@ import { PortalBar } from "@/components/chrome";
 import { DotField } from "@/components/dot-field";
 import { HeroAccent } from "@/components/hero-accent";
 import { HeroAurora } from "@/components/hero-aurora";
-import { Logo } from "@/components/logo";
 import { RegistryFigures } from "@/components/registry-figures";
 import { ServiceCard, type ServiceIcon } from "@/components/service-card";
 import { SiteFooter } from "@/components/site-footer";
@@ -76,16 +75,14 @@ const SIGNALS = [
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
-      <PortalBar immersive brandOnScroll="hero-end" />
+      <PortalBar immersive />
 
       <section className="on-navy hero-shell relative isolate min-h-[660px] overflow-hidden bg-[var(--navy-deep)]">
         <HeroAurora />
 
         <div className="relative mx-auto flex min-h-[660px] max-w-[1400px] items-center px-4 py-20 sm:px-8 lg:py-28">
           <div className="max-w-[62rem]">
-            <Logo size="xl" tone="dark" href={null} />
-
-            <h1 className="hero-title mt-9 text-white">
+            <h1 className="hero-title text-white">
               Vérifiez votre dossier{" "}
               <HeroAccent>avant de le déposer.</HeroAccent>
             </h1>
@@ -143,8 +140,6 @@ export default function Home() {
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--navy-deep)]/55 to-transparent" />
-        {/* Marks the end of the hero; the nav wordmark appears once this passes. */}
-        <span id="hero-end" aria-hidden className="absolute bottom-0 left-0 h-px w-px" />
       </section>
 
       <section className="services-luxe relative overflow-hidden">
