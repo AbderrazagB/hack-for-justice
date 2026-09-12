@@ -182,9 +182,9 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
           <div className="flex flex-wrap gap-1.5">
             {documentKeys.map((key) => {
               const active = selected === key;
-              const hasFlag = submission.flags.some((f) =>
+              const flagCount = submission.flags.filter((f) =>
                 f.documents.some((d) => d.key === key),
-              );
+              ).length;
               return (
                 <button
                   key={key}
@@ -198,12 +198,24 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
                   }`}
                 >
                   {DOCUMENT_SHORT_FR[key] ?? key}
-                  {hasFlag && (
+                  {flagCount > 0 && (
+                    /* The count, not a dot: it says how much is wrong with
+                       this piece, which is what the officer is deciding
+                       where to look next on. */
                     <span
-                      aria-label="comporte une anomalie"
-                      className="size-1.5 rounded-full"
-                      style={{ background: "var(--st-correction-ink)" }}
-                    />
+                      aria-label={`${flagCount} anomalie${flagCount > 1 ? "s" : ""}`}
+                      className="ml-0.5 inline-flex min-w-[1.125rem] items-center justify-center rounded-full px-1 text-[0.6875rem] font-semibold tabular-nums"
+                      style={
+                        active
+                          ? { background: "rgba(255,255,255,0.2)", color: "#fff" }
+                          : {
+                              background: "var(--st-correction-wash)",
+                              color: "var(--st-correction-ink)",
+                            }
+                      }
+                    >
+                      {flagCount}
+                    </span>
                   )}
                 </button>
               );

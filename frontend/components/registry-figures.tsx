@@ -82,12 +82,9 @@ export function RegistryFigures() {
                 key={figure.label}
                 className="rounded-[20px] border border-white/10 bg-white/6 px-5 py-5 backdrop-blur-sm transition-colors hover:bg-white/9"
               >
-                <div className="flex items-center justify-between">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-[var(--teal)]/12 text-[var(--teal)] ring-1 ring-[var(--teal)]/20">
-                    <Icon size={18} strokeWidth={1.6} aria-hidden />
-                  </span>
-                  <span className="size-1.5 rounded-full bg-[var(--teal)] shadow-[0_0_12px_var(--teal)]" />
-                </div>
+                <span className="flex size-9 items-center justify-center rounded-xl bg-[var(--teal)]/12 text-[var(--teal)] ring-1 ring-[var(--teal)]/20">
+                  <Icon size={18} strokeWidth={1.6} aria-hidden />
+                </span>
                 <dd className="t-stat mt-6 text-white">
                   {figure.value === null ? (
                     <span className="text-white/28">—</span>
