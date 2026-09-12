@@ -123,7 +123,17 @@ export default async function OfficerQueue({
       <div className="relative overflow-hidden bg-[var(--navy)]">
         <HeroAurora />
         <div className="relative mx-auto max-w-[1400px] px-4 pb-7 sm:px-8">
-          <h1 className="t-h1 pb-5 text-white">File de traitement</h1>
+          <div className="pb-6 pt-1">
+            <p className="text-[0.6875rem] font-semibold tracking-[0.14em] text-[var(--teal)] uppercase">
+              Espace institutionnel
+            </p>
+            <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+              <h1 className="t-h1 text-white">File de traitement</h1>
+              <p className="max-w-md text-[0.8125rem] text-white/55">
+                Priorisez les dossiers signalés et consignez chaque décision.
+              </p>
+            </div>
+          </div>
           <StatBand figures={figures(stats)} />
         </div>
       </div>

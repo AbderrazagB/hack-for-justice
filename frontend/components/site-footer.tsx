@@ -28,12 +28,12 @@ export function SiteFooter() {
           {/* Identity and the disclaimer that matters most. */}
           <div>
             <Logo size="md" />
-            <p className="mt-4 max-w-sm text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
+            <p className="mt-5 max-w-sm text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
               Sahilli pré-valide les dossiers destinés au Registre National des
               Entreprises&nbsp;: pièces manquantes, informations discordantes
               entre documents, délais légaux.
             </p>
-            <p className="mt-3 max-w-sm rounded-[var(--r-control)] bg-[var(--canvas)] px-3 py-2.5 text-[0.8125rem] leading-relaxed text-[var(--ink-muted)]">
+            <p className="mt-3 max-w-sm rounded-[var(--r-control)] bg-[var(--canvas)] px-3 py-2.5 text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
               Sahilli est un service indépendant. Il ne remplace pas le portail
               de dépôt du RNE et ne transmet aucun dossier au registre.
             </p>
@@ -46,7 +46,7 @@ export function SiteFooter() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="text-[0.875rem] text-[var(--ink-muted)] transition-colors hover:text-[var(--teal-ink)]"
+                    className="text-[0.9375rem] text-[var(--ink-muted)] transition-colors hover:text-[var(--teal-ink)]"
                   >
                     {item.label}
                   </Link>
@@ -61,7 +61,7 @@ export function SiteFooter() {
               {REFERENCES.map((reference) => (
                 <li
                   key={reference}
-                  className="text-[0.875rem] leading-relaxed text-[var(--ink-muted)]"
+                  className="text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]"
                 >
                   {reference}
                 </li>

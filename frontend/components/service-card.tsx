@@ -58,53 +58,74 @@ export function ServiceCard({
 
   const body = (
     <>
-      <span
-        className={`flex justify-center ${
-          available ? "text-[var(--teal-ink)]" : "text-[var(--ink-faint)]"
-        }`}
-      >
-        <Icon size={32} strokeWidth={1.4} aria-hidden />
+      {available && (
+        <span
+          aria-hidden
+          className="absolute -top-20 -right-20 size-44 rounded-full bg-[var(--teal)]/10 blur-3xl transition-transform duration-500 group-hover:scale-125"
+        />
+      )}
+
+      <span className="relative flex items-start justify-between">
+        <span
+          className={`flex size-12 items-center justify-center rounded-[14px] ring-1 ${
+            available
+              ? "bg-[var(--teal-wash)] text-[var(--teal-ink)] ring-[var(--teal)]/18"
+              : "bg-[var(--canvas)] text-[var(--ink-faint)] ring-[var(--line)]"
+          }`}
+        >
+          <Icon size={25} strokeWidth={1.55} aria-hidden />
+        </span>
+        <span
+          className={`rounded-full px-2.5 py-1 text-[0.625rem] font-semibold tracking-[0.08em] uppercase ${
+            available
+              ? "bg-[var(--teal-wash)] text-[var(--teal-ink)]"
+              : "bg-[var(--canvas)] text-[var(--ink-faint)]"
+          }`}
+        >
+          {available ? "Disponible" : "Bientôt"}
+        </span>
       </span>
 
       {/* Both titles sit in a fixed-height block so every card in the row has
           its pill on the same baseline, whatever the title wraps to. */}
-      <span className="mt-4 flex min-h-[5.25rem] flex-col items-center justify-start">
+      <span className="relative mt-7 flex min-h-[5.75rem] flex-col items-start justify-start">
         <h3
-          className={`ar ar-center text-[1.0625rem] leading-snug font-semibold ${
+          className={`ar ar-left text-[1.0625rem] leading-snug font-semibold ${
             available ? "text-[var(--navy)]" : "text-[var(--ink-muted)]"
           }`}
         >
           {titleAr}
         </h3>
         <p
-          className={`mt-1 text-center text-[0.9375rem] leading-snug ${
+          className={`mt-1.5 text-left text-[0.9375rem] leading-snug ${
             available ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
           }`}
         >
           {titleFr}
         </p>
-        <span className="t-data mt-1.5 block text-center text-[var(--ink-faint)]">
+        <span className="t-data mt-2 block text-left text-[var(--ink-faint)]">
           {reference ?? "\u00A0"}
         </span>
       </span>
 
-      <span className="mt-auto w-full pt-4">
+      <span className="relative mt-auto w-full pt-5">
         {available ? (
-          <span className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--teal)] px-3 py-2.5 text-white transition-colors group-hover:bg-[var(--teal-ink)]">
+          <span className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--navy)] px-3 py-3 text-white shadow-[0_10px_24px_-14px_rgba(8,26,49,0.8)] transition-all group-hover:bg-[var(--teal-ink)]">
             <ArrowLeft size={15} strokeWidth={2} className="shrink-0" aria-hidden />
-            <span className="text-[0.8125rem] font-medium whitespace-nowrap">
+            <span className="text-[0.875rem] font-medium whitespace-nowrap">
               Accès au service
             </span>
             <span aria-hidden className="text-white/40">
               |
             </span>
-            <span className="ar text-[0.8125rem] font-medium whitespace-nowrap">
+            <span className="ar text-[0.875rem] font-medium whitespace-nowrap">
               الولوج الى الخدمة
             </span>
           </span>
         ) : (
-          <span className="flex w-full items-center justify-center rounded-full border border-dashed border-[var(--line-strong)] px-3 py-2.5 text-[0.8125rem] text-[var(--ink-faint)]">
-            Bientôt disponible
+          <span className="flex w-full items-center justify-between border-t border-[var(--line)] pt-4 text-[0.75rem] text-[var(--ink-faint)]">
+            <span>Prochainement</span>
+            <span aria-hidden>—</span>
           </span>
         )}
       </span>
@@ -112,13 +133,13 @@ export function ServiceCard({
   );
 
   const shell =
-    "group flex h-full flex-col rounded-2xl border px-5 pt-7 pb-5 transition-all duration-200";
+    "group relative isolate flex min-h-[292px] h-full flex-col overflow-hidden rounded-[22px] border px-5 pt-5 pb-5 transition-all duration-300";
 
   if (!available) {
     return (
       <div
         aria-disabled
-        className={`${shell} border-[var(--line)] bg-[var(--surface)]/60`}
+        className={`${shell} border-[var(--line)] bg-[var(--surface)]/72 shadow-[0_18px_45px_-38px_rgba(8,26,49,0.55)] backdrop-blur-sm hover:border-[var(--line-strong)] hover:bg-[var(--surface)]`}
       >
         {body}
       </div>
@@ -128,7 +149,7 @@ export function ServiceCard({
   return (
     <Link
       href={href!}
-      className={`${shell} border-transparent bg-[var(--surface)] shadow-[0_1px_2px_rgba(14,39,71,0.05),0_10px_28px_-14px_rgba(14,39,71,0.28)] hover:-translate-y-1 hover:shadow-[0_2px_4px_rgba(14,39,71,0.06),0_18px_40px_-16px_rgba(21,173,162,0.45)]`}
+      className={`${shell} border-[var(--teal)]/25 bg-[var(--surface)] shadow-[0_22px_60px_-35px_rgba(8,26,49,0.5)] hover:-translate-y-1.5 hover:border-[var(--teal)]/50 hover:shadow-[0_28px_70px_-34px_rgba(21,173,162,0.55)]`}
     >
       {body}
     </Link>

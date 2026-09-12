@@ -25,7 +25,10 @@ export function StatusTracker({ status }: { status: SubmissionStatus }) {
   const terminal = TERMINAL.has(status) ? SUBMISSION_STATUS[status] : null;
 
   return (
-    <ol className="flex flex-wrap gap-1.5" aria-label="Avancement du dossier">
+    <ol
+      className="grid grid-cols-2 gap-x-2 gap-y-4 sm:grid-cols-4 sm:gap-1.5"
+      aria-label="Avancement du dossier"
+    >
       {STEPS.map((step, index) => {
         const done = index <= reached;
         const current = index === reached;
@@ -36,7 +39,7 @@ export function StatusTracker({ status }: { status: SubmissionStatus }) {
           <li
             key={step.key}
             aria-current={current ? "step" : undefined}
-            className="min-w-[6.5rem] flex-1 border-t-2 pt-2"
+            className="min-w-0 border-t-2 pt-2"
             style={{
               borderColor: done ? tone : "var(--line)",
             }}

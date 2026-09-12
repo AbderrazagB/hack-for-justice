@@ -1,6 +1,7 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { ArrowLeft, FileCheck2, ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AssistantPanel } from "@/components/assistant-panel";
@@ -75,36 +76,54 @@ export default function FilingFlow({
 
   if (error && !transaction) {
     return (
-      <div className="min-h-screen">
+      <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
         <PortalBar />
-        <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
+        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6">
+          <Link
+            href="/msme"
+            className="mb-6 inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--teal-ink)] hover:underline"
+          >
+            <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+            Retour aux démarches
+          </Link>
           <Notice>{error}</Notice>
         </main>
+        <SiteFooter />
       </div>
     );
+  }
+
+  if (!transaction) {
+    return <FilingSkeleton />;
   }
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
       <PortalBar />
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+        <Link
+          href="/msme"
+          className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--teal-ink)] hover:underline"
+        >
+          <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+          Toutes les démarches
+        </Link>
+
+        <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-[var(--line)] pb-6">
           <div>
-            <h1 className="t-h1">
-              {transaction?.display_name_fr ?? "Chargement du formulaire"}
-            </h1>
-            {transaction && (
-              <p className="ar mt-0.5 text-[1.0625rem] text-[var(--ink-muted)]">
-                {transaction.display_name_ar}
-              </p>
-            )}
-          </div>
-          {transaction && (
-            <p className="t-data text-[var(--ink-muted)]">
-              {transaction.official_reference}
+            <p className="mb-2 inline-flex items-center gap-2 text-[0.6875rem] font-semibold tracking-[0.14em] text-[var(--teal-ink)] uppercase">
+              <FileCheck2 size={14} strokeWidth={2} aria-hidden />
+              Pré-validation du dossier
             </p>
-          )}
+            <h1 className="t-h1">{transaction.display_name_fr}</h1>
+            <p className="ar mt-0.5 text-[1.0625rem] text-[var(--ink-muted)]">
+              {transaction.display_name_ar}
+            </p>
+          </div>
+          <p className="t-data rounded-[var(--r-control)] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-[var(--ink-muted)]">
+            {transaction.official_reference}
+          </p>
         </div>
 
         {result && (
@@ -196,6 +215,45 @@ export default function FilingFlow({
         )}
       </main>
 
+      <SiteFooter />
+    </div>
+  );
+}
+
+function FilingSkeleton() {
+  return (
+    <div
+      className="flex min-h-screen flex-col bg-[var(--canvas)]"
+      aria-busy="true"
+    >
+      <PortalBar />
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+        <div className="h-5 w-36 animate-pulse rounded bg-[var(--line)]" />
+
+        <div className="mt-5 flex items-end justify-between gap-6 border-b border-[var(--line)] pb-6">
+          <div className="w-full max-w-md animate-pulse">
+            <div className="h-3 w-40 rounded bg-[var(--teal-wash)]" />
+            <div className="mt-4 h-8 w-4/5 rounded bg-[var(--line)]" />
+            <div className="mt-2 h-4 w-2/5 rounded bg-[var(--line)]" />
+          </div>
+          <div className="hidden h-7 w-24 animate-pulse rounded bg-[var(--line)] sm:block" />
+        </div>
+
+        <div className="mt-8 grid items-start gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8">
+          {[0, 1].map((column) => (
+            <section key={column} className="animate-pulse" aria-hidden>
+              <div className="mb-3 h-6 w-28 rounded bg-[var(--line)]" />
+              <div className="rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-5">
+                <div className="h-4 w-3/4 rounded bg-[var(--line)]" />
+                <div className="mt-4 h-4 w-1/2 rounded bg-[var(--line)]" />
+                <div className="mt-7 h-12 rounded bg-[var(--canvas)]" />
+                <div className="mt-3 h-12 rounded bg-[var(--canvas)]" />
+              </div>
+            </section>
+          ))}
+        </div>
+        <p className="sr-only">Chargement du formulaire</p>
+      </main>
       <SiteFooter />
     </div>
   );

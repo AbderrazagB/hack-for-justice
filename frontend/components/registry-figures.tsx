@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, FileText, Users } from "lucide-react";
+import { Building2, FileText, Radio, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import CountUp from "@/components/CountUp";
@@ -8,11 +8,6 @@ import { useReducedMotion } from "@/components/motion";
 import { getStats } from "@/lib/api";
 import type { Stats } from "@/lib/types";
 
-/**
- * The figures band. Unlike the registry's own counters these are Sahilli's
- * live numbers, read from GET /submissions/stats — nothing here is hardcoded.
- * React Bits `CountUp` runs them once on load.
- */
 export function RegistryFigures() {
   const [stats, setStats] = useState<Stats | null>(null);
   const reduced = useReducedMotion();
@@ -53,37 +48,66 @@ export function RegistryFigures() {
   ];
 
   return (
-    <div className="rounded-2xl bg-[#EDF1F7] px-4 py-9 sm:px-8">
-      <dl className="grid gap-8 sm:grid-cols-3">
-        {figures.map((figure) => {
-          const Icon = figure.icon;
-          return (
-            <div key={figure.label} className="text-center">
-              <Icon
-                size={30}
-                strokeWidth={1.4}
-                className="mx-auto text-[var(--navy)]"
-                aria-hidden
-              />
-              <dd className="t-stat mt-3 text-[var(--teal-ink)]">
-                {figure.value === null ? (
-                  <span className="text-[var(--ink-faint)]">—</span>
-                ) : reduced ? (
-                  figure.value.toLocaleString("fr-FR")
-                ) : (
-                  <CountUp to={figure.value} duration={1.4} separator=" " />
-                )}
-              </dd>
-              <dt className="mt-1.5 text-[0.8125rem] font-medium text-[var(--navy)]">
-                {figure.label}
-              </dt>
-              <p className="ar text-[0.75rem] text-[var(--ink-muted)]">
-                {figure.labelAr}
-              </p>
-            </div>
-          );
-        })}
-      </dl>
+    <div className="on-navy relative isolate overflow-hidden rounded-[30px] bg-[var(--navy)] px-5 py-7 shadow-[0_30px_80px_-45px_rgba(8,26,49,0.8)] sm:px-8 sm:py-9 lg:px-10">
+      <div
+        aria-hidden
+        className="absolute -top-32 -right-24 size-80 rounded-full bg-[var(--teal)]/15 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="absolute -bottom-40 -left-24 size-80 rounded-full bg-white/6 blur-3xl"
+      />
+
+      <div className="relative grid items-center gap-8 lg:grid-cols-[0.8fr_2fr]">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/6 px-3 py-1.5 text-[0.6875rem] font-semibold tracking-[0.1em] text-white/68 uppercase">
+            <Radio size={13} className="text-[var(--teal)]" aria-hidden />
+            Activité en direct
+          </div>
+          <h2 className="mt-4 font-[family-name:var(--font-space-grotesk)] text-[1.6rem] leading-tight font-semibold tracking-[-0.03em] text-white">
+            La confiance,
+            <span className="block text-[var(--teal)]">rendue visible.</span>
+          </h2>
+          <p className="mt-3 max-w-xs text-[0.8125rem] leading-6 text-white/50">
+            Les chiffres sont synchronisés avec les dossiers traités par
+            Sahilli.
+          </p>
+        </div>
+
+        <dl className="grid gap-3 sm:grid-cols-3">
+          {figures.map((figure) => {
+            const Icon = figure.icon;
+            return (
+              <div
+                key={figure.label}
+                className="rounded-[20px] border border-white/10 bg-white/6 px-5 py-5 backdrop-blur-sm transition-colors hover:bg-white/9"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-[var(--teal)]/12 text-[var(--teal)] ring-1 ring-[var(--teal)]/20">
+                    <Icon size={18} strokeWidth={1.6} aria-hidden />
+                  </span>
+                  <span className="size-1.5 rounded-full bg-[var(--teal)] shadow-[0_0_12px_var(--teal)]" />
+                </div>
+                <dd className="t-stat mt-6 text-white">
+                  {figure.value === null ? (
+                    <span className="text-white/28">—</span>
+                  ) : reduced ? (
+                    figure.value.toLocaleString("fr-FR")
+                  ) : (
+                    <CountUp to={figure.value} duration={1.4} separator=" " />
+                  )}
+                </dd>
+                <dt className="mt-2 text-[0.75rem] font-semibold text-white/76">
+                  {figure.label}
+                </dt>
+                <p className="ar mt-0.5 text-[0.6875rem] text-white/38">
+                  {figure.labelAr}
+                </p>
+              </div>
+            );
+          })}
+        </dl>
+      </div>
     </div>
   );
 }

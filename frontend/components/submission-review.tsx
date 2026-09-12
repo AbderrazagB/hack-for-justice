@@ -404,9 +404,9 @@ function FieldTable({
           {entries.map(([key, value]) => (
             <div
               key={key}
-              className="flex gap-4 border-b border-[var(--line)] py-2 last:border-b-0"
+              className="flex flex-col gap-0.5 border-b border-[var(--line)] py-2 last:border-b-0 sm:flex-row sm:gap-4"
             >
-              <dt className="w-44 shrink-0 text-[0.8125rem] text-[var(--ink-muted)]">
+              <dt className="text-[0.8125rem] text-[var(--ink-muted)] sm:w-44 sm:shrink-0">
                 {FIELD_LABELS[key] ?? key}
               </dt>
               <dd className="t-data min-w-0 flex-1 break-words text-[var(--ink)]">

@@ -28,18 +28,18 @@ export function PortalBar({ immersive = false }: { immersive?: boolean }) {
             : "border-[var(--line)] bg-[var(--surface)]"
         }`}
       >
-        <nav className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-8">
+        <nav className="mx-auto flex max-w-[1400px] flex-nowrap items-center justify-between gap-2 px-4 py-4 sm:gap-3 sm:px-8">
           <Logo size="md" tone={immersive ? "dark" : "light"} />
           <div className="flex items-center gap-1">
             <Link
               href="/msme"
-              className={`rounded-[var(--r-control)] px-3 py-1.5 text-[0.875rem] font-medium transition-colors ${linkClass}`}
+              className={`rounded-[var(--r-control)] px-2 py-1.5 text-[0.8125rem] font-medium transition-colors sm:px-3 sm:text-[0.875rem] ${linkClass}`}
             >
               Services
             </Link>
             <Link
               href="/admin"
-              className={`rounded-[var(--r-control)] px-3 py-1.5 text-[0.875rem] font-medium transition-colors ${linkClass}`}
+              className={`rounded-[var(--r-control)] px-2 py-1.5 text-[0.8125rem] font-medium whitespace-nowrap transition-colors sm:px-3 sm:text-[0.875rem] ${linkClass}`}
             >
               Espace agent
             </Link>
