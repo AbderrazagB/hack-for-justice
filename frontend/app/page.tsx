@@ -76,7 +76,7 @@ const SIGNALS = [
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
-      <PortalBar immersive />
+      <PortalBar immersive brandOnScroll="hero-end" />
 
       <section className="on-navy hero-shell relative isolate min-h-[660px] overflow-hidden bg-[var(--navy-deep)]">
         <HeroAurora />
@@ -143,6 +143,8 @@ export default function Home() {
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--navy-deep)]/55 to-transparent" />
+        {/* Marks the end of the hero; the nav wordmark appears once this passes. */}
+        <span id="hero-end" aria-hidden className="absolute bottom-0 left-0 h-px w-px" />
       </section>
 
       <section className="services-luxe relative overflow-hidden">

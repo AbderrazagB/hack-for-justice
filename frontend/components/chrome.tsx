@@ -2,13 +2,25 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Logo } from "@/components/logo";
+import { ScrollRevealBrand } from "@/components/scroll-brand";
 
 /**
  * Portal chrome for the public entry: a thin navy utility strip above the white
  * bar, echoing the layout of the registry portal an applicant already knows.
  * Carries Sahilli's own wordmark only — no state emblem, no flag, no RNE logo.
  */
-export function PortalBar({ immersive = false }: { immersive?: boolean }) {
+export function PortalBar({
+  immersive = false,
+  brandOnScroll,
+}: {
+  immersive?: boolean;
+  /**
+   * Id of an element marking the end of the hero. When given, the nav wordmark
+   * stays hidden until that element scrolls out of view, so the bar does not
+   * duplicate the lockup the hero is already showing.
+   */
+  brandOnScroll?: string;
+}) {
   const linkClass = immersive
     ? "text-white/70 hover:bg-white/8 hover:text-white"
     : "text-[var(--ink-muted)] hover:bg-[var(--canvas)] hover:text-[var(--navy)]";
@@ -29,7 +41,11 @@ export function PortalBar({ immersive = false }: { immersive?: boolean }) {
         }`}
       >
         <nav className="mx-auto flex max-w-[1400px] flex-nowrap items-center justify-between gap-2 px-4 py-4 sm:gap-3 sm:px-8">
-          <Logo size="md" tone={immersive ? "dark" : "light"} />
+          {brandOnScroll ? (
+            <ScrollRevealBrand watchId={brandOnScroll} />
+          ) : (
+            <Logo size="md" tone={immersive ? "dark" : "light"} />
+          )}
           <div className="flex items-center gap-1">
             <Link
               href="/msme"
