@@ -51,6 +51,45 @@
       "text_fr": "À compter du 1er juillet 2026, toutes les procédures du Registre National des Entreprises doivent être déposées en ligne. Le dépôt physique sur support papier n'est plus accepté.",
       "text_ar": "ابتداءً من غرة جويلية 2026، يجب إيداع جميع إجراءات السجل الوطني للمؤسسات عن بعد. ولم يعد الإيداع المادي على الورق مقبولاً.",
       "effective_date": "2026-07-01"
+    },
+    {
+      "id": "rne-financial-statements-required-documents",
+      "topic": "required_documents",
+      "transaction_type": "RNE_FINANCIAL_STATEMENTS",
+      "official_reference": "RNE — communiqué 2026 sur le dépôt des états financiers",
+      "title_fr": "Pièces requises — Dépôt des États Financiers Annuels",
+      "title_ar": "الوثائق المطلوبة — إيداع القوائم المالية السنوية",
+      "text_fr": "Pièces requises pour le dépôt des états financiers annuels : les états financiers signés ; le procès-verbal de l'assemblée générale ordinaire ayant approuvé les comptes ; le rapport du commissaire aux comptes lorsque la forme juridique de la société l'exige ; la liste actualisée des actionnaires ou associés.",
+      "text_ar": "الوثائق المطلوبة لإيداع القوائم المالية السنوية: القوائم المالية ممضاة؛ محضر الجلسة العامة العادية المصادقة على الحسابات؛ تقرير مراقب الحسابات عندما يقتضيه الشكل القانوني للشركة؛ قائمة محينة للمساهمين أو الشركاء.",
+      "required_documents": [
+        "financial_statements_signed",
+        "general_assembly_pv_approval",
+        "auditor_report",
+        "updated_shareholder_list"
+      ]
+    },
+    {
+      "id": "rne-financial-statements-deadline-7-months",
+      "topic": "deadline",
+      "transaction_type": "RNE_FINANCIAL_STATEMENTS",
+      "official_reference": "Loi n° 52-2018 relative au Registre National des Entreprises",
+      "title_fr": "Délai de dépôt des états financiers — 7 mois",
+      "title_ar": "أجل إيداع القوائم المالية — 7 أشهر",
+      "text_fr": "Les états financiers annuels doivent être déposés dans un délai de sept (7) mois à compter de la date de clôture de l'exercice comptable. Ainsi, les états financiers de l'exercice clos le 31 décembre 2025 étaient à déposer au plus tard le 31 juillet 2026.",
+      "text_ar": "يجب إيداع القوائم المالية السنوية في أجل سبعة (7) أشهر ابتداءً من تاريخ ختم السنة المحاسبية. وبالتالي فإن قوائم السنة المختومة في 31 ديسمبر 2025 كان يتعين إيداعها في أجل أقصاه 31 جويلية 2026.",
+      "deadline_months": 7
+    },
+    {
+      "id": "rne-financial-statements-penalty",
+      "topic": "penalty",
+      "transaction_type": "RNE_FINANCIAL_STATEMENTS",
+      "official_reference": "RNE — communiqué sur les pénalités de retard de dépôt",
+      "title_fr": "Pénalité de retard — états financiers",
+      "title_ar": "خطية التأخير — القوائم المالية",
+      "text_fr": "Tout retard dans le dépôt des états financiers annuels entraîne une pénalité de vingt-cinq (25) dinars par mois pour les personnes morales et de dix (10) dinars par mois pour les personnes physiques, par mois ou fraction de mois de retard. La persistance du défaut de dépôt peut entraîner la suspension du statut de l'entreprise au registre.",
+      "text_ar": "يترتب عن كل تأخير في إيداع القوائم المالية السنوية خطية قدرها خمسة وعشرون (25) ديناراً شهرياً بالنسبة للأشخاص المعنويين وعشرة (10) دنانير شهرياً بالنسبة للأشخاص الطبيعيين، عن كل شهر أو جزء من شهر تأخير. ويمكن أن يؤدي التمادي في عدم الإيداع إلى تعليق وضعية المؤسسة بالسجل.",
+      "penalty_tnd_per_month_legal_entity": 25,
+      "penalty_tnd_per_month_individual": 10
     }
   ]
 }

@@ -160,3 +160,80 @@ def test_live_containers_return_the_deadline_entry() -> None:
         assert hits, query
         assert hits[0].topic == "deadline", query
         assert "52-2018" in hits[0].official_reference
+
+
+# ------------------------------------- financial statements corpus entries
+
+def test_corpus_covers_both_workflows() -> None:
+    types = {e.get("transaction_type") for e in load_seed_entries()}
+    assert types == {"RNE_MODIFICATION_ENTREPRISE", "RNE_FINANCIAL_STATEMENTS"}
+
+
+def test_financial_statements_deadline_entry_records_seven_months() -> None:
+    entry = next(
+        e
+        for e in load_seed_entries()
+        if e["id"] == "rne-financial-statements-deadline-7-months"
+    )
+    assert entry["deadline_months"] == 7
+    assert "52-2018" in entry["official_reference"]
+
+
+def test_financial_statements_penalty_entry_records_both_rates() -> None:
+    entry = next(
+        e for e in load_seed_entries() if e["id"] == "rne-financial-statements-penalty"
+    )
+    assert entry["penalty_tnd_per_month_legal_entity"] == 25
+    assert entry["penalty_tnd_per_month_individual"] == 10
+
+
+def test_financial_statements_documents_match_the_rules_engine() -> None:
+    """The corpus and the rules engine must not drift apart."""
+    from app.services.rules_engine import TRANSACTION_RULES
+
+    entry = next(
+        e
+        for e in load_seed_entries()
+        if e["id"] == "rne-financial-statements-required-documents"
+    )
+    assert (
+        entry["required_documents"]
+        == TRANSACTION_RULES["RNE_FINANCIAL_STATEMENTS"]["required_documents"]
+    )
+
+
+def test_each_workflow_retrieves_its_own_deadline(service: RetrievalService) -> None:
+    """Two deadlines in one collection must not shadow each other."""
+    entries = load_seed_entries()
+    service.index_entries(entries)
+
+    for entry_id in (
+        "rne-filing-deadline-30-days",
+        "rne-financial-statements-deadline-7-months",
+    ):
+        entry = next(e for e in entries if e["id"] == entry_id)
+        hits = service.search(embeddable_text(entry), limit=1)
+        assert hits[0].entry_id == entry_id
+
+
+@pytest.mark.integration
+def test_live_stack_separates_the_two_deadlines() -> None:
+    embedder = EmbeddingService()
+    if not embedder.health():
+        pytest.skip("external BGE-M3 container not running")
+
+    live = RetrievalService(embedding_service=embedder)
+    if not live.is_ready():
+        pytest.skip("rne_procedures collection not seeded; run scripts/seed_rag.py")
+
+    probes = {
+        "Quel est le délai pour déposer les états financiers annuels ?":
+            "rne-financial-statements-deadline-7-months",
+        "ما هو أجل إيداع القوائم المالية؟":
+            "rne-financial-statements-deadline-7-months",
+        "Quel est le délai légal pour déposer une modification d'entreprise ?":
+            "rne-filing-deadline-30-days",
+    }
+    for query, expected in probes.items():
+        hits = live.search(query, limit=1)
+        assert hits and hits[0].entry_id == expected, query

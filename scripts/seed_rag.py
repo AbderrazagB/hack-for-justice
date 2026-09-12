@@ -44,15 +44,37 @@ def main() -> int:
     count = service.index_entries(entries)
     print(f"Indexed {count} entries into collection '{COLLECTION_NAME}'")
 
-    # Smoke test: the canonical query for the legal deadline must come back first.
-    probe = "Quel est le délai légal pour déposer une modification ?"
-    results = service.search(probe, limit=2)
-    print(f"\nSmoke test: {probe}")
-    for rank, passage in enumerate(results, start=1):
-        print(f"  {rank}. [{passage.score:.4f}] {passage.entry_id} — {passage.title_fr}")
+    # Smoke tests: one canonical query per workflow must retrieve that
+    # workflow's own entry, not the other's. With both corpora in one
+    # collection, a query about one deadline must not surface the other.
+    probes = [
+        (
+            "Quel est le délai légal pour déposer une modification d'entreprise ?",
+            "rne-filing-deadline-30-days",
+        ),
+        (
+            "Quel est le délai pour déposer les états financiers annuels ?",
+            "rne-financial-statements-deadline-7-months",
+        ),
+        (
+            "Quelles pièces pour le dépôt des états financiers ?",
+            "rne-financial-statements-required-documents",
+        ),
+    ]
 
-    if not results or results[0].topic != "deadline":
-        print("\nWARNING: expected the 30-day deadline entry to rank first.", file=sys.stderr)
+    failures = 0
+    print()
+    for probe, expected in probes:
+        results = service.search(probe, limit=2)
+        top = results[0] if results else None
+        ok = top is not None and top.entry_id == expected
+        failures += 0 if ok else 1
+        print(f"{'OK  ' if ok else 'MISS'} {probe}")
+        for rank, passage in enumerate(results, start=1):
+            print(f"       {rank}. [{passage.score:.4f}] {passage.entry_id}")
+
+    if failures:
+        print(f"\nWARNING: {failures} probe(s) did not retrieve the expected entry.", file=sys.stderr)
         return 1
 
     print("\nSeeding complete.")
