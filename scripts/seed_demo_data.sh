@@ -43,14 +43,24 @@ for case in manifest["cases"]:
             f'--{boundary}\r\nContent-Disposition: form-data; '
             f'name="document_types"\r\n\r\n{doc_type}\r\n'.encode()
         )
-    parts.append(
-        f'--{boundary}\r\nContent-Disposition: form-data; '
-        f'name="submitted_at"\r\n\r\n{case["submitted_at"]}\r\n'.encode()
-    )
+    def field(name: str, value: str) -> bytes:
+        return (
+            f'--{boundary}\r\nContent-Disposition: form-data; '
+            f'name="{name}"\r\n\r\n{value}\r\n'
+        ).encode()
+
+    parts.append(field("submitted_at", case["submitted_at"]))
+    # Context answers, for workflows that ask for them before upload.
+    for name in ("company_type", "fiscal_year_end"):
+        if case.get(name):
+            parts.append(field(name, str(case[name])))
+    if case.get("auditor_required"):
+        parts.append(field("auditor_required", "true"))
     parts.append(f"--{boundary}--\r\n".encode())
 
+    transaction = case.get("transaction_type") or "RNE_MODIFICATION_ENTREPRISE"
     request = urllib.request.Request(
-        f"{api_url}/transactions/RNE_MODIFICATION_ENTREPRISE/submissions",
+        f"{api_url}/transactions/{transaction}/submissions",
         data=b"".join(parts),
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )

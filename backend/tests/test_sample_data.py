@@ -105,7 +105,12 @@ def test_identifiers_look_tunisian_but_are_synthetic() -> None:
 
 
 def test_write_dataset_renders_every_document(tmp_path: Path) -> None:
-    cases = write_dataset(tmp_path, count=5)
+    # write_dataset now emits both workflows; this one pins the modification set.
+    cases = [
+        c
+        for c in write_dataset(tmp_path, count=5, financial_count=0)
+        if c.transaction_type == "RNE_MODIFICATION_ENTREPRISE"
+    ]
     for case in cases:
         assert set(case.documents) == set(DOCUMENT_TYPES)
         for path in case.documents.values():
@@ -119,3 +124,114 @@ def test_dataframe_helper_still_works() -> None:
     frame = generate_sample_data(count=5)
     assert len(frame) == 5
     assert {"case_id", "cin", "decision_date"} <= set(frame.columns)
+
+
+# ------------------------------------ financial statements demo cases
+
+from data.generate_sample_data import (
+    FINANCIAL_DOCUMENT_TYPES,
+    build_financial_cases,
+)
+
+
+def _as_financial_submission(case) -> dict:
+    documents = {
+        "financial_statements_signed": {
+            "fields": {
+                "has_signature": case.statements_signed,
+                "has_stamp": case.statements_stamped,
+                "fiscal_year_end": case.fiscal_year_end,
+            }
+        },
+        "general_assembly_pv_approval": {
+            "fields": {
+                "registration_reference": case.pv_registration_reference,
+                "full_text": "Assemblée générale ordinaire",
+            }
+        },
+        "updated_shareholder_list": {"fields": {"shareholders": case.shareholders}},
+    }
+    if case.auditor_name:
+        documents["auditor_report"] = {
+            "fields": {"full_text": f"Rapport de {case.auditor_name}"}
+        }
+
+    return {
+        "transaction_type": "RNE_FINANCIAL_STATEMENTS",
+        "documents": documents,
+        "submitted_at": case.submitted_at,
+        "company_type": case.company_type,
+        "auditor_required": case.auditor_required,
+        "fiscal_year_end": case.fiscal_year_end,
+    }
+
+
+def test_financial_generation_is_deterministic() -> None:
+    first = [c.to_dict() for c in build_financial_cases(seed=2026)]
+    second = [c.to_dict() for c in build_financial_cases(seed=2026)]
+    assert first == second
+
+
+def test_financial_set_has_broken_and_clean_cases() -> None:
+    cases = build_financial_cases()
+    assert len([c for c in cases if c.intent != "clean"]) >= 2
+    assert len([c for c in cases if c.intent == "clean"]) >= 1
+
+
+def test_the_two_specified_financial_defects_are_present() -> None:
+    intents = {c.intent for c in build_financial_cases()}
+    assert "missing_auditor_report" in intents
+    assert "filed_late" in intents
+
+
+@pytest.mark.parametrize(
+    "case", build_financial_cases(), ids=lambda c: c.case_id
+)
+def test_each_financial_case_produces_the_verdict_it_claims(case) -> None:
+    result = check_completeness(_as_financial_submission(case), today=REFERENCE_DATE)
+    assert result.status.value == case.expected_status, case.label
+
+
+@pytest.mark.parametrize(
+    "case",
+    [c for c in build_financial_cases() if c.expected_flags],
+    ids=lambda c: c.case_id,
+)
+def test_each_broken_financial_case_raises_its_flags(case) -> None:
+    codes = {
+        f.code
+        for f in flag_inconsistencies(
+            _as_financial_submission(case), today=REFERENCE_DATE
+        )
+    }
+    assert set(case.expected_flags) <= codes, f"{case.label}: got {codes}"
+
+
+def test_clean_financial_cases_raise_no_flags() -> None:
+    for case in build_financial_cases():
+        if case.intent != "clean":
+            continue
+        flags = flag_inconsistencies(
+            _as_financial_submission(case), today=REFERENCE_DATE
+        )
+        assert flags == [], f"{case.case_id}: {[f.code for f in flags]}"
+
+
+def test_write_dataset_renders_both_workflows(tmp_path: Path) -> None:
+    cases = write_dataset(tmp_path, count=5, financial_count=5)
+
+    modification = [c for c in cases if c.transaction_type == "RNE_MODIFICATION_ENTREPRISE"]
+    financial = [c for c in cases if c.transaction_type == "RNE_FINANCIAL_STATEMENTS"]
+    assert modification and financial
+
+    for case in modification:
+        assert set(case.documents) == set(DOCUMENT_TYPES)
+
+    for case in financial:
+        # The auditor report is only rendered when the case actually owes one.
+        expected = set(FINANCIAL_DOCUMENT_TYPES)
+        if not case.auditor_name:
+            expected.discard("auditor_report")
+        assert set(case.documents) == expected
+        for path in case.documents.values():
+            assert Path(path).read_bytes()[:4] == b"\x89PNG"
