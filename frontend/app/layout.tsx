@@ -34,6 +34,10 @@ export const metadata: Metadata = {
   title: "Sahilli — سهّلي",
   description:
     "Pré-validation des dossiers du Registre National des Entreprises pour les PME tunisiennes.",
+  icons: {
+    icon: "/brand/sahilli-mark.png",
+    apple: "/brand/sahilli-mark.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

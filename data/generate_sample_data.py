@@ -205,19 +205,75 @@ def build_cases(count: int = 8, seed: int = 2026) -> list[Case]:
 
 # ---------------------------------------------------------------- rendering
 
-def _render(lines: list[tuple[str, bool]], path: Path, width: int = 1000) -> None:
+# Rendering these with PIL's built-in bitmap font produced text small and coarse
+# enough that the vision model misread single digits -- a clean case once came
+# back flagged because an 8-digit CIN differed by one character between two
+# documents. Real TrueType faces at a legible size fix that at the source;
+# identifiers additionally use a mono face, where 6/8/0 are unambiguous.
+_FONT_CANDIDATES = {
+    "body": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    ],
+    "bold": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ],
+    "mono": [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf",
+    ],
+}
+
+
+def _font(kind: str, size: int):
+    """Load a real face, falling back to PIL's bitmap font if none is installed."""
+    from PIL import ImageFont
+
+    for candidate in _FONT_CANDIDATES[kind]:
+        if Path(candidate).exists():
+            return ImageFont.truetype(candidate, size)
+    return ImageFont.load_default()
+
+
+# A line reading "Label: VALUE" where VALUE is an identifier gets the mono face
+# for the value, so digits stay unambiguous to OCR.
+_IDENTIFIER_PREFIXES = (
+    "N:",
+    "CIN:",
+    "Identifiant unique:",
+    "Identifiant fiscal:",
+    "Date de la decision:",
+    "Date de delivrance:",
+)
+
+
+def _render(lines: list[tuple[str, bool]], path: Path, width: int = 1400) -> None:
     """Render a mock document. `lines` is (text, is_heading)."""
-    height = 90 + len(lines) * 46
+    body = _font("body", 30)
+    bold = _font("bold", 34)
+    mono = _font("mono", 34)
+
+    line_height = 62
+    height = 120 + len(lines) * line_height
     image = Image.new("RGB", (width, height), "white")
     draw = ImageDraw.Draw(image)
 
-    draw.rectangle([20, 20, width - 20, height - 20], outline="black", width=2)
-    y = 50
+    draw.rectangle([24, 24, width - 24, height - 24], outline="black", width=3)
+
+    y = 62
     for text, heading in lines:
-        draw.text((50, y), text, fill="black")
         if heading:
-            draw.line([50, y + 22, width - 60, y + 22], fill="black", width=1)
-        y += 46
+            draw.text((60, y), text, fill="black", font=bold)
+            draw.line([60, y + 44, width - 70, y + 44], fill="black", width=2)
+        elif any(text.startswith(prefix) for prefix in _IDENTIFIER_PREFIXES):
+            label, _, value = text.partition(":")
+            draw.text((60, y), f"{label}:", fill="black", font=body)
+            offset = draw.textlength(f"{label}: ", font=body)
+            draw.text((60 + offset, y - 3), value.strip(), fill="black", font=mono)
+        else:
+            draw.text((60, y), text, fill="black", font=body)
+        y += line_height
 
     path.parent.mkdir(parents=True, exist_ok=True)
     image.save(path)
