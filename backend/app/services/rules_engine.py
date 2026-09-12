@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -39,7 +39,80 @@ TRANSACTION_RULES = {
             "pv_is_signed",
         ],
     },
+    "RNE_FINANCIAL_STATEMENTS": {
+        "display_name_fr": "Dépôt des États Financiers Annuels",
+        "display_name_ar": "إيداع القوائم المالية السنوية",
+        "official_reference": "RNE — obligation annuelle (Loi 52-2018)",
+        "required_documents": [
+            "financial_statements_signed",
+            "general_assembly_pv_approval",
+            "auditor_report",
+            "updated_shareholder_list",
+        ],
+        "checks": [
+            "financial_statements_signed_and_stamped",
+            "pv_registered_with_recette_des_finances_if_applicable",
+            "auditor_report_present_if_required_by_company_type",
+            "shareholder_list_ids_present_for_each_entry",
+            "filed_within_7_months_of_fiscal_year_close",
+        ],
+    },
 }
+
+# ---------------------------------------------------------------------------
+# Financial-statements context
+# ---------------------------------------------------------------------------
+
+# Legal forms an applicant can declare when starting the filing. The auditor
+# report is required for some of them and not others, which is why this is asked
+# as a form field rather than guessed from the documents.
+COMPANY_TYPES: dict[str, dict[str, str]] = {
+    "SA": {"fr": "Société Anonyme (SA)", "ar": "شركة خفية الاسم"},
+    "SCA": {"fr": "Société en Commandite par Actions (SCA)", "ar": "شركة التوصية بالأسهم"},
+    "SARL": {"fr": "Société à Responsabilité Limitée (SARL)", "ar": "شركة ذات مسؤولية محدودة"},
+    "SUARL": {"fr": "Société Unipersonnelle (SUARL)", "ar": "شركة ذات مسؤولية محدودة ووحيد"},
+    "SNC": {"fr": "Société en Nom Collectif (SNC)", "ar": "شركة التضامن"},
+    "PERSONNE_PHYSIQUE": {"fr": "Personne physique", "ar": "شخص طبيعي"},
+}
+
+# An SA or an SCA always appoints a commissaire aux comptes. A SARL only does so
+# once it crosses the statutory thresholds, which the applicant declares --
+# Sahilli has no way to know a company's turnover or headcount.
+COMPANY_TYPES_ALWAYS_AUDITED = {"SA", "SCA"}
+
+# Individuals are not legal entities, which changes the late-filing penalty.
+INDIVIDUAL_COMPANY_TYPES = {"PERSONNE_PHYSIQUE"}
+
+# Filing is due within seven months of fiscal year close.
+FINANCIAL_FILING_DEADLINE_MONTHS = 7
+
+# Late-filing penalty per month or fraction of a month, per RNE's communiqués.
+PENALTY_TND_PER_MONTH_LEGAL_ENTITY = 25
+PENALTY_TND_PER_MONTH_INDIVIDUAL = 10
+
+
+def auditor_report_required(submission: dict[str, Any]) -> bool:
+    """Whether this filing must include a commissaire aux comptes report.
+
+    Driven by the declared legal form, plus an explicit override for a SARL that
+    has crossed the statutory thresholds.
+    """
+    company_type = str(submission.get("company_type") or "").upper()
+    if company_type in COMPANY_TYPES_ALWAYS_AUDITED:
+        return True
+    return bool(submission.get("auditor_required"))
+
+
+def is_individual(submission: dict[str, Any]) -> bool:
+    return str(submission.get("company_type") or "").upper() in INDIVIDUAL_COMPANY_TYPES
+
+
+def penalty_per_month(submission: dict[str, Any]) -> int:
+    return (
+        PENALTY_TND_PER_MONTH_INDIVIDUAL
+        if is_individual(submission)
+        else PENALTY_TND_PER_MONTH_LEGAL_ENTITY
+    )
 
 # Human-readable labels for the UI. Keyed by the identifiers above.
 DOCUMENT_LABELS: dict[str, dict[str, str]] = {
@@ -59,6 +132,22 @@ DOCUMENT_LABELS: dict[str, dict[str, str]] = {
     "general_assembly_pv": {
         "fr": "Procès-verbal de l'assemblée générale",
         "ar": "محضر الجلسة العامة",
+    },
+    "financial_statements_signed": {
+        "fr": "États financiers",
+        "ar": "القوائم المالية",
+    },
+    "general_assembly_pv_approval": {
+        "fr": "Procès-verbal de l'Assemblée Générale Ordinaire",
+        "ar": "محضر الجلسة العامة العادية",
+    },
+    "auditor_report": {
+        "fr": "Rapport du commissaire aux comptes",
+        "ar": "تقرير مراقب الحسابات",
+    },
+    "updated_shareholder_list": {
+        "fr": "Liste actualisée des actionnaires/associés",
+        "ar": "قائمة محينة للمساهمين أو الشركاء",
     },
 }
 
@@ -82,6 +171,26 @@ CHECK_LABELS: dict[str, dict[str, str]] = {
     "pv_is_signed": {
         "fr": "Le procès-verbal est signé et daté",
         "ar": "المحضر ممضى ومؤرخ",
+    },
+    "financial_statements_signed_and_stamped": {
+        "fr": "Les états financiers sont signés et cachetés",
+        "ar": "القوائم المالية ممضاة ومختومة",
+    },
+    "pv_registered_with_recette_des_finances_if_applicable": {
+        "fr": "Le procès-verbal est enregistré à la recette des finances",
+        "ar": "المحضر مسجّل بقباضة المالية",
+    },
+    "auditor_report_present_if_required_by_company_type": {
+        "fr": "Rapport du commissaire aux comptes fourni si requis",
+        "ar": "تقرير مراقب الحسابات مقدَّم عند الاقتضاء",
+    },
+    "shareholder_list_ids_present_for_each_entry": {
+        "fr": "Chaque associé listé porte une référence d'identité",
+        "ar": "كل شريك مذكور له مرجع هوية",
+    },
+    "filed_within_7_months_of_fiscal_year_close": {
+        "fr": "Dépôt dans les 7 mois suivant la clôture de l'exercice",
+        "ar": "الإيداع في أجل 7 أشهر من ختم السنة المحاسبية",
     },
 }
 
@@ -209,8 +318,9 @@ def check_completeness(
     today = today or date.today()
     documents: dict[str, Any] = submission.get("documents") or {}
 
-    present = [key for key in rules["required_documents"] if _has_document(documents, key)]
-    missing = [key for key in rules["required_documents"] if key not in present]
+    required = required_documents_for(rules, submission)
+    present = [key for key in required if _has_document(documents, key)]
+    missing = [key for key in required if key not in present]
 
     checks = [
         _CHECK_IMPLEMENTATIONS[name](documents, submission, today)
@@ -511,12 +621,296 @@ def _check_pv_signed(
     )
 
 
+# ---------------------------------------------------------------------------
+# Financial-statements checks
+# ---------------------------------------------------------------------------
+
+def _check_statements_signed(
+    documents: dict[str, Any], submission: dict[str, Any], today: date
+) -> CheckResult:
+    """The statements must carry a signature and a company stamp.
+
+    Best-effort: we trust the extraction's has_signature / has_stamp flags and
+    fall back to looking for the words in the text. Detecting a stamp from
+    pixels is not something to attempt here -- an unreadable document returns
+    INDETERMINATE so an officer looks, rather than a confident wrong answer.
+    """
+    name = "financial_statements_signed_and_stamped"
+    key = "financial_statements_signed"
+
+    if not _has_document(documents, key):
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "États financiers absents : signature et cachet non vérifiables.",
+            "القوائم المالية غير موجودة: تعذّر التحقق من الإمضاء والختم.",
+        )
+
+    signed = _field(documents, key, "has_signature")
+    stamped = _field(documents, key, "has_stamp")
+    text = str(_field(documents, key, "full_text") or "").lower()
+
+    if signed is None and stamped is None and not text:
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Impossible de déterminer si les états financiers sont signés et cachetés.",
+            "تعذّر تحديد ما إذا كانت القوائم المالية ممضاة ومختومة.",
+        )
+
+    if signed is None and text:
+        signed = any(word in text for word in ("signature", "signé", "gérant", "ممضى"))
+    if stamped is None and text:
+        stamped = any(word in text for word in ("cachet", "cachetée", "ختم"))
+
+    missing = [
+        label
+        for label, present in (("signature", signed), ("cachet", stamped))
+        if present is False or present is None
+    ]
+
+    if missing:
+        listed = " et ".join(missing)
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            f"Les états financiers ne portent pas de {listed}.",
+            "القوائم المالية لا تحمل الإمضاء أو الختم المطلوب.",
+            {"has_signature": bool(signed), "has_stamp": bool(stamped)},
+        )
+
+    return CheckResult(
+        name,
+        CheckOutcome.PASS,
+        "Les états financiers sont signés et cachetés.",
+        "القوائم المالية ممضاة ومختومة.",
+        {"has_signature": True, "has_stamp": True},
+    )
+
+
+def _check_pv_registered(
+    documents: dict[str, Any], submission: dict[str, Any], today: date
+) -> CheckResult:
+    """Whether the AGO minutes were registered at the recette des finances.
+
+    Whether registration is even owed depends on the resolutions the minutes
+    contain, which is a legal reading rather than a field lookup. So this never
+    hard-fails: a confirmed registration passes, and anything else goes to an
+    officer. Auto-rejecting a filing on a nuanced legal condition we cannot
+    evaluate would be worse than asking a human.
+    """
+    name = "pv_registered_with_recette_des_finances_if_applicable"
+    key = "general_assembly_pv_approval"
+
+    if not _has_document(documents, key):
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Procès-verbal absent : enregistrement non vérifiable.",
+            "المحضر غير موجود: تعذّر التحقق من التسجيل.",
+        )
+
+    registration = _field(documents, key, "registration_reference")
+    text = str(_field(documents, key, "full_text") or "").lower()
+    mentions = any(
+        token in text
+        for token in ("recette des finances", "enregistré", "enregistrement", "قباضة المالية")
+    )
+
+    if registration or mentions:
+        return CheckResult(
+            name,
+            CheckOutcome.PASS,
+            (
+                f"Enregistrement relevé sur le procès-verbal : {registration}."
+                if registration
+                else "Le procès-verbal porte une mention d'enregistrement."
+            ),
+            "المحضر يحمل إشارة التسجيل.",
+            {"registration_reference": registration},
+        )
+
+    return CheckResult(
+        name,
+        CheckOutcome.INDETERMINATE,
+        "Aucune mention d'enregistrement à la recette des finances n'a été "
+        "relevée. Selon les décisions prises, cet enregistrement peut être "
+        "obligatoire — à vérifier par l'agent.",
+        "لم يتم رصد إشارة التسجيل بقباضة المالية. قد يكون التسجيل واجباً حسب "
+        "القرارات المتخذة — يتطلب تدقيق العون.",
+    )
+
+
+def _check_auditor_report(
+    documents: dict[str, Any], submission: dict[str, Any], today: date
+) -> CheckResult:
+    """The commissaire aux comptes report, required only for some legal forms."""
+    name = "auditor_report_present_if_required_by_company_type"
+    company_type = str(submission.get("company_type") or "").upper()
+    required = auditor_report_required(submission)
+    present = _has_document(documents, "auditor_report")
+
+    if not company_type:
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Forme juridique non renseignée : impossible de savoir si un "
+            "rapport du commissaire aux comptes est requis.",
+            "الشكل القانوني غير محدد: تعذّر معرفة وجوب تقرير مراقب الحسابات.",
+        )
+
+    label = COMPANY_TYPES.get(company_type, {}).get("fr", company_type)
+
+    if not required:
+        return CheckResult(
+            name,
+            CheckOutcome.PASS,
+            f"Aucun rapport du commissaire aux comptes n'est requis pour une {label}.",
+            "لا يُشترط تقرير مراقب الحسابات لهذا الشكل القانوني.",
+            {"company_type": company_type, "required": False, "present": present},
+        )
+
+    if not present:
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            f"Une {label} doit joindre le rapport du commissaire aux comptes.",
+            "يجب على هذا الشكل القانوني إرفاق تقرير مراقب الحسابات.",
+            {"company_type": company_type, "required": True, "present": False},
+        )
+
+    return CheckResult(
+        name,
+        CheckOutcome.PASS,
+        "Le rapport du commissaire aux comptes est fourni.",
+        "تقرير مراقب الحسابات مقدَّم.",
+        {"company_type": company_type, "required": True, "present": True},
+    )
+
+
+def _check_shareholder_ids(
+    documents: dict[str, Any], submission: dict[str, Any], today: date
+) -> CheckResult:
+    """Every person on the shareholder list should carry an identity reference."""
+    name = "shareholder_list_ids_present_for_each_entry"
+    key = "updated_shareholder_list"
+
+    if not _has_document(documents, key):
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Liste des associés absente : références d'identité non vérifiables.",
+            "قائمة الشركاء غير موجودة: تعذّر التحقق من مراجع الهوية.",
+        )
+
+    entries = _field(documents, key, "shareholders")
+    if not isinstance(entries, list) or not entries:
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Aucun associé n'a pu être lu dans la liste fournie.",
+            "تعذّرت قراءة أي شريك من القائمة المقدمة.",
+        )
+
+    without_id = [
+        str(entry.get("name") or "sans nom")
+        for entry in entries
+        if isinstance(entry, dict) and not _normalise_id(entry.get("id_number"))
+    ]
+
+    evidence = {"entries": len(entries), "missing_ids": len(without_id)}
+
+    if without_id:
+        listed = ", ".join(without_id[:4])
+        more = "…" if len(without_id) > 4 else ""
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            f"{len(without_id)} associé(s) sur {len(entries)} sans référence "
+            f"d'identité : {listed}{more}.",
+            f"{len(without_id)} من {len(entries)} شريكاً بدون مرجع هوية.",
+            evidence | {"names": without_id},
+        )
+
+    return CheckResult(
+        name,
+        CheckOutcome.PASS,
+        f"Les {len(entries)} associés listés portent une référence d'identité.",
+        f"جميع الشركاء المذكورين ({len(entries)}) لهم مرجع هوية.",
+        evidence,
+    )
+
+
+def _check_financial_filing_deadline(
+    documents: dict[str, Any], submission: dict[str, Any], today: date
+) -> CheckResult:
+    """Seven months from fiscal year close, with the late penalty computed."""
+    name = "filed_within_7_months_of_fiscal_year_close"
+    close = _parse_date(submission.get("fiscal_year_end"))
+
+    if close is None:
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Date de clôture de l'exercice non renseignée : délai non vérifiable.",
+            "تاريخ ختم السنة المحاسبية غير محدد: تعذّر التحقق من الأجل.",
+        )
+
+    filed = _parse_date(submission.get("submitted_at")) or today
+    deadline = _add_months(close, FINANCIAL_FILING_DEADLINE_MONTHS)
+    evidence = {
+        "fiscal_year_end": close.isoformat(),
+        "deadline": deadline.isoformat(),
+        "filed_date": filed.isoformat(),
+        "deadline_months": FINANCIAL_FILING_DEADLINE_MONTHS,
+    }
+
+    if filed <= deadline:
+        return CheckResult(
+            name,
+            CheckOutcome.PASS,
+            f"Déposé dans les délais : échéance au {deadline:%d/%m/%Y}.",
+            f"تم الإيداع في الأجل: آخر أجل {deadline:%d/%m/%Y}.",
+            evidence,
+        )
+
+    overdue = (filed - deadline).days
+    months = -(-overdue // 30)  # any fraction of a month counts as a whole one
+    rate = penalty_per_month(submission)
+    penalty = months * rate
+    who = "personnes physiques" if is_individual(submission) else "personnes morales"
+
+    return CheckResult(
+        name,
+        CheckOutcome.FAIL,
+        f"Dépôt hors délai : l'échéance était le {deadline:%d/%m/%Y} "
+        f"(7 mois après la clôture du {close:%d/%m/%Y}). Retard de {overdue} "
+        f"jours, soit {months} mois entamé(s) — pénalité de {rate} DT/mois pour "
+        f"les {who}, soit {penalty} DT.",
+        f"إيداع خارج الأجل: آخر أجل كان {deadline:%d/%m/%Y} (7 أشهر بعد ختم "
+        f"{close:%d/%m/%Y}). تأخير {overdue} يوماً أي {months} شهراً — خطية "
+        f"{rate} دينار عن كل شهر، أي {penalty} ديناراً.",
+        evidence
+        | {
+            "days_overdue": overdue,
+            "penalty_months": months,
+            "penalty_rate_tnd": rate,
+            "penalty_total_tnd": penalty,
+        },
+    )
+
+
 _CHECK_IMPLEMENTATIONS = {
     "id_number_matches_across_documents": _check_id_number_matches,
     "statutes_reflect_new_representative_name": _check_statutes_name,
     "rne_extract_not_older_than_90_days": _check_extract_age,
     "filed_within_30_days_of_decision_date": _check_filing_deadline,
     "pv_is_signed": _check_pv_signed,
+    "financial_statements_signed_and_stamped": _check_statements_signed,
+    "pv_registered_with_recette_des_finances_if_applicable": _check_pv_registered,
+    "auditor_report_present_if_required_by_company_type": _check_auditor_report,
+    "shareholder_list_ids_present_for_each_entry": _check_shareholder_ids,
+    "filed_within_7_months_of_fiscal_year_close": _check_financial_filing_deadline,
 }
 
 # Fail loudly at import time if a rule names a check nobody implemented.
@@ -597,6 +991,40 @@ def _all_ids(documents: dict[str, Any], doc_key: str) -> list[str]:
         and not any(value == cid or cid.startswith(value) for cid in company_ids)
     ]
     return list(dict.fromkeys(found))
+
+
+def _add_months(start: date, months: int) -> date:
+    """Add whole months, clamping to the last valid day of the target month.
+
+    31 January plus seven months is 31 August; 31 March plus seven months has no
+    31 October problem, but 31 July plus seven months would land on 31 February,
+    so the day is clamped rather than rolled into the next month.
+    """
+    month_index = start.month - 1 + months
+    year = start.year + month_index // 12
+    month = month_index % 12 + 1
+
+    if month == 12:
+        next_month_start = date(year + 1, 1, 1)
+    else:
+        next_month_start = date(year, month + 1, 1)
+    last_day = (next_month_start - timedelta(days=1)).day
+
+    return date(year, month, min(start.day, last_day))
+
+
+def required_documents_for(
+    rules: dict[str, Any], submission: dict[str, Any]
+) -> list[str]:
+    """Documents this particular filing must include.
+
+    Most are unconditional. The auditor report is only owed by some legal forms,
+    so listing it as missing for a SARL that does not need one would be wrong.
+    """
+    declared: list[str] = list(rules["required_documents"])
+    if "auditor_report" in declared and not auditor_report_required(submission):
+        declared.remove("auditor_report")
+    return declared
 
 
 def _parse_date(value: Any) -> date | None:

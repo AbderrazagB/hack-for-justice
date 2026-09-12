@@ -44,7 +44,15 @@ _CHECK_FOCUS: dict[str, str] = {
     "rne_extract_not_older_than_90_days": "rne_extract",
     "filed_within_30_days_of_decision_date": "general_assembly_pv",
     "pv_is_signed": "general_assembly_pv",
+    "financial_statements_signed_and_stamped": "financial_statements_signed",
+    "pv_registered_with_recette_des_finances_if_applicable": "general_assembly_pv_approval",
+    "auditor_report_present_if_required_by_company_type": "auditor_report",
+    "shareholder_list_ids_present_for_each_entry": "updated_shareholder_list",
+    "filed_within_7_months_of_fiscal_year_close": "financial_statements_signed",
 }
+
+# Default when a caller passes a bare document mapping with no transaction type.
+DEFAULT_TRANSACTION_TYPE = "RNE_MODIFICATION_ENTREPRISE"
 
 
 @dataclass
@@ -77,18 +85,24 @@ class Flag:
 
 
 def flag_inconsistencies(
-    extracted_fields: dict[str, Any], today: date | None = None
+    extracted_fields: dict[str, Any],
+    today: date | None = None,
+    transaction_type: str | None = None,
 ) -> list[Flag]:
     """Run the declared cross-document checks and return readable flags.
 
+    Works for any transaction in TRANSACTION_RULES: the checks come from the
+    rules engine, so adding a workflow there adds it here with no change.
+
     Accepts either a full submission dict (``{"transaction_type": ...,
     "documents": {...}}``) or a bare mapping of document key -> extracted
-    fields, which is what the OCR stage produces.
+    fields, which is what the OCR stage produces. `transaction_type` names the
+    workflow when the input is a bare mapping.
 
     Returns ERROR flags first, then WARNING, then INFO; within a severity the
     rules engine's declaration order is preserved so the display is stable.
     """
-    submission = _as_submission(extracted_fields)
+    submission = _as_submission(extracted_fields, transaction_type)
     result = check_completeness(submission, today=today)
     return flags_from_result(result)
 
@@ -160,18 +174,19 @@ def _documents_for(check: CheckResult) -> list[str]:
     return documents
 
 
-def _as_submission(extracted_fields: dict[str, Any]) -> dict[str, Any]:
+def _as_submission(
+    extracted_fields: dict[str, Any], transaction_type: str | None = None
+) -> dict[str, Any]:
     """Normalise either accepted input shape into a submission dict."""
+    fallback = transaction_type or DEFAULT_TRANSACTION_TYPE
+
     if "documents" in extracted_fields or "transaction_type" in extracted_fields:
         submission = dict(extracted_fields)
-        submission.setdefault("transaction_type", "RNE_MODIFICATION_ENTREPRISE")
+        submission.setdefault("transaction_type", fallback)
         submission.setdefault("documents", {})
         return submission
 
-    return {
-        "transaction_type": "RNE_MODIFICATION_ENTREPRISE",
-        "documents": extracted_fields,
-    }
+    return {"transaction_type": fallback, "documents": extracted_fields}
 
 
 # ------------------------------------------------------------------ summary

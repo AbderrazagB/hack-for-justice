@@ -61,9 +61,9 @@ def _upload(client, png, fields=None, doc_types=None, submitted_at="2026-07-01")
 
 def test_list_transactions_exposes_the_checklist(client) -> None:
     body = client.get("/transactions").json()
-    assert len(body) == 1
-    entry = body[0]
-    assert entry["transaction_type"] == TXN
+    # Asserted by content, not by count: the endpoint grows with every
+    # transaction added to TRANSACTION_RULES.
+    entry = next(t for t in body if t["transaction_type"] == TXN)
     assert entry["official_reference"] == "RNE-M-005"
     assert entry["display_name_ar"] == "تحيين مؤسسة"
     assert len(entry["required_documents"]) == 5
