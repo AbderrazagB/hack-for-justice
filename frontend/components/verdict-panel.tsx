@@ -1,10 +1,11 @@
 "use client";
 
-import { FileWarning } from "lucide-react";
+import { Download, FileWarning } from "lucide-react";
 
 import BlurText from "@/components/BlurText";
 import { useReducedMotion } from "@/components/motion";
 import { FloatingPanel, SeverityTag } from "@/components/ui";
+import { preparationSheetUrl } from "@/lib/api";
 import { COMPLETENESS_STATUS, DOCUMENT_SHORT_FR } from "@/lib/status";
 import type { SubmissionResult } from "@/lib/types";
 
@@ -73,6 +74,20 @@ export function VerdictPanel({ result }: { result: SubmissionResult }) {
           <span className="t-data text-[var(--ink-muted)]">
             {result.submission_id}
           </span>
+        </p>
+
+        {/* The preparation sheet, not a filing: since July 2026 the declaration
+            itself is completed on the RNE portal and signed digitally. */}
+        <a
+          href={preparationSheetUrl(result.submission_id)}
+          className="mt-4 inline-flex items-center gap-2 rounded-[var(--r-control)] border border-[var(--line-strong)] px-3.5 py-2.5 text-[0.875rem] font-medium text-[var(--navy)] transition-colors hover:bg-[var(--canvas)]"
+        >
+          <Download size={16} strokeWidth={2} aria-hidden />
+          Télécharger la fiche de préparation
+        </a>
+        <p className="mt-1.5 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
+          Récapitulatif de votre déclaration, à recopier sur le portail du RNE.
+          Ce n&apos;est pas un dépôt officiel.
         </p>
       </div>
 

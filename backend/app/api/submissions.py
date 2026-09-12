@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import date
 from pathlib import Path
@@ -19,7 +20,7 @@ from fastapi import (
     status,
 )
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from app.api.auth import current_officer, optional_user
@@ -34,6 +35,11 @@ from app.models.submission import (
     get_store,
 )
 from app.models.user import User, UserRole
+from app.services.declaration import (
+    DECLARATION_FIELDS,
+    MODIFICATION_TYPES,
+    TRANSACTION_MODIFICATION_TYPE,
+)
 from app.services.ocr_service import OCRService
 from app.services.rules_engine import (
     COMPANY_TYPES,
@@ -78,6 +84,17 @@ class ContextField(BaseModel):
     help_fr: str | None = None
 
 
+class DeclarationFieldInfo(BaseModel):
+    """One field of RNE-F-005, described so the frontend can render the form."""
+
+    name: str
+    label_fr: str
+    label_ar: str
+    type: str
+    required: bool
+    help_fr: str | None = None
+
+
 class TransactionInfo(BaseModel):
     transaction_type: str
     display_name_fr: str
@@ -88,6 +105,11 @@ class TransactionInfo(BaseModel):
     conditional_documents: list[str] = []
     checks: list[str]
     context_fields: list[ContextField] = []
+    # RNE-F-005: the declaration the applicant signs, captured as questions
+    # rather than asked for as a PDF they must find and decipher.
+    declaration_fields: list[DeclarationFieldInfo] = []
+    modification_type_fr: str | None = None
+    modification_type_ar: str | None = None
 
 
 class StatsResponse(BaseModel):
@@ -176,9 +198,28 @@ def list_transactions() -> list[TransactionInfo]:
             conditional_documents=CONDITIONAL_DOCUMENTS.get(key, []),
             checks=rules["checks"],
             context_fields=CONTEXT_FIELDS.get(key, []),
+            declaration_fields=[
+                DeclarationFieldInfo(
+                    name=spec.name,
+                    label_fr=spec.label_fr,
+                    label_ar=spec.label_ar,
+                    type=spec.type,
+                    required=spec.required,
+                    help_fr=spec.help_fr,
+                )
+                for spec in DECLARATION_FIELDS
+            ],
+            modification_type_fr=_modification_label(key, "fr"),
+            modification_type_ar=_modification_label(key, "ar"),
         )
         for key, rules in TRANSACTION_RULES.items()
     ]
+
+
+def _modification_label(transaction_type: str, lang: str) -> str | None:
+    """Which box this procedure ticks in RNE-F-005's modification grid."""
+    key = TRANSACTION_MODIFICATION_TYPE.get(transaction_type)
+    return MODIFICATION_TYPES.get(key, {}).get(lang) if key else None
 
 
 # ------------------------------------------------------------------- intake
@@ -205,6 +246,9 @@ async def create_submission(
     fiscal_year_end: Annotated[str | None, Form()] = None,
     auditor_required: Annotated[bool, Form()] = False,
     ago_not_held: Annotated[bool, Form()] = False,
+    # RNE-F-005 answers, JSON-encoded: a multipart form cannot carry a nested
+    # object, and the alternative is nine more flat fields per workflow.
+    declaration: Annotated[str | None, Form()] = None,
     store: SubmissionStore = Depends(get_store),
     upload_dir: Path = Depends(get_upload_dir),
     user: User | None = Depends(optional_user),
@@ -284,10 +328,32 @@ async def create_submission(
     if ago_not_held:
         context["ago_not_held"] = True
 
+    declared: dict[str, Any] = {}
+    if declaration:
+        try:
+            parsed = json.loads(declaration)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=400, detail="Déclaration illisible."
+            ) from None
+        if not isinstance(parsed, dict):
+            raise HTTPException(
+                status_code=400, detail="Déclaration invalide."
+            )
+        # Keep only the form's own fields, trimmed and length-capped: this goes
+        # into a stored document and a generated PDF.
+        known = {spec.name for spec in DECLARATION_FIELDS}
+        declared = {
+            key: str(value).strip()[:200]
+            for key, value in parsed.items()
+            if key in known and value not in (None, "")
+        }
+
     submission_payload = {
         "transaction_type": transaction_type,
         "documents": documents,
         "submitted_at": submitted_at,
+        "declaration": declared,
         **context,
     }
 
@@ -308,7 +374,7 @@ async def create_submission(
         flags=[flag.to_dict() for flag in flags],
         status=_initial_status(completeness.status).value,
         submitted_at=submitted_at,
-        context=context,
+        context={**context, "declaration": declared} if declared else context,
         owner_id=str(user.id) if user else None,
     )
 
@@ -364,6 +430,39 @@ def _parse_iso_date(value: str | None) -> date | None:
         return date.fromisoformat(value[:10])
     except ValueError:
         return None
+
+
+@router.get("/submissions/{submission_id}/declaration.pdf")
+def declaration_sheet(
+    submission_id: str,
+    store: SubmissionStore = Depends(get_store),
+    user: User | None = Depends(optional_user),
+) -> Response:
+    """The applicant's preparation sheet for RNE-F-005.
+
+    Same access rule as the submission itself. Explicitly not a filing: the
+    sheet says so on its own first page.
+    """
+    submission = _require(store.get(submission_id), submission_id)
+    _assert_may_read(submission, user)
+
+    from app.services.declaration_pdf import build_preparation_sheet
+
+    payload = submission.to_dict()
+    payload["modification_type_fr"] = _modification_label(
+        submission.transaction_type, "fr"
+    )
+    pdf = build_preparation_sheet(payload)
+
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="sahilli-preparation-{submission.id}.pdf"'
+            )
+        },
+    )
 
 
 # ---------------------------------------------------------------- documents
@@ -470,7 +569,12 @@ def get_submission(
     accounts-only product would drop this branch.
     """
     submission = _require(store.get(submission_id), submission_id)
+    _assert_may_read(submission, user)
+    return submission.to_dict()
 
+
+def _assert_may_read(submission: Submission, user: User | None) -> None:
+    """An officer, the owner, or anyone holding a guest filing's id."""
     owner_id = submission.owner_id
     is_owner = user is not None and str(user.id) == owner_id
     is_officer = user is not None and user.role == UserRole.OFFICER.value
@@ -480,8 +584,6 @@ def get_submission(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ce dossier ne vous appartient pas.",
         )
-
-    return submission.to_dict()
 
 
 @router.post("/submissions/{submission_id}/review")

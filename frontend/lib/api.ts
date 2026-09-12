@@ -94,6 +94,8 @@ export function createSubmission(
   documents: { documentType: string; file: File }[],
   /** Answers to the transaction's context_fields, keyed by field name. */
   context: Record<string, string | boolean> = {},
+  /** Answers to the RNE-F-005 declaration, keyed by field name. */
+  declaration: Record<string, string> = {},
   submittedAt?: string,
 ): Promise<SubmissionResult> {
   const form = new FormData();
@@ -104,6 +106,14 @@ export function createSubmission(
   for (const [name, value] of Object.entries(context)) {
     if (value === "" || value === false) continue;
     form.append(name, String(value));
+  }
+  const declared = Object.fromEntries(
+    Object.entries(declaration).filter(([, value]) => value.trim() !== ""),
+  );
+  if (Object.keys(declared).length > 0) {
+    // A multipart form cannot carry a nested object, so the declaration travels
+    // as one JSON field.
+    form.append("declaration", JSON.stringify(declared));
   }
   if (submittedAt) form.append("submitted_at", submittedAt);
 
@@ -187,4 +197,9 @@ export async function currentUser(): Promise<AuthUser | null> {
     if (error instanceof ApiError && error.status === 401) return null;
     throw error;
   }
+}
+
+/** URL of the submission's RNE-F-005 preparation sheet. */
+export function preparationSheetUrl(submissionId: string): string {
+  return `${API_URL}/submissions/${submissionId}/declaration.pdf`;
 }

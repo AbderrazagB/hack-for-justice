@@ -23,6 +23,16 @@ export type ContextField = {
   help_fr: string | null;
 };
 
+/** One field of the official RNE-F-005 declaration form. */
+export type DeclarationField = {
+  name: string;
+  label_fr: string;
+  label_ar: string;
+  type: "text" | "email" | "tel" | "id";
+  required: boolean;
+  help_fr: string | null;
+};
+
 export type TransactionInfo = {
   transaction_type: string;
   display_name_fr: string;
@@ -32,6 +42,9 @@ export type TransactionInfo = {
   conditional_documents: string[];
   checks: string[];
   context_fields: ContextField[];
+  declaration_fields: DeclarationField[];
+  modification_type_fr: string | null;
+  modification_type_ar: string | null;
 };
 
 export type CheckOutcome = "PASS" | "FAIL" | "INDETERMINATE";

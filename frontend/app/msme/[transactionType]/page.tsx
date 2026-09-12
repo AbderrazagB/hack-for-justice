@@ -9,6 +9,7 @@ import { PortalBar } from "@/components/chrome";
 import { SiteFooter } from "@/components/site-footer";
 import { ActionButton } from "@/components/action-button";
 import { ContextForm } from "@/components/context-form";
+import { DeclarationForm } from "@/components/declaration-form";
 import { DocumentRail } from "@/components/document-rail";
 import { StatusTracker } from "@/components/status-tracker";
 import { Notice, Panel, SectionHeading } from "@/components/ui";
@@ -26,6 +27,7 @@ export default function FilingFlow({
   const [transaction, setTransaction] = useState<TransactionInfo | null>(null);
   const [files, setFiles] = useState<Record<string, File>>({});
   const [context, setContext] = useState<Record<string, string | boolean>>({});
+  const [declaration, setDeclaration] = useState<Record<string, string>>({});
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
@@ -101,6 +103,7 @@ export default function FilingFlow({
           transaction.transaction_type,
           documents,
           context,
+          declaration,
         ),
       );
     } catch (e) {
@@ -183,6 +186,20 @@ export default function FilingFlow({
                   onChange={(name, value) =>
                     setContext((current) => ({ ...current, [name]: value }))
                   }
+                />
+              </div>
+            )}
+
+            {transaction && transaction.declaration_fields.length > 0 && (
+              <div className="mb-8">
+                <DeclarationForm
+                  fields={transaction.declaration_fields}
+                  values={declaration}
+                  onChange={(name, value) =>
+                    setDeclaration((current) => ({ ...current, [name]: value }))
+                  }
+                  modificationType={transaction.modification_type_fr}
+                  modificationTypeAr={transaction.modification_type_ar}
                 />
               </div>
             )}

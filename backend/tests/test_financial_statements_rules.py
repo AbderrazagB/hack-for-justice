@@ -86,6 +86,7 @@ def test_transaction_is_registered_alongside_the_first_workflow() -> None:
         "auditor_report_present_if_required_by_company_type",
         "shareholder_list_ids_present_for_each_entry",
         "filed_within_7_months_of_fiscal_year_close",
+        "declaration_matches_documents",
     ]
 
 

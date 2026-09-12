@@ -82,6 +82,7 @@ def test_transaction_rules_match_the_official_checklist() -> None:
         "rne_extract_not_older_than_90_days",
         "filed_within_30_days_of_decision_date",
         "pv_is_signed",
+        "declaration_matches_documents",
     ]
 
 

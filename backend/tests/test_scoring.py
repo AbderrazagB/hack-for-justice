@@ -185,7 +185,12 @@ def test_fully_broken_submission_flags_every_declared_check() -> None:
         },
     )
     flags = flag_inconsistencies(documents, today=TODAY)
-    assert _codes(flags) == set(TRANSACTION_RULES["RNE_MODIFICATION_ENTREPRISE"]["checks"])
+    # The declaration check only runs once a declaration exists, and this
+    # fixture supplies documents only.
+    expected = set(TRANSACTION_RULES["RNE_MODIFICATION_ENTREPRISE"]["checks"]) - {
+        "declaration_matches_documents"
+    }
+    assert _codes(flags) == expected
     assert flag_summary(flags)["errors"] == 4
 
 

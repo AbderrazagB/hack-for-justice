@@ -37,6 +37,7 @@ TRANSACTION_RULES = {
             "rne_extract_not_older_than_90_days",
             "filed_within_30_days_of_decision_date",
             "pv_is_signed",
+            "declaration_matches_documents",
         ],
     },
     "RNE_FINANCIAL_STATEMENTS": {
@@ -55,6 +56,7 @@ TRANSACTION_RULES = {
             "auditor_report_present_if_required_by_company_type",
             "shareholder_list_ids_present_for_each_entry",
             "filed_within_7_months_of_fiscal_year_close",
+            "declaration_matches_documents",
         ],
     },
 }
@@ -182,6 +184,10 @@ CHECK_LABELS: dict[str, dict[str, str]] = {
     "pv_is_signed": {
         "fr": "Le procès-verbal est signé et daté",
         "ar": "المحضر ممضى ومؤرخ",
+    },
+    "declaration_matches_documents": {
+        "fr": "La déclaration concorde avec les pièces fournies",
+        "ar": "التصريح مطابق للوثائق المقدمة",
     },
     "financial_statements_signed_and_stamped": {
         "fr": "Les états financiers sont signés et cachetés",
@@ -338,7 +344,7 @@ def check_completeness(
 
     checks = [
         _CHECK_IMPLEMENTATIONS[name](documents, submission, today)
-        for name in rules["checks"]
+        for name in checks_for(rules, submission)
     ]
 
     if missing:
@@ -927,6 +933,71 @@ def _check_financial_filing_deadline(
     )
 
 
+def _check_declaration(
+    documents: dict[str, Any], submission: dict[str, Any], today: date
+) -> CheckResult:
+    """The declaration (RNE-F-005) against the documents it accompanies.
+
+    The form states that an incomplete entry is grounds for rejection and that
+    a declaration contradicting reality is void under article 55. Both are
+    checked here, and both are things no amount of reading the attachments
+    alone could catch.
+    """
+    from app.services.declaration import cross_check, missing_required
+
+    name = "declaration_matches_documents"
+    declaration = submission.get("declaration") or {}
+
+    if not declaration:
+        # checks_for() drops this check when no declaration was supplied, so
+        # this is a guard rather than a path a submission normally takes.
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Déclaration non renseignée : concordance avec les pièces non "
+            "vérifiable.",
+            "التصريح غير معمَّر: تعذّرت مطابقته مع الوثائق.",
+        )
+
+    missing = missing_required(declaration)
+    if missing:
+        listed = ", ".join(spec.label_fr for spec in missing)
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            f"Déclaration incomplète : {listed}. Le formulaire précise que "
+            "toute donnée manquante entraîne le rejet de la demande.",
+            "التصريح منقوص: كل بيان ناقص موجب لرفض الطلب.",
+            {"missing_fields": [spec.name for spec in missing]},
+        )
+
+    issues = cross_check(declaration, documents)
+    if issues:
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            " ".join(issue.message_fr for issue in issues),
+            " ".join(issue.message_ar for issue in issues),
+            {
+                "issues": [
+                    {
+                        "code": issue.code,
+                        "field": issue.field_name,
+                        **issue.evidence,
+                    }
+                    for issue in issues
+                ]
+            },
+        )
+
+    return CheckResult(
+        name,
+        CheckOutcome.PASS,
+        "La déclaration est complète et concorde avec les pièces fournies.",
+        "التصريح كامل ومطابق للوثائق المقدمة.",
+    )
+
+
 _CHECK_IMPLEMENTATIONS = {
     "id_number_matches_across_documents": _check_id_number_matches,
     "statutes_reflect_new_representative_name": _check_statutes_name,
@@ -938,6 +1009,7 @@ _CHECK_IMPLEMENTATIONS = {
     "auditor_report_present_if_required_by_company_type": _check_auditor_report,
     "shareholder_list_ids_present_for_each_entry": _check_shareholder_ids,
     "filed_within_7_months_of_fiscal_year_close": _check_financial_filing_deadline,
+    "declaration_matches_documents": _check_declaration,
 }
 
 # Fail loudly at import time if a rule names a check nobody implemented.
@@ -1055,6 +1127,22 @@ def required_documents_for(
         submission
     ):
         declared.remove("general_assembly_pv_approval")
+    return declared
+
+
+def checks_for(rules: dict[str, Any], submission: dict[str, Any]) -> list[str]:
+    """Checks that apply to this particular filing.
+
+    The declaration check only runs once a declaration exists. Sahilli is a
+    pre-validation tool: someone should be able to check their documents before
+    they have filled the form, and a missing declaration must not downgrade an
+    otherwise clean dossier to NEEDS_REVIEW.
+    """
+    declared: list[str] = list(rules["checks"])
+    if "declaration_matches_documents" in declared and not submission.get(
+        "declaration"
+    ):
+        declared.remove("declaration_matches_documents")
     return declared
 
 
