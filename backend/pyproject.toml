@@ -29,6 +29,13 @@ dev = [
     "ruff>=0.16.7",
 ]
 
+[tool.ruff.lint]
+# FastAPI's Depends()/File()/Form() idiom is a function call and a list literal
+# in an argument default by design, so B008/B006 fire on every endpoint.
+# Dates here are civil calendar dates (filing deadlines), not instants, so the
+# timezone-aware rules do not apply.
+ignore = ["B006", "B008", "DTZ007", "DTZ011"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 markers = [

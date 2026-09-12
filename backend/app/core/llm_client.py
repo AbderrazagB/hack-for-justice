@@ -44,7 +44,7 @@ class LLMClient:
             logger.warning("Mistral generation failed, falling back to Gemini: %s", exc)
             try:
                 return self._generate_gemini(prompt, system)
-            except Exception as fallback_exc:  # noqa: BLE001
+            except Exception as fallback_exc:
                 raise LLMError(
                     f"Both providers failed. Mistral: {exc}. Gemini: {fallback_exc}"
                 ) from fallback_exc

@@ -153,7 +153,7 @@ def test_queue_lists_newest_first(client, png) -> None:
 
     body = client.get("/submissions").json()
     assert body["count"] == 2
-    assert [s["id"] for s in body["submissions"]][0] in {first, second}
+    assert next(s["id"] for s in body["submissions"]) in {first, second}
 
 
 def test_queue_filters_by_status(client, png) -> None:

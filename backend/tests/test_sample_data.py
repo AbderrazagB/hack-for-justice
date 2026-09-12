@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from data.generate_sample_data import (  # noqa: E402
+from data.generate_sample_data import (
     DOCUMENT_TYPES,
     REFERENCE_DATE,
     build_cases,
@@ -22,8 +22,8 @@ from data.generate_sample_data import (  # noqa: E402
     write_dataset,
 )
 
-from app.services.rules_engine import check_completeness  # noqa: E402
-from app.services.scoring import flag_inconsistencies  # noqa: E402
+from app.services.rules_engine import check_completeness
+from app.services.scoring import flag_inconsistencies
 
 
 def _as_submission(case) -> dict:

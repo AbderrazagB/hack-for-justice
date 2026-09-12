@@ -156,8 +156,10 @@ def _render_verdict(submission: dict[str, Any], lang: str) -> str:
     completeness = submission.get("completeness") or {}
     lines = [
         f"Statut: {completeness.get('status', 'UNKNOWN')}",
-        f"Transaction: {completeness.get('display_name_fr', '')} "
-        f"({completeness.get('official_reference', '')})",
+        (
+            f"Transaction: {completeness.get('display_name_fr', '')} "
+            f"({completeness.get('official_reference', '')})"
+        ),
     ]
 
     missing = completeness.get("missing_documents") or []

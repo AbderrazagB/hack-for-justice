@@ -11,7 +11,6 @@ from unittest.mock import patch
 from app.api.assistant import get_llm_client, get_retrieval_service
 from app.main import app
 from app.services.ocr_service import OCRResult, OCRService
-
 from app.services.retrieval_service import RetrievedPassage
 
 TXN = "RNE_MODIFICATION_ENTREPRISE"

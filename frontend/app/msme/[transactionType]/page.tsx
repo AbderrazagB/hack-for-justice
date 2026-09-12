@@ -40,7 +40,10 @@ export default function SubmissionFlow({
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [transactionType]);
 
-  const required = transaction?.required_documents ?? [];
+  const required = useMemo(
+    () => transaction?.required_documents ?? [],
+    [transaction],
+  );
   const missing = useMemo(
     () => required.filter((doc) => !files[doc.key]),
     [required, files],

@@ -7,7 +7,16 @@ from datetime import date
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 

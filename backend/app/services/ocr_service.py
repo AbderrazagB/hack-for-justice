@@ -347,12 +347,12 @@ def _parse_json_object(text: str) -> dict[str, Any]:
     """Pull a JSON object out of a model response, tolerating markdown fences."""
     cleaned = text.strip()
     if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.S)
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", cleaned, flags=re.DOTALL)
 
     try:
         parsed = json.loads(cleaned)
     except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", cleaned, flags=re.S)
+        match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
         if not match:
             return {}
         try:

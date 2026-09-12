@@ -219,9 +219,7 @@ def check_completeness(
 
     if missing:
         status = Status.INCOMPLETE
-    elif any(c.outcome is CheckOutcome.FAIL for c in checks):
-        status = Status.NEEDS_REVIEW
-    elif any(c.outcome is CheckOutcome.INDETERMINATE for c in checks):
+    elif any(c.outcome is CheckOutcome.FAIL for c in checks) or any(c.outcome is CheckOutcome.INDETERMINATE for c in checks):
         status = Status.NEEDS_REVIEW
     else:
         status = Status.COMPLETE
@@ -536,9 +534,8 @@ def _has_document(documents: dict[str, Any], key: str) -> bool:
     entry = documents.get(key)
     if not entry:
         return False
-    if isinstance(entry, dict) and entry.get("missing") is True:
-        return False
-    return True
+    # A caller may mark a slot explicitly absent rather than omitting it.
+    return not (isinstance(entry, dict) and entry.get("missing") is True)
 
 
 def _field(documents: dict[str, Any], doc_key: str, field_name: str) -> Any:
@@ -594,7 +591,7 @@ def _name_present(person: str, haystack: str) -> bool:
     Tolerates reordering ("Ben Salah Amine") and extra particles, which OCR and
     administrative documents both produce freely.
     """
-    normalise = lambda text: re.sub(r"[^\w\s]", " ", str(text).casefold())  # noqa: E731
+    normalise = lambda text: re.sub(r"[^\w\s]", " ", str(text).casefold())
     hay = set(normalise(haystack).split())
     tokens = [t for t in normalise(person).split() if len(t) > 2]
     return bool(tokens) and all(token in hay for token in tokens)

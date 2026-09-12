@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
 
 import {
   Card,
@@ -14,6 +11,12 @@ import {
 import { getStats, listSubmissions } from "@/lib/api";
 import type { Stats, SubmissionSummary } from "@/lib/types";
 
+/**
+ * Officer queue. Fetched on the server so the first paint already has data and
+ * the page needs no client-side loading state; the review action calls
+ * router.refresh() to pull fresh figures.
+ */
+
 const STATUS_FILTERS = [
   { value: "", label: "Toutes" },
   { value: "SUBMITTED", label: "Déposées" },
@@ -23,33 +26,30 @@ const STATUS_FILTERS = [
   { value: "REJECTED", label: "Rejetées" },
 ];
 
-export default function OfficerQueue() {
-  const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
+export default async function OfficerQueue({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
+  const { status = "" } = await searchParams;
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [queue, figures] = await Promise.all([
-        listSubmissions(status ? { status } : {}),
-        getStats(),
-      ]);
-      setSubmissions(queue.submissions);
-      setStats(figures);
-      setError("");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Chargement impossible.");
-    } finally {
-      setLoading(false);
-    }
-  }, [status]);
+  let submissions: SubmissionSummary[] = [];
+  let stats: Stats | null = null;
+  let error = "";
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  try {
+    const [queue, figures] = await Promise.all([
+      listSubmissions(status ? { status } : {}),
+      getStats(),
+    ]);
+    submissions = queue.submissions;
+    stats = figures;
+  } catch (requestError) {
+    error =
+      requestError instanceof Error
+        ? requestError.message
+        : "Chargement impossible.";
+  }
 
   return (
     <div className="min-h-screen">
@@ -62,11 +62,8 @@ export default function OfficerQueue() {
       />
 
       <main className="mx-auto max-w-6xl px-5 py-10">
-        <h1 className="text-3xl font-bold tracking-tight">
-          File de traitement
-        </h1>
+        <h1 className="text-3xl font-bold tracking-tight">File de traitement</h1>
 
-        {/* ------------------------------------------------------ stats panel */}
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Demandes traitées"
@@ -91,13 +88,11 @@ export default function OfficerQueue() {
           />
         </div>
 
-        {/* ----------------------------------------------------------- filter */}
         <div className="mt-8 flex flex-wrap gap-1.5">
           {STATUS_FILTERS.map((filter) => (
-            <button
+            <Link
               key={filter.value}
-              type="button"
-              onClick={() => setStatus(filter.value)}
+              href={filter.value ? `/admin?status=${filter.value}` : "/admin"}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
                 status === filter.value
                   ? "bg-[var(--brand)] text-white"
@@ -108,7 +103,7 @@ export default function OfficerQueue() {
               {stats && filter.value
                 ? ` (${stats.by_status[filter.value] ?? 0})`
                 : ""}
-            </button>
+            </Link>
           ))}
         </div>
 
@@ -118,15 +113,12 @@ export default function OfficerQueue() {
           </div>
         )}
 
-        {/* ------------------------------------------------------------ queue */}
         <div className="mt-5">
           <SectionTitle hint={`${submissions.length} dossier(s)`}>
             Demandes
           </SectionTitle>
 
-          {loading && !submissions.length ? (
-            <Empty>Chargement…</Empty>
-          ) : submissions.length === 0 ? (
+          {submissions.length === 0 && !error ? (
             <Empty>
               Aucun dossier pour ce filtre. Lancez{" "}
               <code className="font-mono text-xs">
@@ -208,11 +200,8 @@ function FlagBadge({ total, errors }: { total: number; errors: number }) {
   const tone = errors > 0 ? "danger" : "accent";
   return (
     <span
-      className={`rounded-full px-2.5 py-1 text-xs font-semibold bg-[var(--${tone}-soft)] text-[var(--${tone})]`}
-      style={{
-        background: `var(--${tone}-soft)`,
-        color: `var(--${tone})`,
-      }}
+      className="rounded-full px-2.5 py-1 text-xs font-semibold"
+      style={{ background: `var(--${tone}-soft)`, color: `var(--${tone})` }}
     >
       {total} anomalie{total > 1 ? "s" : ""}
       {errors > 0 ? ` · ${errors} bloquante${errors > 1 ? "s" : ""}` : ""}

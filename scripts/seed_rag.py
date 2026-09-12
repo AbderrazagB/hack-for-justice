@@ -15,9 +15,9 @@ from pathlib import Path
 BACKEND = Path(__file__).resolve().parents[1] / "backend"
 sys.path.insert(0, str(BACKEND))
 
-from app.core.config import settings  # noqa: E402
-from app.services.embedding_service import EmbeddingService  # noqa: E402
-from app.services.retrieval_service import (  # noqa: E402
+from app.core.config import settings
+from app.services.embedding_service import EmbeddingService
+from app.services.retrieval_service import (
     COLLECTION_NAME,
     RetrievalService,
     load_seed_entries,
