@@ -85,7 +85,7 @@ export default function Home() {
         <div className="relative mx-auto flex min-h-[660px] max-w-[1400px] items-center px-4 py-20 sm:px-8 lg:py-28">
           <div className="max-w-[62rem]">
             <h1 className="hero-title text-white">
-              Vérifiez votre dossier{" "}
+              Vérifiez votre dossier
               <HeroAccent>avant de le déposer.</HeroAccent>
             </h1>
             <p className="ar ar-left mt-5 text-[1.5rem] font-medium text-white/75">

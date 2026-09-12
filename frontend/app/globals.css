@@ -258,6 +258,22 @@ body {
   }
 }
 
+/* StrokeText in the hero.
+   Its size comes from the SVG's height, not a font-size, so tie that height to
+   the same clamp .hero-title uses -- otherwise the drawn line and the live
+   line above it drift apart as the viewport changes. */
+.hero-accent {
+  margin-top: 0.06em;
+}
+.hero-accent .stroke-text__svg {
+  height: calc(clamp(2.75rem, 1.6rem + 4.6vw, 5.25rem) * 1.28);
+}
+/* SVG text does not pick up the heading face on its own. */
+.hero-accent .stroke-text__stroke,
+.hero-accent .stroke-text__fill {
+  font-family: var(--font-space-grotesk), sans-serif;
+}
+
 /* BorderGlow on the service cards.
    Upstream's inner wrapper is `overflow: auto` and does not stretch, which on a
    fixed-height card adds a scrollbar and leaves the content short. */

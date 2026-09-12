@@ -1,6 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 
+const LIGHT_OUTLINE_FILTER = {
+  thin: "drop-shadow(1px 0 0 var(--navy)) drop-shadow(-1px 0 0 var(--navy)) drop-shadow(0 1px 0 var(--navy)) drop-shadow(0 -1px 0 var(--navy))",
+  thick:
+    "drop-shadow(1.5px 0 0 var(--navy)) drop-shadow(-1.5px 0 0 var(--navy)) drop-shadow(0 1.5px 0 var(--navy)) drop-shadow(0 -1.5px 0 var(--navy))",
+} as const;
+
 /**
  * The Sahilli wordmark.
  *
@@ -10,10 +16,12 @@ import Link from "next/link";
 export function Logo({
   size = "md",
   tone = "light",
+  lightOutline = "thick",
   href = "/",
 }: {
   size?: "sm" | "md" | "lg" | "xl";
   tone?: "light" | "dark";
+  lightOutline?: keyof typeof LIGHT_OUTLINE_FILTER;
   href?: string | null;
 }) {
   const scale = {
@@ -32,8 +40,8 @@ export function Logo({
         }
       : {
           src: "/brand/sahilli-wordmark-light.png",
-          width: 1980,
-          height: 412,
+          width: 1749,
+          height: 368,
         };
 
   const lockup = (
@@ -44,7 +52,15 @@ export function Logo({
       height={variant.height}
       sizes={scale.sizes}
       priority
+      unoptimized={tone === "light"}
       className={`${scale.className} w-auto shrink-0 object-contain`}
+      style={
+        tone === "light"
+          ? {
+              filter: LIGHT_OUTLINE_FILTER[lightOutline],
+            }
+          : undefined
+      }
     />
   );
 
