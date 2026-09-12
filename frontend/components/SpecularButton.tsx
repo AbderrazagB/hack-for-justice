@@ -293,7 +293,13 @@ const SpecularButton = ({
   const inner = (
     <>
       <span ref={fxRef} aria-hidden="true" className="pointer-events-none absolute -inset-5 z-[1] [&_canvas]:block [&_canvas]:h-full [&_canvas]:w-full" />
-      <span className="relative z-[2]">{children}</span>
+      {/* The button is inline-flex, but every child lands inside this one
+          span, so the flex applied to the label as a whole rather than to the
+          icon and the text -- which then wrapped onto separate lines. Making
+          the span the flex row is what the gap and alignment need. */}
+      <span className="relative z-[2] inline-flex items-center justify-center gap-2 whitespace-nowrap">
+        {children}
+      </span>
     </>
   );
 

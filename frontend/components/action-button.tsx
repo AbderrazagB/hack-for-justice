@@ -38,16 +38,18 @@ const VARIANTS: Record<
   primary: {
     fill: "#15ADA2",
     fillOpacity: 1,
-    edge: "#0B6E68",
+    // A dark edge under a white sheen: the rim needs something to sit against
+    // or it disappears into a solid teal fill.
+    edge: "#064B47",
     text: "#ffffff",
-    line: "#eafffb",
+    line: "#ffffff",
   },
   navy: {
     fill: "#0E2747",
     fillOpacity: 1,
-    edge: "#081A31",
+    edge: "#04101F",
     text: "#ffffff",
-    line: "#7fd0c6",
+    line: "#6ee0d6",
   },
   // Deliberately translucent: this one sits on the navy hero and is meant to
   // read as secondary.
@@ -156,15 +158,17 @@ export function ActionButton({
       tint={tone.fill}
       tintOpacity={tone.fillOpacity}
       blur={0}
-      intensity={1}
-      shineSize={10}
-      shineFade={40}
-      thickness={1}
+      // Above the template's defaults: that example runs on a dark page where
+      // a faint rim reads. On a solid fill it needs the extra weight.
+      intensity={1.8}
+      shineSize={14}
+      shineFade={38}
+      thickness={1.6}
       speed={0.35}
       followMouse
       proximity={250}
       autoAnimate={false}
-      className={`gap-2 font-semibold ${className}`}
+      className={`font-semibold ${className}`}
     >
       {children}
     </SpecularButton>
