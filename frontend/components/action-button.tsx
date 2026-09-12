@@ -1,0 +1,135 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { MouseEvent, ReactNode } from "react";
+
+import SpecularButton from "@/components/SpecularButton";
+import { useReducedMotion } from "@/components/motion";
+
+/**
+ * The primary action, everywhere.
+ *
+ * Wraps React Bits' `SpecularButton` so the whole product shares one button
+ * treatment instead of each screen inventing its own hover transition. The
+ * specular sheen replaces the translate-on-hover the buttons used to do.
+ *
+ * It is WebGL, so it never mounts under prefers-reduced-motion: the fallback is
+ * the same button, same colours, same geometry, without the sheen. Navigation
+ * actions render as a real anchor, not a button that pushes a route.
+ */
+
+type Variant = "primary" | "navy" | "ghost";
+
+/** Base colour drives the specular material; text and line ride on top of it. */
+const VARIANTS: Record<Variant, { base: string; text: string; line: string }> = {
+  primary: { base: "#15ADA2", text: "#ffffff", line: "#d6fbf6" },
+  navy: { base: "#0E2747", text: "#ffffff", line: "#7fd0c6" },
+  ghost: { base: "#1B3A63", text: "#ffffff", line: "#ffffff" },
+};
+
+const FALLBACK: Record<Variant, string> = {
+  primary: "bg-[var(--teal)] text-white hover:bg-[var(--teal-ink)]",
+  navy: "bg-[var(--navy)] text-white hover:bg-[var(--navy-deep)]",
+  ghost: "border border-white/25 text-white hover:bg-white/10",
+};
+
+const PADDING: Record<"sm" | "md" | "lg", string> = {
+  sm: "px-4 py-2.5 text-[0.875rem]",
+  md: "px-6 py-3 text-[0.9375rem]",
+  lg: "px-7 py-4 text-[1rem]",
+};
+
+export function ActionButton({
+  children,
+  href,
+  onClick,
+  type = "button",
+  variant = "primary",
+  size = "md",
+  disabled,
+  className = "",
+}: {
+  children: ReactNode;
+  href?: string;
+  onClick?: () => void;
+  type?: "button" | "submit";
+  variant?: Variant;
+  size?: "sm" | "md" | "lg";
+  disabled?: boolean;
+  className?: string;
+}) {
+  const router = useRouter();
+  const reduced = useReducedMotion();
+  const tone = VARIANTS[variant];
+
+  /**
+   * The animated path renders a real <a>, which would otherwise trigger a full
+   * page load. Intercept a plain left-click for client-side navigation while
+   * leaving middle-click, ctrl-click and "open in new tab" to the browser.
+   */
+  function navigate(event: MouseEvent<HTMLElement>) {
+    if (!href) return;
+    if (
+      event.defaultPrevented ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    ) {
+      return;
+    }
+    event.preventDefault();
+    router.push(href);
+  }
+
+  // A disabled control must not look interactive, so the sheen is dropped too.
+  if (reduced || disabled) {
+    const shell = `inline-flex items-center justify-center gap-2 rounded-[14px] font-semibold transition-colors ${PADDING[size]} ${
+      disabled
+        ? "cursor-not-allowed bg-[var(--line-strong)] text-[var(--ink-faint)]"
+        : FALLBACK[variant]
+    } ${className}`;
+
+    if (href && !disabled) {
+      return (
+        <Link href={href} className={shell}>
+          {children}
+        </Link>
+      );
+    }
+    return (
+      <button type={type} onClick={onClick} disabled={disabled} className={shell}>
+        {children}
+      </button>
+    );
+  }
+
+  return (
+    <SpecularButton
+      href={href}
+      type={type}
+      onClick={href ? navigate : onClick}
+      size={size}
+      radius={14}
+      baseColor={tone.base}
+      textColor={tone.text}
+      lineColor={tone.line}
+      tint="#ffffff"
+      tintOpacity={0}
+      blur={0}
+      intensity={1}
+      shineSize={10}
+      shineFade={40}
+      thickness={1}
+      speed={0.35}
+      followMouse
+      proximity={250}
+      autoAnimate={false}
+      className={`gap-2 font-semibold ${className}`}
+    >
+      {children}
+    </SpecularButton>
+  );
+}

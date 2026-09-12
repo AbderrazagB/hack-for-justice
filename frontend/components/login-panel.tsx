@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ActionButton } from "@/components/action-button";
 import { Logo } from "@/components/logo";
 import { login } from "@/lib/api";
 
@@ -183,14 +184,14 @@ export function LoginPanel() {
                     </span>
                   </div>
 
-                  <button
+                  <ActionButton
                     type="submit"
                     disabled={pending || !email || !password}
-                    className="flex w-full items-center justify-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-[var(--teal-ink)] disabled:cursor-not-allowed disabled:opacity-55"
+                    className="w-full"
                   >
                     <KeyRound size={17} strokeWidth={2} aria-hidden />
                     {pending ? "Connexion en cours" : "Se connecter"}
-                  </button>
+                  </ActionButton>
                 </form>
               </section>
 

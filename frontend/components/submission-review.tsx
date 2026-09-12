@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Logo } from "@/components/logo";
+import { ActionButton } from "@/components/action-button";
 import { StatusTracker } from "@/components/status-tracker";
 import {
   EmptyState,
@@ -257,15 +258,14 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
               className="mt-1.5 w-full rounded-[var(--r-control)] border border-[var(--line)] bg-[var(--surface)] px-3 py-2 text-[0.875rem] outline-none focus:border-[var(--teal)]"
             />
             <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
+              <ActionButton
                 onClick={() => void decide("approve")}
                 disabled={busy}
-                className="inline-flex items-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-2.5 text-[0.875rem] font-medium text-white transition-colors hover:bg-[var(--teal-ink)] disabled:cursor-not-allowed disabled:opacity-60"
+                size="sm"
               >
                 <Check size={16} strokeWidth={2} aria-hidden />
                 Approuver le dossier
-              </button>
+              </ActionButton>
               <button
                 type="button"
                 onClick={() => void decide("request_correction")}

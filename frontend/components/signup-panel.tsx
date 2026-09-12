@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { ActionButton } from "@/components/action-button";
 import { Logo } from "@/components/logo";
 import { signup } from "@/lib/api";
 
@@ -154,14 +155,14 @@ export function SignupPanel() {
                     invalid={tooShort}
                   />
 
-                  <button
+                  <ActionButton
                     type="submit"
                     disabled={pending || !ready}
-                    className="flex w-full items-center justify-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-[var(--teal-ink)] disabled:cursor-not-allowed disabled:opacity-55"
+                    className="w-full"
                   >
                     <UserPlus size={17} strokeWidth={2} aria-hidden />
                     {pending ? "Création en cours" : "Créer mon compte"}
-                  </button>
+                  </ActionButton>
 
                   <p className="text-center text-[0.8125rem] text-[var(--ink-muted)]">
                     Vous avez déjà un compte&nbsp;?{" "}

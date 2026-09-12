@@ -7,10 +7,11 @@ import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { AssistantPanel } from "@/components/assistant-panel";
 import { PortalBar } from "@/components/chrome";
 import { SiteFooter } from "@/components/site-footer";
+import { ActionButton } from "@/components/action-button";
 import { ContextForm } from "@/components/context-form";
 import { DocumentRail } from "@/components/document-rail";
 import { StatusTracker } from "@/components/status-tracker";
-import { Button, Notice, Panel, SectionHeading } from "@/components/ui";
+import { Notice, Panel, SectionHeading } from "@/components/ui";
 import { VerdictPanel } from "@/components/verdict-panel";
 import { createSubmission, listTransactions } from "@/lib/api";
 import type { SubmissionResult, TransactionInfo } from "@/lib/types";
@@ -209,13 +210,13 @@ export default function FilingFlow({
             )}
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button
+              <ActionButton
                 onClick={check}
                 disabled={checking || attachedCount === 0 || unanswered.length > 0}
-                icon={ShieldCheck}
               >
+                <ShieldCheck size={17} strokeWidth={2} aria-hidden />
                 {checking ? "Vérification en cours" : "Vérifier mes pièces"}
-              </Button>
+              </ActionButton>
               {missingCount > 0 && attachedCount > 0 && (
                 <p className="text-[0.8125rem] text-[var(--ink-muted)]">
                   Il manque {missingCount} pièce{missingCount > 1 ? "s" : ""}.

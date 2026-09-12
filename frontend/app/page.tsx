@@ -5,9 +5,9 @@ import {
   ScanLine,
   ShieldCheck,
 } from "lucide-react";
-import Link from "next/link";
 
 import { PortalBar } from "@/components/chrome";
+import { ActionButton } from "@/components/action-button";
 import { DotField } from "@/components/dot-field";
 import { HeroAccent } from "@/components/hero-accent";
 import { HeroAurora } from "@/components/hero-aurora";
@@ -98,24 +98,14 @@ export default function Home() {
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
-              <Link
-                href="/msme"
-                className="hero-primary-cta group inline-flex items-center gap-2.5 rounded-full bg-[var(--teal)] px-7 py-4 text-[1rem] font-semibold text-white shadow-[0_14px_38px_-14px_rgba(21,173,162,0.9)] transition-all hover:-translate-y-0.5 hover:bg-[var(--teal-ink)]"
-              >
+              <ActionButton href="/msme" size="lg">
                 Commencer la vérification
-                <ArrowRight
-                  size={18}
-                  className="transition-transform group-hover:translate-x-0.5"
-                  aria-hidden
-                />
-              </Link>
-              <Link
-                href="/admin"
-                className="inline-flex items-center gap-2.5 rounded-full border border-white/22 bg-white/6 px-7 py-4 text-[1rem] font-medium text-white/88 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/10 hover:text-white"
-              >
+                <ArrowRight size={18} aria-hidden />
+              </ActionButton>
+              <ActionButton href="/admin" size="lg" variant="ghost">
                 <ClipboardCheck size={18} strokeWidth={2} aria-hidden />
                 Espace agent RNE
-              </Link>
+              </ActionButton>
             </div>
 
             <dl className="mt-14 grid max-w-[52rem] gap-5 border-t border-white/12 pt-7 sm:grid-cols-3">
