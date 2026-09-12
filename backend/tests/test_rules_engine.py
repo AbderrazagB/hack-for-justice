@@ -43,6 +43,8 @@ def _submission(**overrides) -> dict:
                 "decision_date": "2026-06-12",
                 "id_number": "12345678",
                 "person_name": "Amine Ben Salah",
+                "has_signature": True,
+                "signature_date": "2026-06-12",
             }
         },
     }
@@ -79,6 +81,7 @@ def test_transaction_rules_match_the_official_checklist() -> None:
         "statutes_reflect_new_representative_name",
         "rne_extract_not_older_than_90_days",
         "filed_within_30_days_of_decision_date",
+        "pv_is_signed",
     ]
 
 
@@ -406,5 +409,86 @@ def test_result_serialises_for_the_api() -> None:
     assert payload["status"] == "COMPLETE"
     assert payload["official_reference"] == "RNE-M-005"
     assert payload["display_name_ar"] == "تحيين مؤسسة"
-    assert len(payload["checks"]) == 4
+    assert len(payload["checks"]) == 5
     assert all(c["label_fr"] and c["label_ar"] for c in payload["checks"])
+
+
+# ------------------------------------------------------- PV signature check
+
+def test_signed_and_dated_pv_passes() -> None:
+    result = check_completeness(_submission(), today=TODAY)
+    assert _outcome(result, "pv_is_signed") is CheckOutcome.PASS
+
+
+def test_missing_signature_date_fails() -> None:
+    submission = _submission(
+        documents={
+            "general_assembly_pv": {
+                "fields": {
+                    "decision_date": "2026-06-12",
+                    "id_number": "12345678",
+                    "person_name": "Amine Ben Salah",
+                    "has_signature": True,
+                    "signature_date": None,
+                }
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    check = next(c for c in result.checks if c.name == "pv_is_signed")
+    assert check.outcome is CheckOutcome.FAIL
+    assert "date de signature" in check.reason_fr
+    assert result.status is Status.NEEDS_REVIEW
+
+
+def test_unsigned_pv_fails() -> None:
+    submission = _submission(
+        documents={
+            "general_assembly_pv": {
+                "fields": {
+                    "decision_date": "2026-06-12",
+                    "id_number": "12345678",
+                    "person_name": "Amine Ben Salah",
+                    "has_signature": False,
+                    "signature_date": None,
+                }
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    assert _outcome(result, "pv_is_signed") is CheckOutcome.FAIL
+
+
+def test_signature_predating_the_decision_fails() -> None:
+    submission = _submission(
+        documents={
+            "general_assembly_pv": {
+                "fields": {
+                    "decision_date": "2026-06-12",
+                    "id_number": "12345678",
+                    "person_name": "Amine Ben Salah",
+                    "has_signature": True,
+                    "signature_date": "2026-06-01",
+                }
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    assert _outcome(result, "pv_is_signed") is CheckOutcome.FAIL
+
+
+def test_unreadable_signature_is_indeterminate_not_an_accusation() -> None:
+    """OCR failing to see a signature must not read as 'you did not sign'."""
+    submission = _submission(
+        documents={
+            "general_assembly_pv": {
+                "fields": {
+                    "decision_date": "2026-06-12",
+                    "id_number": "12345678",
+                    "person_name": "Amine Ben Salah",
+                }
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    assert _outcome(result, "pv_is_signed") is CheckOutcome.INDETERMINATE

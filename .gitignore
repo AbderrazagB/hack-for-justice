@@ -30,3 +30,7 @@ data/processed/*
 .idea/
 .vscode/
 
+
+# Generated demo artefacts
+data/demo/
+data/processed/submissions.json

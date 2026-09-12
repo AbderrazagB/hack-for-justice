@@ -24,6 +24,8 @@ CLEAN_FIELDS = {
         "decision_date": "2026-06-12",
         "id_number": "12345678",
         "person_name": "Amine Ben Salah",
+        "has_signature": True,
+        "signature_date": "2026-06-12",
     },
 }
 

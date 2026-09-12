@@ -43,6 +43,7 @@ _CHECK_FOCUS: dict[str, str] = {
     "statutes_reflect_new_representative_name": "company_statutes",
     "rne_extract_not_older_than_90_days": "rne_extract",
     "filed_within_30_days_of_decision_date": "general_assembly_pv",
+    "pv_is_signed": "general_assembly_pv",
 }
 
 

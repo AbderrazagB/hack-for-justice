@@ -26,6 +26,8 @@ CLEAN = {
             "decision_date": "2026-06-12",
             "id_number": "12345678",
             "person_name": "Amine Ben Salah",
+            "has_signature": True,
+            "signature_date": "2026-06-12",
         }
     },
 }
@@ -58,7 +60,12 @@ def test_summary_of_clean_submission_is_all_zero() -> None:
 def test_id_mismatch_message_names_both_numbers() -> None:
     documents = _with(
         general_assembly_pv={
-            "fields": {"decision_date": "2026-06-12", "id_number": "87654321"}
+            "fields": {
+                "decision_date": "2026-06-12",
+                "id_number": "87654321",
+                "has_signature": True,
+                "signature_date": "2026-06-12",
+            }
         }
     )
     flag = next(
@@ -76,7 +83,12 @@ def test_id_mismatch_message_names_both_numbers() -> None:
 def test_id_mismatch_points_at_both_documents_to_compare() -> None:
     documents = _with(
         general_assembly_pv={
-            "fields": {"decision_date": "2026-06-12", "id_number": "87654321"}
+            "fields": {
+                "decision_date": "2026-06-12",
+                "id_number": "87654321",
+                "has_signature": True,
+                "signature_date": "2026-06-12",
+            }
         }
     )
     flag = next(
@@ -103,7 +115,12 @@ def test_stale_extract_is_flagged_with_its_age() -> None:
 def test_late_filing_is_flagged_with_penalty_months() -> None:
     documents = _with(
         general_assembly_pv={
-            "fields": {"decision_date": "2026-01-05", "id_number": "12345678"}
+            "fields": {
+                "decision_date": "2026-01-05",
+                "id_number": "12345678",
+                "has_signature": True,
+                "signature_date": "2026-01-05",
+            }
         }
     )
     flag = next(
@@ -201,7 +218,12 @@ def test_flags_from_result_avoids_revalidating() -> None:
 def test_flag_serialises_for_the_api() -> None:
     documents = _with(
         general_assembly_pv={
-            "fields": {"decision_date": "2026-06-12", "id_number": "87654321"}
+            "fields": {
+                "decision_date": "2026-06-12",
+                "id_number": "87654321",
+                "has_signature": True,
+                "signature_date": "2026-06-12",
+            }
         }
     )
     payload = flag_inconsistencies(documents, today=TODAY)[0].to_dict()

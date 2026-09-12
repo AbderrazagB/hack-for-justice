@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 
+from app.api.submissions import get_upload_dir
 from app.main import app
 from app.models.submission import SubmissionStore, get_store
 
@@ -23,8 +24,11 @@ def store(tmp_path: Path) -> SubmissionStore:
 
 
 @pytest.fixture
-def client(store: SubmissionStore) -> TestClient:
+def client(store: SubmissionStore, tmp_path: Path) -> TestClient:
+    """Store and uploads both redirected to tmp; tests never touch data/raw."""
+    uploads = tmp_path / "uploads"
     app.dependency_overrides[get_store] = lambda: store
+    app.dependency_overrides[get_upload_dir] = lambda: uploads
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

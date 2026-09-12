@@ -31,6 +31,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["submissions"])
 
 
+def get_upload_dir() -> Path:
+    """Where uploads are stored. A dependency so tests can redirect it."""
+    return DEFAULT_UPLOAD_DIR
+
+
 # ------------------------------------------------------------------ schemas
 
 class ReviewRequest(BaseModel):
@@ -103,6 +108,7 @@ async def create_submission(
     ] = [],
     submitted_at: Annotated[str | None, Form()] = None,
     store: SubmissionStore = Depends(get_store),
+    upload_dir: Path = Depends(get_upload_dir),
 ) -> dict[str, Any]:
     """Accept documents, run OCR + completeness + flagging, return the verdict.
 
@@ -131,7 +137,7 @@ async def create_submission(
 
     for upload, doc_type in zip(files, document_types):
         content = await upload.read()
-        stored_path = _persist(content, upload.filename or doc_type, doc_type)
+        stored_path = _persist(content, upload.filename or doc_type, doc_type, upload_dir)
         result = ocr.extract(content, upload.filename or "", doc_type)
 
         documents[doc_type] = {
@@ -189,16 +195,20 @@ def _initial_status(completeness_status: Status) -> SubmissionStatus:
     )
 
 
-def _persist(content: bytes, filename: str, doc_type: str) -> Path:
-    """Store the upload under data/raw/<doc_type>/ with a collision-safe name."""
+def _persist(content: bytes, filename: str, doc_type: str, upload_dir: Path) -> Path:
+    """Store the upload under <upload_dir>/<doc_type>/ with a unique name."""
     safe_name = Path(filename).name or f"{doc_type}.bin"
-    directory = DEFAULT_UPLOAD_DIR / doc_type
+    directory = upload_dir / doc_type
     directory.mkdir(parents=True, exist_ok=True)
 
+    # Derive the suffix from the ORIGINAL name each time. Re-stemming the
+    # already-suffixed candidate compounds it into name_1_2_3_... until the
+    # filename exceeds the filesystem limit.
+    base = Path(safe_name)
     destination = directory / safe_name
     counter = 1
     while destination.exists():
-        destination = directory / f"{destination.stem}_{counter}{destination.suffix}"
+        destination = directory / f"{base.stem}_{counter}{base.suffix}"
         counter += 1
 
     destination.write_bytes(content)

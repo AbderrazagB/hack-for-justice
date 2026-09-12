@@ -36,6 +36,7 @@ TRANSACTION_RULES = {
             "statutes_reflect_new_representative_name",
             "rne_extract_not_older_than_90_days",
             "filed_within_30_days_of_decision_date",
+            "pv_is_signed",
         ],
     },
 }
@@ -77,6 +78,10 @@ CHECK_LABELS: dict[str, dict[str, str]] = {
     "filed_within_30_days_of_decision_date": {
         "fr": "Dépôt dans les 30 jours suivant la décision",
         "ar": "الإيداع في أجل 30 يوماً من تاريخ القرار",
+    },
+    "pv_is_signed": {
+        "fr": "Le procès-verbal est signé et daté",
+        "ar": "المحضر ممضى ومؤرخ",
     },
 }
 
@@ -434,11 +439,86 @@ def _check_filing_deadline(
     )
 
 
+def _check_pv_signed(
+    documents: dict[str, Any], submission: dict[str, Any], today: date
+) -> CheckResult:
+    """The PV must carry a signature and a signature date.
+
+    An unsigned or undated procès-verbal does not evidence a decision, so the
+    registry cannot act on it. Both the signature mark and its date are
+    extracted by the OCR schema (has_signature / signature_date).
+    """
+    name = "pv_is_signed"
+    pv = documents.get("general_assembly_pv")
+    if not pv:
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Procès-verbal absent : signature non vérifiable.",
+            "المحضر غير موجود: تعذّر التحقق من الإمضاء.",
+        )
+
+    has_signature = _field(documents, "general_assembly_pv", "has_signature")
+    signature_date = _parse_date(
+        _field(documents, "general_assembly_pv", "signature_date")
+    )
+
+    # Unreadable rather than absent: do not accuse an applicant of not signing
+    # when OCR simply could not tell.
+    if has_signature is None and signature_date is None:
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Impossible de déterminer si le procès-verbal est signé et daté.",
+            "تعذّر تحديد ما إذا كان المحضر ممضى ومؤرخاً.",
+        )
+
+    if has_signature is False:
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            "Le procès-verbal ne porte pas de signature.",
+            "المحضر لا يحمل إمضاءً.",
+            {"has_signature": False},
+        )
+
+    if signature_date is None:
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            "Le procès-verbal ne porte pas de date de signature. "
+            "Une date est requise pour établir la décision.",
+            "المحضر لا يحمل تاريخ إمضاء. التاريخ ضروري لإثبات القرار.",
+            {"has_signature": bool(has_signature), "signature_date": None},
+        )
+
+    decision = _parse_date(_field(documents, "general_assembly_pv", "decision_date"))
+    evidence = {"signature_date": signature_date.isoformat()}
+    if decision and signature_date < decision:
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            f"Le procès-verbal est signé le {signature_date:%d/%m/%Y}, "
+            f"avant la décision du {decision:%d/%m/%Y}.",
+            f"المحضر ممضى في {signature_date:%d/%m/%Y} قبل قرار {decision:%d/%m/%Y}.",
+            evidence | {"decision_date": decision.isoformat()},
+        )
+
+    return CheckResult(
+        name,
+        CheckOutcome.PASS,
+        f"Procès-verbal signé et daté du {signature_date:%d/%m/%Y}.",
+        f"المحضر ممضى ومؤرخ في {signature_date:%d/%m/%Y}.",
+        evidence,
+    )
+
+
 _CHECK_IMPLEMENTATIONS = {
     "id_number_matches_across_documents": _check_id_number_matches,
     "statutes_reflect_new_representative_name": _check_statutes_name,
     "rne_extract_not_older_than_90_days": _check_extract_age,
     "filed_within_30_days_of_decision_date": _check_filing_deadline,
+    "pv_is_signed": _check_pv_signed,
 }
 
 # Fail loudly at import time if a rule names a check nobody implemented.
