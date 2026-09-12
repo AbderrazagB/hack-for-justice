@@ -42,6 +42,28 @@ class Settings(BaseSettings):
         default="ministral-8b-2512", validation_alias="CHAT_MODEL"
     )
 
+    # ─── Accounts ────────────────────────────────────────────────────────────
+
+    # Postgres holding user accounts.
+    database_url: str = Field(
+        default="postgresql+asyncpg://immobilia:immobilia@localhost:5432/sahilli",
+        validation_alias="DATABASE_URL",
+    )
+
+    # Signing key for session tokens. MUST be overridden outside local dev --
+    # the default is public knowledge and anyone could mint a valid token.
+    # At least 32 bytes: PyJWT warns below that for HS256 (RFC 7518 §3.2).
+    jwt_secret: str = Field(
+        default="sahilli-local-development-secret-do-not-use-in-production",
+        validation_alias="JWT_SECRET",
+    )
+    jwt_algorithm: str = Field(default="HS256", validation_alias="JWT_ALGORITHM")
+    session_ttl_hours: int = Field(default=12, validation_alias="SESSION_TTL_HOURS")
+
+    # Cookie flags. Secure must be on wherever the site is served over HTTPS.
+    cookie_secure: bool = Field(default=False, validation_alias="COOKIE_SECURE")
+    cookie_domain: str | None = Field(default=None, validation_alias="COOKIE_DOMAIN")
+
     model_config = SettingsConfigDict(
         env_file=("../.env", ".env"),
         env_file_encoding="utf-8",

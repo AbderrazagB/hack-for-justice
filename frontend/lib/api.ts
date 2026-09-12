@@ -1,7 +1,9 @@
 import type {
+  AuthUser,
   ExplainResponse,
   ReviewAction,
   Stats,
+  SessionResponse,
   Submission,
   SubmissionResult,
   SubmissionSummary,
@@ -29,6 +31,9 @@ async function request<TResponse>(
   try {
     response = await fetch(`${API_URL}${path}`, {
       cache: "no-store",
+      // The session lives in an httpOnly cookie, so every request has to carry
+      // credentials for the backend to recognise the caller.
+      credentials: "include",
       ...options,
     });
   } catch {
@@ -127,4 +132,36 @@ export function explainSubmission(
     question,
     lang,
   });
+}
+
+/* ----------------------------------------------------------------- auth --- */
+
+export function signup(input: {
+  email: string;
+  password: string;
+  full_name: string;
+  company_name?: string;
+}): Promise<SessionResponse> {
+  return json<SessionResponse>("/auth/signup", "POST", input);
+}
+
+export function login(
+  email: string,
+  password: string,
+): Promise<SessionResponse> {
+  return json<SessionResponse>("/auth/login", "POST", { email, password });
+}
+
+export function logout(): Promise<{ detail: string }> {
+  return json("/auth/logout", "POST", {});
+}
+
+/** Resolve the signed-in user, or null when there is no valid session. */
+export async function currentUser(): Promise<AuthUser | null> {
+  try {
+    return await request<AuthUser>("/auth/me");
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) return null;
+    throw error;
+  }
 }

@@ -149,3 +149,20 @@ export type ExplainResponse = {
 };
 
 export type ReviewAction = "approve" | "reject" | "request_correction";
+
+export type UserRole = "applicant" | "officer";
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  full_name: string;
+  company_name: string | null;
+  role: UserRole;
+  created_at: string | null;
+  last_login_at: string | null;
+};
+
+export type SessionResponse = {
+  user: AuthUser;
+  expires_at: string;
+};

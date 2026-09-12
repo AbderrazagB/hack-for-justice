@@ -12,23 +12,18 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Logo } from "@/components/logo";
+import { login } from "@/lib/api";
 
 /**
  * Sign-in screen.
  *
- * NOTHING HERE AUTHENTICATES. Sahilli has no accounts yet, so the form is
- * deliberately inert: submission is blocked, the fields carry autoComplete
- * "off", and a notice states plainly that credentials are not checked or
- * stored. That matters more than it looks -- a convincing login form that
- * quietly does nothing is a good way to collect real passwords by accident.
- *
- * Email + password is the path we can actually build, so it is the only option
- * presented as live-to-come. The national identity options below it are shown
- * as unavailable rather than hidden, to be honest about what integrating with
- * them would require.
+ * Email and password authenticate for real against POST /auth/login, which
+ * sets an httpOnly session cookie. The federated options below remain
+ * unavailable, and say so.
  */
 
 /**
@@ -81,8 +76,30 @@ const OPTIONS: {
 ];
 
 export function LoginPanel() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPending(true);
+    setError("");
+    try {
+      await login(email, password);
+      router.push("/msme");
+      router.refresh();
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error
+          ? loginError.message
+          : "La connexion a échoué. Réessayez.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
@@ -113,28 +130,24 @@ export function LoginPanel() {
               <section>
                 <ColumnHeading fr="Avec vos identifiants" ar="بمعرّفاتك" />
 
-                {/* The honesty notice. Do not remove while the form is inert. */}
-                <div
-                  role="note"
-                  className="mt-4 flex gap-2.5 rounded-[var(--r-control)] border border-[var(--st-correction-ink)]/25 bg-[var(--st-correction-wash)] px-3.5 py-3"
-                >
-                  <Info
-                    size={16}
-                    strokeWidth={2}
-                    className="mt-0.5 shrink-0 text-[var(--st-correction-ink)]"
-                    aria-hidden
-                  />
-                  <p className="text-[0.8125rem] leading-relaxed text-[var(--st-correction-ink)]">
-                    Maquette : l&apos;authentification n&apos;est pas encore en
-                    service. Aucun identifiant n&apos;est vérifié ni
-                    enregistré. N&apos;utilisez pas un mot de passe réel.
-                  </p>
-                </div>
+                {error && (
+                  <div
+                    role="alert"
+                    className="mt-4 flex gap-2.5 rounded-[var(--r-control)] border border-[var(--st-rejected-ink)]/25 bg-[var(--st-rejected-wash)] px-3.5 py-3"
+                  >
+                    <Info
+                      size={16}
+                      strokeWidth={2}
+                      className="mt-0.5 shrink-0 text-[var(--st-rejected-ink)]"
+                      aria-hidden
+                    />
+                    <p className="text-[0.8125rem] leading-relaxed text-[var(--st-rejected-ink)]">
+                      {error}
+                    </p>
+                  </div>
+                )}
 
-                <form
-                  className="mt-5 space-y-4"
-                  onSubmit={(event) => event.preventDefault()}
-                >
+                <form className="mt-5 space-y-4" onSubmit={submit}>
                   <Field
                     id="email"
                     label="Adresse e-mail"
@@ -144,6 +157,7 @@ export function LoginPanel() {
                     placeholder="nom@entreprise.tn"
                     value={email}
                     onChange={setEmail}
+                    autoComplete="email"
                   />
                   <Field
                     id="password"
@@ -154,17 +168,16 @@ export function LoginPanel() {
                     placeholder="••••••••"
                     value={password}
                     onChange={setPassword}
+                    autoComplete="current-password"
                   />
 
                   <div className="flex items-center justify-between pt-0.5">
-                    <label className="flex items-center gap-2 text-[0.8125rem] text-[var(--ink-muted)]">
-                      <input
-                        type="checkbox"
-                        disabled
-                        className="size-4 rounded border-[var(--line-strong)] accent-[var(--teal)]"
-                      />
-                      Rester connecté
-                    </label>
+                    <Link
+                      href="/signup"
+                      className="text-[0.8125rem] font-medium text-[var(--teal-ink)] hover:underline"
+                    >
+                      Créer un compte
+                    </Link>
                     <span className="text-[0.8125rem] text-[var(--ink-faint)]">
                       Mot de passe oublié
                     </span>
@@ -172,11 +185,11 @@ export function LoginPanel() {
 
                   <button
                     type="submit"
-                    disabled
-                    className="flex w-full items-center justify-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-3 text-[0.9375rem] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55"
+                    disabled={pending || !email || !password}
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-[var(--teal-ink)] disabled:cursor-not-allowed disabled:opacity-55"
                   >
                     <KeyRound size={17} strokeWidth={2} aria-hidden />
-                    Se connecter
+                    {pending ? "Connexion en cours" : "Se connecter"}
                   </button>
                 </form>
               </section>
@@ -247,6 +260,7 @@ function Field({
   placeholder,
   value,
   onChange,
+  autoComplete,
 }: {
   id: string;
   label: string;
@@ -256,6 +270,7 @@ function Field({
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
+  autoComplete?: string;
 }) {
   return (
     <div>
@@ -275,7 +290,7 @@ function Field({
           placeholder={placeholder}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          autoComplete="off"
+          autoComplete={autoComplete}
           className="w-full rounded-[var(--r-control)] border border-[var(--line-strong)] bg-[var(--surface)] py-3 pr-3.5 pl-10 text-[0.9375rem] outline-none focus:border-[var(--teal)]"
         />
       </div>

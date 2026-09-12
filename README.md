@@ -20,6 +20,7 @@ layer that sits in front of it.
 
 - **Backend:** FastAPI, Python 3.11+, managed with uv
 - **Frontend:** Next.js (App Router), TypeScript, Tailwind CSS
+- **Accounts:** PostgreSQL 16, SQLAlchemy 2.0 (async), Argon2id, JWT sessions
 - **Vector database:** Qdrant (self-hosted)
 - **Embeddings:** BAAI/bge-m3 via HuggingFace Text Embeddings Inference (self-hosted)
 - **OCR / vision:** an open-weight, Apache-2.0 multimodal model via Mistral's
@@ -88,6 +89,7 @@ points at them:
 |---|---|---|---|
 | Qdrant | `qdrant/qdrant` | **6333** (HTTP), 6334 (gRPC) | `rne_procedures` collection |
 | Embeddings | `ghcr.io/huggingface/text-embeddings-inference` (`--model-id BAAI/bge-m3`) | **8090** | 1024-dim vectors |
+| Postgres | `postgres:16-alpine` | **5432** | `sahilli` / `sahilli_test` databases |
 
 Configure via `.env`:
 
@@ -182,20 +184,29 @@ check readiness with `curl http://localhost:8090/health`.
    ./scripts/setup.sh
    ```
 
-4. Seed the RAG grounding corpus into Qdrant (one-off):
+4. Create the accounts databases (one-off):
+
+   ```bash
+   docker exec -i <postgres-container> psql -U <user> -d postgres \
+     -c "CREATE DATABASE sahilli;" -c "CREATE DATABASE sahilli_test;"
+   ```
+
+   Tables are created automatically the first time the backend starts.
+
+5. Seed the RAG grounding corpus into Qdrant (one-off):
 
    ```bash
    cd backend && uv run python ../scripts/seed_rag.py
    ```
 
-5. Start the backend:
+6. Start the backend:
 
    ```bash
    cd backend
    uv run uvicorn app.main:app --reload
    ```
 
-6. In another terminal, start the frontend:
+7. In another terminal, start the frontend:
 
    ```bash
    cd frontend
@@ -210,6 +221,31 @@ external, as described above):
 ```bash
 docker-compose up --build
 ```
+
+## Accounts
+
+Applicants sign up at `/signup` and sign in at `/login`. Sessions are JWTs in an
+**httpOnly** cookie, so page JavaScript cannot read them and an XSS bug cannot
+exfiltrate a session. Passwords are hashed with **Argon2id**.
+
+**Officer accounts cannot be self-registered.** `POST /auth/signup` always
+creates an applicant, because a self-grantable officer role would hand anyone
+the review dashboard. Create one out of band:
+
+```bash
+cd backend && uv run python ../scripts/create_officer.py agent@rne.tn "Nom Agent"
+```
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /auth/signup` | Register an applicant and start a session |
+| `POST /auth/login` | Start a session |
+| `GET /auth/me` | The signed-in user, or 401 |
+| `POST /auth/logout` | Clear the session cookie |
+
+> **`JWT_SECRET` must be replaced outside local development.** The default is in
+> this repository, so anyone who has read it could mint a valid session. The
+> backend logs a warning at startup while the default is in use.
 
 ## Project structure
 
