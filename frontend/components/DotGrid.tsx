@@ -195,6 +195,14 @@ const DotGrid: React.FC<DotGridProps> = ({
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      // React detaches refs during commit and runs effect cleanups afterwards,
+      // so a window-level mousemove can land while the canvas is already gone
+      // -- on client navigation away from a page that renders this. Upstream
+      // asserts the ref is non-null with `!`, which hides that from the
+      // compiler and throws at runtime. Bail out instead.
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
       const now = performance.now();
       const pr = pointerRef.current;
       const dt = pr.lastTime ? now - pr.lastTime : 16;
@@ -216,7 +224,7 @@ const DotGrid: React.FC<DotGridProps> = ({
       pr.vy = vy;
       pr.speed = speed;
 
-      const rect = canvasRef.current!.getBoundingClientRect();
+      const rect = canvas.getBoundingClientRect();
       pr.x = e.clientX - rect.left;
       pr.y = e.clientY - rect.top;
 
@@ -244,7 +252,10 @@ const DotGrid: React.FC<DotGridProps> = ({
     };
 
     const onClick = (e: MouseEvent) => {
-      const rect = canvasRef.current!.getBoundingClientRect();
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
       for (const dot of dotsRef.current) {
@@ -275,9 +286,12 @@ const DotGrid: React.FC<DotGridProps> = ({
     window.addEventListener('mousemove', throttledMove, { passive: true });
     window.addEventListener('click', onClick);
 
+    const dots = dotsRef.current;
     return () => {
       window.removeEventListener('mousemove', throttledMove);
       window.removeEventListener('click', onClick);
+      // Tweens outlive the component otherwise, animating dots that are gone.
+      for (const dot of dots) gsap.killTweensOf(dot);
     };
   }, [maxSpeed, speedTrigger, proximity, resistance, returnDuration, shockRadius, shockStrength]);
 
