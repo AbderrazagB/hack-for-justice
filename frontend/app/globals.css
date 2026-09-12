@@ -258,6 +258,13 @@ body {
   }
 }
 
+/* Login visual: dark enough at the bottom for the caption to sit on it,
+   clear at the top so the artwork still reads. */
+.login-visual-scrim {
+  background:
+    linear-gradient(180deg, rgba(8, 26, 49, 0.28) 0%, rgba(8, 26, 49, 0.12) 42%, rgba(8, 26, 49, 0.86) 100%);
+}
+
 /* ------------------------------------------------------------- motion --- */
 /* React Bits ships no reduced-motion handling; components are additionally
    guarded in React (see components/motion.tsx). This is the CSS backstop. */
