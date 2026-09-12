@@ -54,28 +54,28 @@ const OPTIONS: {
     logo: "/brand/providers/tuntrust.png",
     label: "Digigo",
     description:
-      "Identité numérique TunTrust pour confirmer votre profil et accéder aux espaces liés à votre e-mail.",
+      "Identité numérique TunTrust liée à votre e-mail.",
   },
   {
     id: "mobileid",
     logo: "/brand/providers/ehouwiya.png",
     label: "MobileID",
     description:
-      "Validation sécurisée avec votre identité mobile, sans ressaisir vos justificatifs RNE.",
+      "Validation par identité mobile, sans ressaisie.",
   },
   {
     id: "entreprise",
     icon: Building2,
     label: "Compte entreprise",
     description:
-      "Connexion avec les identifiants de votre espace entreprise.",
+      "Identifiants de votre espace entreprise.",
   },
   {
     id: "invite",
     icon: UserRound,
     label: "Compte invité",
     description:
-      "Accès temporaire, sans création de compte. Vérifiez un dossier immédiatement.",
+      "Sans création de compte. Vérifiez un dossier immédiatement.",
     href: "/msme",
   },
 ];
@@ -92,103 +92,119 @@ export function LoginPanel() {
           <Logo size="lg" />
         </div>
 
-        <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">
-          <div className="w-full max-w-[44rem]">
-            <h1 className="t-h1 text-[var(--navy)]">Connexion</h1>
-            <p className="ar ar-left mt-1 text-[1.125rem] text-[var(--ink-muted)]">
-              تسجيل الدخول
-            </p>
-            <p className="mt-4 max-w-[34rem] text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
-              Retrouvez vos dossiers et leur avancement. Vous pouvez aussi
-              vérifier un dossier sans compte.
-            </p>
-
-            {/* The honesty notice. Do not remove while the form is inert. */}
-            <div
-              role="note"
-              className="mt-6 max-w-[26rem] flex gap-2.5 rounded-[var(--r-control)] border border-[var(--st-correction-ink)]/25 bg-[var(--st-correction-wash)] px-3.5 py-3"
-            >
-              <Info
-                size={16}
-                strokeWidth={2}
-                className="mt-0.5 shrink-0 text-[var(--st-correction-ink)]"
-                aria-hidden
-              />
-              <p className="text-[0.8125rem] leading-relaxed text-[var(--st-correction-ink)]">
-                Maquette : l&apos;authentification n&apos;est pas encore en
-                service. Aucun identifiant n&apos;est vérifié ni enregistré.
-                N&apos;utilisez pas un mot de passe réel.
+        <div className="flex flex-1 items-center px-6 py-10 sm:px-10">
+          <div className="mx-auto w-full max-w-[58rem]">
+            <header>
+              <h1 className="t-h1 text-[var(--navy)]">Connexion</h1>
+              <p className="ar ar-left mt-1 text-[1.125rem] text-[var(--ink-muted)]">
+                تسجيل الدخول
               </p>
-            </div>
+              <p className="mt-3 max-w-[36rem] text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
+                Retrouvez vos dossiers et leur avancement. Vous pouvez aussi
+                vérifier un dossier sans compte.
+              </p>
+            </header>
 
-            <form
-              className="mt-6 max-w-[26rem] space-y-4"
-              onSubmit={(event) => event.preventDefault()}
-            >
-              <Field
-                id="email"
-                label="Adresse e-mail"
-                labelAr="البريد الإلكتروني"
-                icon={Mail}
-                type="email"
-                placeholder="nom@entreprise.tn"
-                value={email}
-                onChange={setEmail}
-              />
-              <Field
-                id="password"
-                label="Mot de passe"
-                labelAr="كلمة المرور"
-                icon={Lock}
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={setPassword}
-              />
-
-              <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 text-[0.8125rem] text-[var(--ink-muted)]">
-                  <input
-                    type="checkbox"
-                    disabled
-                    className="size-4 rounded border-[var(--line-strong)] accent-[var(--teal)]"
+            {/* Two columns instead of one long stack: the credentials path on
+                the left, every other way in on the right. */}
+            <div className="mt-8 grid gap-x-10 gap-y-9 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+              <section>
+                {/* The honesty notice. Do not remove while the form is inert. */}
+                <div
+                  role="note"
+                  className="flex gap-2.5 rounded-[var(--r-control)] border border-[var(--st-correction-ink)]/25 bg-[var(--st-correction-wash)] px-3.5 py-3"
+                >
+                  <Info
+                    size={16}
+                    strokeWidth={2}
+                    className="mt-0.5 shrink-0 text-[var(--st-correction-ink)]"
+                    aria-hidden
                   />
-                  Rester connecté
-                </label>
-                <span className="text-[0.8125rem] text-[var(--ink-faint)]">
-                  Mot de passe oublié
-                </span>
-              </div>
+                  <p className="text-[0.8125rem] leading-relaxed text-[var(--st-correction-ink)]">
+                    Maquette : l&apos;authentification n&apos;est pas encore en
+                    service. Aucun identifiant n&apos;est vérifié ni
+                    enregistré. N&apos;utilisez pas un mot de passe réel.
+                  </p>
+                </div>
 
-              <button
-                type="submit"
-                disabled
-                className="flex w-full items-center justify-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-3 text-[0.9375rem] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55"
-              >
-                <KeyRound size={17} strokeWidth={2} aria-hidden />
-                Se connecter
-              </button>
-            </form>
+                <form
+                  className="mt-5 space-y-4"
+                  onSubmit={(event) => event.preventDefault()}
+                >
+                  <Field
+                    id="email"
+                    label="Adresse e-mail"
+                    labelAr="البريد الإلكتروني"
+                    icon={Mail}
+                    type="email"
+                    placeholder="nom@entreprise.tn"
+                    value={email}
+                    onChange={setEmail}
+                  />
+                  <Field
+                    id="password"
+                    label="Mot de passe"
+                    labelAr="كلمة المرور"
+                    icon={Lock}
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={setPassword}
+                  />
 
-            <div className="my-7 flex items-center gap-3">
-              <span className="h-px flex-1 bg-[var(--line)]" />
-              <span className="text-[0.75rem] text-[var(--ink-faint)]">
-                ou
-              </span>
-              <span className="h-px flex-1 bg-[var(--line)]" />
+                  <div className="flex items-center justify-between pt-0.5">
+                    <label className="flex items-center gap-2 text-[0.8125rem] text-[var(--ink-muted)]">
+                      <input
+                        type="checkbox"
+                        disabled
+                        className="size-4 rounded border-[var(--line-strong)] accent-[var(--teal)]"
+                      />
+                      Rester connecté
+                    </label>
+                    <span className="text-[0.8125rem] text-[var(--ink-faint)]">
+                      Mot de passe oublié
+                    </span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled
+                    className="flex w-full items-center justify-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-3 text-[0.9375rem] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    <KeyRound size={17} strokeWidth={2} aria-hidden />
+                    Se connecter
+                  </button>
+                </form>
+              </section>
+
+              <section>
+                <h2 className="t-h3 text-[var(--navy)]">
+                  Autres moyens de connexion
+                </h2>
+                <p className="ar ar-left mt-0.5 text-[0.875rem] text-[var(--ink-faint)]">
+                  طرق أخرى للدخول
+                </p>
+
+                <ul className="mt-4 space-y-2.5">
+                  {OPTIONS.map((option) => (
+                    <li key={option.id}>
+                      <OptionCard option={option} />
+                    </li>
+                  ))}
+                </ul>
+
+                <p className="mt-6 flex items-start gap-2 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
+                  <Building2
+                    size={13}
+                    strokeWidth={1.8}
+                    className="mt-0.5 shrink-0"
+                    aria-hidden
+                  />
+                  Sahilli est un service indépendant de pré-validation. Le dépôt
+                  officiel reste à effectuer sur le portail du RNE.
+                </p>
+              </section>
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {OPTIONS.map((option) => (
-                <OptionCard key={option.id} option={option} />
-              ))}
-            </div>
-
-            <p className="mt-8 flex items-start gap-2 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
-              <Building2 size={13} strokeWidth={1.8} className="mt-0.5 shrink-0" aria-hidden />
-              Sahilli est un service indépendant de pré-validation. Le dépôt
-              officiel reste à effectuer sur le portail du RNE.
-            </p>
           </div>
         </div>
       </div>
@@ -284,7 +300,7 @@ function OptionCard({
   const body = (
     <>
       <span
-        className={`flex h-[4.25rem] w-[7.5rem] shrink-0 items-center justify-center rounded-xl border ${
+        className={`flex size-12 shrink-0 items-center justify-center rounded-xl border ${
           live
             ? "border-[var(--teal)]/30 bg-[var(--teal-wash)]"
             : "border-[var(--line)] bg-[var(--surface)]"
@@ -298,12 +314,12 @@ function OptionCard({
             width={256}
             height={256}
             sizes="96px"
-            className="h-9 w-auto max-w-[5.5rem] object-contain"
+            className="size-7 object-contain"
           />
         ) : Icon ? (
           <Icon
-            size={26}
-            strokeWidth={1.5}
+            size={22}
+            strokeWidth={1.6}
             className={live ? "text-[var(--teal-ink)]" : "text-[var(--ink-muted)]"}
             aria-hidden
           />
@@ -311,37 +327,40 @@ function OptionCard({
       </span>
 
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="font-[family-name:var(--font-space-grotesk)] text-[1.0625rem] font-semibold text-[var(--navy)]">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-[family-name:var(--font-space-grotesk)] text-[1rem] leading-none font-semibold whitespace-nowrap text-[var(--navy)]">
             {option.label}
           </span>
           {!live && (
-            <span className="rounded-full bg-[var(--canvas)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--ink-faint)]">
+            <span className="rounded-full bg-[var(--canvas)] px-2 py-0.5 text-[0.6875rem] leading-none font-medium text-[var(--ink-faint)]">
               Bientôt
             </span>
           )}
         </span>
-        <span className="mt-1.5 block text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
+        <span className="mt-1 block text-[0.8125rem] leading-snug text-[var(--ink-muted)]">
           {option.description}
         </span>
-        {live && (
-          <span className="mt-2 inline-flex items-center gap-1.5 text-[0.8125rem] font-semibold text-[var(--teal-ink)]">
-            Continuer
-            <ArrowRight size={14} strokeWidth={2} aria-hidden />
-          </span>
-        )}
       </span>
+
+      {live && (
+        <ArrowRight
+          size={16}
+          strokeWidth={2}
+          className="ml-auto shrink-0 text-[var(--teal-ink)]"
+          aria-hidden
+        />
+      )}
     </>
   );
 
   const shell =
-    "flex h-full items-start gap-4 rounded-2xl border p-5 transition-all duration-200";
+    "flex w-full items-center gap-3.5 rounded-xl border px-4 py-3 transition-all duration-200";
 
   if (!live) {
     return (
       <div
         aria-disabled
-        className={`${shell} border-[var(--line)] bg-[var(--surface)] opacity-75`}
+        className={`${shell} border-[var(--line)] bg-[var(--surface)]`}
       >
         {body}
       </div>
@@ -351,7 +370,7 @@ function OptionCard({
   return (
     <Link
       href={option.href!}
-      className={`${shell} border-[var(--teal)] bg-[var(--surface)] hover:-translate-y-0.5 hover:shadow-[0_12px_30px_-16px_rgba(14,39,71,0.4)]`}
+      className={`${shell} border-[var(--teal)] bg-[var(--surface)] hover:bg-[var(--teal-wash)]`}
     >
       {body}
     </Link>

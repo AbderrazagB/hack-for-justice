@@ -258,6 +258,21 @@ body {
   }
 }
 
+/* Browsers paint autofilled inputs with their own yellow, which overrides the
+   field styling entirely. Repaint them with our own surface and text colour. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 40rem var(--surface) inset;
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  transition: background-color 100000s ease-in-out 0s;
+}
+input:autofill {
+  box-shadow: 0 0 0 40rem var(--surface) inset;
+  -webkit-text-fill-color: var(--ink);
+}
+
 /* Login visual: dark enough at the bottom for the caption to sit on it,
    clear at the top so the artwork still reads. */
 .login-visual-scrim {
