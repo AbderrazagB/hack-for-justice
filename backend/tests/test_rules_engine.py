@@ -492,3 +492,79 @@ def test_unreadable_signature_is_indeterminate_not_an_accusation() -> None:
     )
     result = check_completeness(submission, today=TODAY)
     assert _outcome(result, "pv_is_signed") is CheckOutcome.INDETERMINATE
+
+
+# ----------------------------------- company identifiers are not personal IDs
+
+def test_company_identifier_in_statutes_is_not_a_cin_mismatch() -> None:
+    """Statutes always carry the company's RNE id; it must not be compared
+    against the representative's CIN. This fired on nearly every real filing."""
+    submission = _submission(
+        documents={
+            "company_statutes": {
+                "fields": {
+                    "full_text": "Gérant: Amine Ben Salah",
+                    "company_id": "8193319B",
+                    "other_id_numbers": ["8193319B"],
+                }
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    assert _outcome(result, "id_number_matches_across_documents") is CheckOutcome.PASS
+
+
+def test_tax_identifier_variant_is_also_ignored() -> None:
+    submission = _submission(
+        documents={
+            "company_statutes": {
+                "fields": {
+                    "full_text": "Gérant: Amine Ben Salah",
+                    "company_id": "8193319B",
+                    "other_id_numbers": ["8193319BA/M000"],
+                }
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    assert _outcome(result, "id_number_matches_across_documents") is CheckOutcome.PASS
+
+
+def test_non_cin_shaped_number_is_ignored() -> None:
+    """Seven digits is not a CIN; only 8-digit values are comparable."""
+    submission = _submission(
+        documents={
+            "general_assembly_pv": {
+                "fields": {
+                    "decision_date": "2026-06-12",
+                    "id_number": "12345678",
+                    "other_id_numbers": ["1234567"],
+                    "person_name": "Amine Ben Salah",
+                    "has_signature": True,
+                    "signature_date": "2026-06-12",
+                }
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    assert _outcome(result, "id_number_matches_across_documents") is CheckOutcome.PASS
+
+
+def test_a_genuine_second_cin_still_fails() -> None:
+    """The narrowing must not blind the check to a real mismatch."""
+    submission = _submission(
+        documents={
+            "general_assembly_pv": {
+                "fields": {
+                    "decision_date": "2026-06-12",
+                    "id_number": "12345678",
+                    "other_id_numbers": ["87654321"],
+                    "person_name": "Amine Ben Salah",
+                    "has_signature": True,
+                    "signature_date": "2026-06-12",
+                }
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    assert _outcome(result, "id_number_matches_across_documents") is CheckOutcome.FAIL

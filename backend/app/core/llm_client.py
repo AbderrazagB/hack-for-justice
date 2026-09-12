@@ -12,20 +12,58 @@ warns on every import.
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from typing import Literal
 
 from app.core.config import settings
+from app.core.retry import with_retry
 
 logger = logging.getLogger(__name__)
 
 Provider = Literal["mistral", "gemini"]
 
-MISTRAL_MODEL = "mistral-small-latest"
 GEMINI_MODEL = "gemini-2.0-flash"
+
+# Preference order for text generation, Apache-2.0 open-weight first -- the
+# same sovereignty argument as the vision model, and verified to be what a
+# standard key can actually reach: mistral-small-latest and
+# mistral-medium-latest answer 429 "Rate limit exceeded" on tiers that do not
+# include them, which is indistinguishable from a transient limit and would
+# silently disable the assistant.
+CHAT_MODEL_PREFERENCE = [
+    "ministral-8b-2512",
+    "ministral-14b-2512",
+    "mistral-small-latest",
+    "mistral-medium-latest",
+]
 
 
 class LLMError(RuntimeError):
     """Raised when no configured provider could answer."""
+
+
+@lru_cache(maxsize=1)
+def _resolve_chat_model(preferred: str) -> str:
+    """Pick a text model the account can actually reach.
+
+    Mirrors the vision-model resolver: ask the API rather than trust a
+    constant, because an unavailable model reports a rate limit rather than a
+    404 and would otherwise look like a transient outage forever.
+    """
+    try:
+        from mistralai.client import Mistral
+
+        available = {
+            m.id for m in Mistral(api_key=settings.mistral_api_key).models.list().data
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not list Mistral models (%s); using %s", exc, preferred)
+        return preferred
+
+    for candidate in [preferred, *CHAT_MODEL_PREFERENCE]:
+        if candidate in available:
+            return candidate
+    return preferred
 
 
 class LLMClient:
@@ -60,9 +98,11 @@ class LLMClient:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        response = Mistral(api_key=settings.mistral_api_key).chat.complete(
-            model=MISTRAL_MODEL,
-            messages=messages,
+        model = _resolve_chat_model(settings.chat_model)
+        client = Mistral(api_key=settings.mistral_api_key)
+        response = with_retry(
+            lambda: client.chat.complete(model=model, messages=messages),
+            description=f"Mistral chat ({model})",
         )
         content = response.choices[0].message.content
         return content if isinstance(content, str) else str(content)

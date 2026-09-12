@@ -58,8 +58,15 @@ open-weight successors:
 
 | Model | Role |
 |---|---|
-| `mistral-large-2512` (Mistral Large 3, Apache-2.0) | default — best extraction quality |
-| `ministral-8b-2512` (Ministral 3 8B, Apache-2.0) | the realistic sovereign self-hosting target |
+| `ministral-14b-2512` (Ministral 3 14B, Apache-2.0) | default — verified working for OCR |
+| `ministral-8b-2512` (Ministral 3 8B, Apache-2.0) | assistant text, and the lightest self-hosting target |
+
+Both are open-weight and Apache-2.0, so the self-hosting path stays real.
+Note that model *availability varies by account*: `mistral-large-2512`,
+`mistral-small-latest` and `mistral-medium-latest` are not reachable on every
+key, and an unavailable model answers `429 Rate limit exceeded` rather than a
+404 — indistinguishable from a transient limit. Sahilli therefore asks the API
+which models exist and picks the best available, for both OCR and chat.
 
 Because model IDs churn, `ocr_service.py` queries the API for the models that
 actually exist and picks the best available from a preference list. Override

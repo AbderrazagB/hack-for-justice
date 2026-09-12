@@ -34,7 +34,12 @@ class Settings(BaseSettings):
     # Pixtral is retired from the Mistral API -- see app/services/ocr_service.py
     # for the full rationale and the successor models.
     vision_model: str = Field(
-        default="mistral-large-2512", validation_alias="VISION_MODEL"
+        default="ministral-14b-2512", validation_alias="VISION_MODEL"
+    )
+
+    # Text model for the assistant's explanations. Also Apache-2.0 open-weight.
+    chat_model: str = Field(
+        default="ministral-8b-2512", validation_alias="CHAT_MODEL"
     )
 
     model_config = SettingsConfigDict(

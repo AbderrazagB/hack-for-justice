@@ -553,17 +553,49 @@ def _normalise_id(value: Any) -> str:
     return re.sub(r"\D", "", str(value)) if value is not None else ""
 
 
+# A Tunisian CIN is exactly 8 digits. Company identifiers (RNE unique ID, tax
+# ID) are a different shape and a different kind of thing entirely.
+CIN_LENGTH = 8
+
+
+def _is_cin_shaped(value: str) -> bool:
+    return len(value) == CIN_LENGTH and value.isdigit()
+
+
 def _all_ids(documents: dict[str, Any], doc_key: str) -> list[str]:
-    """Every ID number a document mentions, normalised and de-duplicated."""
-    found: list[str] = []
+    """Every *personal* ID number a document mentions, normalised and deduped.
+
+    Company identifiers are excluded deliberately. Statutes and the Extrait
+    always carry the company's RNE identifier, and an extraction model will
+    quite correctly report it under `other_id_numbers` -- it is another ID
+    number on the page. Comparing a company registration number against a
+    person's CIN is meaningless, and doing so made this check fire on virtually
+    every filing. We therefore keep only CIN-shaped values and drop anything
+    the same document identified as a company identifier.
+    """
+    company_ids = {
+        _normalise_id(_field(documents, doc_key, "company_id")),
+        _normalise_id(_field(documents, doc_key, "tax_id")),
+    }
+    company_ids.discard("")
+
+    candidates: list[str] = []
     primary = _normalise_id(_field(documents, doc_key, "id_number"))
     if primary:
-        found.append(primary)
+        candidates.append(primary)
 
     others = _field(documents, doc_key, "other_id_numbers") or []
     if isinstance(others, (list, tuple)):
-        found.extend(filter(None, (_normalise_id(item) for item in others)))
+        candidates.extend(filter(None, (_normalise_id(item) for item in others)))
 
+    found = [
+        value
+        for value in candidates
+        # A normalised company id can be a prefix of its tax id, so compare both
+        # ways rather than by equality alone.
+        if _is_cin_shaped(value)
+        and not any(value == cid or cid.startswith(value) for cid in company_ids)
+    ]
     return list(dict.fromkeys(found))
 
 

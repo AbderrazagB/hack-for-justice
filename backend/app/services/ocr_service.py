@@ -27,13 +27,13 @@ simply 404.
 The rationale carries over cleanly to its successors, which are still
 open-weight and still Apache-2.0:
 
-  * `mistral-large-2512`  -- Mistral Large 3. Apache-2.0, open-weight,
-    multimodal. Our default: best extraction quality for scanned/handwritten
-    Tunisian paperwork.
-  * `ministral-8b-2512`   -- Ministral 3 8B. Apache-2.0, open-weight, vision
-    capable, and small enough to self-host on modest hardware. This is the
-    realistic "sovereign deployment" target and the closest spiritual successor
-    to Pixtral-12B.
+  * `ministral-14b-2512`  -- Ministral 3 14B. Apache-2.0, open-weight, vision
+    capable. Our default and the closest spiritual successor to Pixtral-12B:
+    same licence, same order of size, genuinely self-hostable. Verified against
+    the live API -- `mistral-large-2512` is NOT exposed on every account, so
+    defaulting to it would break for some users.
+  * `ministral-8b-2512`   -- Ministral 3 8B. Apache-2.0, lighter still; the
+    cheapest realistic "sovereign deployment" target.
 
 Because model IDs churn (as Pixtral proved), `_resolve_vision_model()` asks the
 API which models actually exist and picks the first available from a preference
@@ -64,16 +64,20 @@ from functools import lru_cache
 from typing import Any
 
 from app.core.config import settings
+from app.core.retry import with_retry
 
 logger = logging.getLogger(__name__)
 
 # Preference order, best-quality first. All Apache-2.0 open-weight multimodal.
+# Preference order, best-first, used when the configured model is unavailable.
+# Apache-2.0 open-weight models lead, because a self-hostable default is the
+# whole argument; the proprietary ones are last-resort so OCR still runs.
 VISION_MODEL_PREFERENCE = [
-    "mistral-large-2512",
-    "mistral-medium-2508",
-    "ministral-14b-2512",
-    "ministral-8b-2512",
-    "mistral-small-2506",
+    "ministral-14b-2512",   # Apache-2.0, open-weight, vision
+    "ministral-8b-2512",    # Apache-2.0, open-weight, lighter
+    "mistral-large-2512",   # Apache-2.0, not on every account
+    "mistral-medium-latest",
+    "mistral-small-latest",
 ]
 
 # Document types Sahilli understands, with a hint that lightly specialises the
@@ -268,10 +272,16 @@ class OCRService:
                 {"type": "image_url", "image_url": f"data:image/png;base64,{encoded}"}
             )
 
-        response = Mistral(api_key=settings.mistral_api_key).chat.complete(
-            model=model,
-            messages=[{"role": "user", "content": content}],
-            temperature=0,
+        client = Mistral(api_key=settings.mistral_api_key)
+        # One vision call per document means a submission can trip a per-minute
+        # limit on its own; back off rather than degrade a readable document.
+        response = with_retry(
+            lambda: client.chat.complete(
+                model=model,
+                messages=[{"role": "user", "content": content}],
+                temperature=0,
+            ),
+            description=f"vision OCR ({model})",
         )
         raw = response.choices[0].message.content
         text = raw if isinstance(raw, str) else str(raw)
