@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AssistantPanel } from "@/components/assistant-panel";
-import { AppBar } from "@/components/chrome";
+import { PortalBar } from "@/components/chrome";
 import { DocumentRail } from "@/components/document-rail";
 import { StatusTracker } from "@/components/status-tracker";
 import { Button, Notice, Panel, SectionHeading } from "@/components/ui";
@@ -75,7 +75,7 @@ export default function FilingFlow({
   if (error && !transaction) {
     return (
       <div className="min-h-screen">
-        <AppBar />
+        <PortalBar />
         <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
           <Notice>{error}</Notice>
         </main>
@@ -85,7 +85,7 @@ export default function FilingFlow({
 
   return (
     <div className="min-h-screen">
-      <AppBar />
+      <PortalBar />
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">

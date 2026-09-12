@@ -26,6 +26,43 @@ export function Wordmark({ tone = "light" }: { tone?: "light" | "dark" }) {
   );
 }
 
+/**
+ * Portal chrome for the public entry: a thin navy utility strip above the white
+ * bar, echoing the layout of the registry portal an applicant already knows.
+ * Carries Sahilli's own wordmark only — no state emblem, no flag, no RNE logo.
+ */
+export function PortalBar() {
+  return (
+    <>
+      <div className="bg-[var(--navy-deep)]">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-[0.75rem] text-white/60 sm:px-6">
+          <span>Pré-validation des dossiers du Registre National des Entreprises</span>
+          <span className="ar">التحقق المسبق من ملفات السجل الوطني للمؤسسات</span>
+        </div>
+      </div>
+      <header className="border-b border-[var(--line)] bg-[var(--surface)]">
+        <nav className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
+          <Wordmark />
+          <div className="flex items-center gap-1">
+            <Link
+              href="/msme"
+              className="rounded-[var(--r-control)] px-3 py-1.5 text-[0.875rem] font-medium text-[var(--ink-muted)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--navy)]"
+            >
+              Services
+            </Link>
+            <Link
+              href="/admin"
+              className="rounded-[var(--r-control)] px-3 py-1.5 text-[0.875rem] font-medium text-[var(--ink-muted)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--navy)]"
+            >
+              Espace agent
+            </Link>
+          </div>
+        </nav>
+      </header>
+    </>
+  );
+}
+
 /** Light chrome, used on the applicant-facing screens. */
 export function AppBar({ trailing }: { trailing?: ReactNode }) {
   return (

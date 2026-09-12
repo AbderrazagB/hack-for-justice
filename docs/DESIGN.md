@@ -3,12 +3,17 @@
 Design lead notes for the UI overhaul. Written before implementation, then revised
 against the constraints (see *Critical review* at the end).
 
-> **Sourcing note.** No RNE portal screenshots exist in this repository or in this
-> working session. The palette below is derived from the *described* observations of
-> RNE's public portal — deep navy header, white content area, teal/cyan accent, clean
-> card layout — not from image files I was able to inspect. If actual screenshots are
-> available, the exact navy and teal should be re-sampled from them; the token system
-> is structured so that changing two hex values propagates everywhere.
+> **Sourcing note.** The first version of this document was written without access to
+> any RNE screenshots and inferred the layout from a description. That inference was
+> wrong in one important way — it produced a dark, full-bleed landing page, where the
+> real portal (registre-entreprises.tn) is a **light** page: navy utility strip and
+> header, white content, a centred "Accès rapide aux services" heading, a grid of
+> bilingual service cards with teal pill actions, and a pale figures band. The layout
+> section below has been rewritten against the actual portal.
+>
+> What is deliberately **not** copied: the Tunisian flag and "République Tunisienne /
+> Présidence du Gouvernement" block, the RNE logo, and the government seal treatment.
+> Sahilli sits in front of the registry and must not present itself as the registry.
 
 ---
 
@@ -105,17 +110,19 @@ No tracked-out all-caps eyebrow labels anywhere.
 
 ## 3. Layout, per screen
 
-**`/` — entry.** Full-bleed navy field, one display-size statement of what Sahilli does,
-and two routes in. The two routes are *not* matching cards: the MSME path is a solid
-teal-bordered panel on white; the officer path is a quieter inset on the navy itself.
-Asymmetric by intent — most visitors are businesses.
+**`/` — entry.** Follows the portal layout an applicant already knows, in Sahilli's own
+palette: a thin navy utility strip, a white nav bar carrying the wordmark, then a navy
+masthead with the value statement over an animated aurora. Below it on the light canvas,
+a centred **"Accès rapide aux services"** heading and a four-across grid of service
+cards — outlined icon, Arabic title above French, and a full-width teal pill reading
+*Accès au service / الولوج الى الخدمة*. A pale figures band closes the page.
 
-**`/msme` — service selection.** Breaks the equal-grid problem outright. *Modification
-Entreprise* is a single wide feature panel across the top: navy left rail carrying the
-RNE-M-005 reference, white body with the bilingual title, the five required documents
-listed inline, and the primary action. The five unavailable services sit **below, in a
-plain bordered list** — one row each, muted, no card, no shadow, no radius echo. They
-read as a roadmap, not as five siblings of the live one.
+**`/msme` — service catalogue.** The same grid, showing every procedure. Hierarchy is
+carried by *state*, not by a different shape: live procedures keep the shadow, the teal
+pill and the lift on hover; planned ones lose all three and take a dashed
+"Bientôt disponible" outline with a muted icon. The live card also carries its
+RNE-M-005 reference. This replaces an earlier draft that demoted the unavailable
+services to a plain text list — it broke the portal grid the brief later asked for.
 
 **`/msme/[transactionType]` — the filing flow.** Two columns on desktop, stacked on
 mobile. Left: the document checklist as a vertical rail with a connecting line and a
@@ -147,9 +154,11 @@ no fade-slide-up on every section.
 
 | Component | Where | Why |
 |---|---|---|
-| `SpotlightCard` | `/msme`, the single *Modification Entreprise* panel | Makes the one live service the only interactive-feeling object on the page. Directly serves the hierarchy goal. |
-| `BlurText` | `/msme/[type]`, the verdict headline when the check returns | The one moment that matters to an applicant: the answer arriving. Word-by-word settle, ~500ms, once. |
-| `CountUp` | `/admin`, the four masthead figures | Live data announcing itself as live. Runs once on load. |
+| `Aurora` | the navy masthead on `/` and `/admin` | Ambient movement behind the one dark surface on each side of the product, in the product's own teal. WebGL, client-only. |
+| `DotGrid` | behind the service grid on `/` and `/msme` | A quiet registry-paper texture that reacts to the cursor, so the light canvas is not dead space. |
+| `BlurText` | `/msme/[type]`, the verdict headline when the check returns | The one moment that matters to an applicant: the answer arriving. Word-by-word settle, once. |
+| `CountUp` | the figures on `/` and the `/admin` stat band | Live data announcing itself as live. Runs once on load. |
+| `SpotlightCard` | available for feature panels | Retained from the first pass; the card grid now carries hierarchy through state instead. |
 
 All three are wrapped in a `Motion` guard that reads `prefers-reduced-motion` and renders
 the final state statically when motion is reduced. React Bits ships no reduced-motion

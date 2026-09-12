@@ -1,31 +1,28 @@
-import { ArrowRight, FileText, Lock } from "lucide-react";
-import Link from "next/link";
-
-import { AppBar } from "@/components/chrome";
-import { ServiceSpotlight } from "@/components/service-spotlight";
+import { PortalBar } from "@/components/chrome";
+import { DotField } from "@/components/dot-field";
+import { ServiceCard, type ServiceIcon } from "@/components/service-card";
 import { Notice } from "@/components/ui";
 import { listTransactions } from "@/lib/api";
-import { DOCUMENT_SHORT_FR } from "@/lib/status";
 import type { TransactionInfo } from "@/lib/types";
 
 /**
- * Service selection.
- *
- * The equal-weight card grid is gone on purpose. The one live procedure is a
- * single wide feature panel; the five unavailable ones are a plain bordered
- * list below it — no cards, no shadow, no matching radius — so they read as a
- * roadmap rather than as five siblings of the live one.
+ * Service catalogue. Same card pattern as the entry page so the two read as one
+ * system. The live procedures come from GET /transactions, so the rules engine
+ * stays the single source of truth for what Sahilli can actually check; the
+ * planned ones are listed statically and carry no pill.
  */
 
-const PLANNED_SERVICES = [
-  { fr: "Immatriculation Entreprise", ar: "ترسيم مؤسسة" },
-  { fr: "Dépôt des états financiers", ar: "إيداع القوائم المالية" },
-  { fr: "Radiation / Cessation d'activité", ar: "شطب مؤسسة" },
-  { fr: "Modification Personne Physique", ar: "تحيين شخص طبيعي" },
-  { fr: "Immatriculation Association", ar: "ترسيم جمعية" },
+const PLANNED: { icon: ServiceIcon; titleAr: string; titleFr: string }[] = [
+  { icon: "immatriculation", titleAr: "ترسيم مؤسسة", titleFr: "Immatriculation Entreprise" },
+  { icon: "financials", titleAr: "إيداع القوائم المالية", titleFr: "Dépôt des états financiers" },
+  { icon: "denomination", titleAr: "حجز التسمية", titleFr: "Réservation dénomination" },
+  { icon: "assembly", titleAr: "دعوة للجلسة العامة", titleFr: "Convocation Assemblée Générale" },
+  { icon: "extract", titleAr: "إستخراج مضمون من السجل", titleFr: "Extrait du Registre" },
+  { icon: "beneficiary", titleAr: "التصريح بالمستفيد الحقيقي", titleFr: "Déclaration du bénéficiaire effectif" },
+  { icon: "cessation", titleAr: "شطب مؤسسة", titleFr: "Radiation / Cessation d'activité" },
 ];
 
-export default async function ServiceSelection() {
+export default async function ServiceCatalogue() {
   let transactions: TransactionInfo[] = [];
   let error = "";
 
@@ -39,119 +36,46 @@ export default async function ServiceSelection() {
   }
 
   return (
-    <div className="min-h-screen">
-      <AppBar />
+    <div className="min-h-screen bg-[var(--canvas)]">
+      <PortalBar />
 
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <h1 className="t-h1">Quelle démarche préparez-vous&nbsp;?</h1>
-        <p className="mt-2 max-w-xl text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
-          Sahilli vérifie vos pièces avant le dépôt officiel au Registre National
-          des Entreprises.
-        </p>
-
-        {error && (
-          <div className="mt-8">
-            <Notice>{error}</Notice>
-          </div>
-        )}
-
-        {/* ------------------------------------------ the one live procedure */}
-        {transactions.map((transaction) => (
-          <ServiceSpotlight key={transaction.transaction_type}>
-            <div className="grid gap-0 md:grid-cols-[minmax(0,13rem)_1fr]">
-              {/* Navy rail carries the official reference as record data. */}
-              <div className="flex flex-col justify-between gap-6 bg-[var(--navy)] p-6 sm:p-7">
-                <div>
-                  <p className="t-data text-[var(--teal)]">
-                    {transaction.official_reference}
-                  </p>
-                  <p className="mt-1.5 text-[0.75rem] leading-relaxed text-white/50">
-                    Référence du formulaire au registre
-                  </p>
-                </div>
-                <p className="text-[0.75rem] text-white/45">
-                  {transaction.required_documents.length} pièces à fournir
-                </p>
-              </div>
-
-              <div className="p-6 sm:p-7">
-                <h2 className="t-h2 text-[var(--navy)]">
-                  {transaction.display_name_fr}
-                </h2>
-                <p className="ar mt-1 text-[1rem] text-[var(--ink-muted)]">
-                  {transaction.display_name_ar}
-                </p>
-                <p className="mt-3 max-w-lg text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
-                  Changement de représentant légal. Sahilli contrôle les cinq
-                  pièces, compare les informations entre les documents et vérifie
-                  le délai de dépôt.
-                </p>
-
-                <ul className="mt-5 flex flex-wrap gap-x-4 gap-y-1.5">
-                  {transaction.required_documents.map((document) => (
-                    <li
-                      key={document.key}
-                      className="flex items-center gap-1.5 text-[0.8125rem] text-[var(--ink-muted)]"
-                    >
-                      <FileText
-                        size={13}
-                        strokeWidth={1.75}
-                        className="shrink-0 text-[var(--ink-faint)]"
-                        aria-hidden
-                      />
-                      {DOCUMENT_SHORT_FR[document.key] ?? document.label_fr}
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href={`/msme/${transaction.transaction_type}`}
-                  className="mt-6 inline-flex items-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-2.5 text-[0.875rem] font-medium text-white transition-colors hover:bg-[var(--teal-ink)]"
-                >
-                  Préparer ce dossier
-                  <ArrowRight size={16} strokeWidth={2} aria-hidden />
-                </Link>
-              </div>
-            </div>
-          </ServiceSpotlight>
-        ))}
-
-        {/* ------------------------------------------- planned, as a list --- */}
-        <section className="mt-12">
-          <h2 className="t-h3 text-[var(--ink-muted)]">Démarches à venir</h2>
-          <p className="mt-1 text-[0.8125rem] text-[var(--ink-faint)]">
-            Ces procédures suivront le même contrôle. Elles ne sont pas encore
-            ouvertes.
+      <section className="relative">
+        <DotField />
+        <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+          <h1 className="t-h1 text-center text-[var(--navy)]">
+            Accès rapide aux services
+          </h1>
+          <p className="ar mt-1.5 text-center text-[1.0625rem] text-[var(--ink-muted)]">
+            الولوج السريع إلى الخدمات
+          </p>
+          <p className="mx-auto mt-3 max-w-xl text-center text-[0.9375rem] text-[var(--ink-muted)]">
+            Choisissez une démarche pour voir les pièces requises et lancer la
+            vérification.
           </p>
 
-          <ul className="mt-4 border-t border-[var(--line)]">
-            {PLANNED_SERVICES.map((service) => (
-              <li
-                key={service.fr}
-                className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-[var(--line)] py-3"
-              >
-                <span className="flex min-w-0 items-center gap-2.5">
-                  <Lock
-                    size={13}
-                    strokeWidth={1.75}
-                    className="shrink-0 text-[var(--ink-faint)]"
-                    aria-hidden
-                  />
-                  <span className="truncate text-[0.875rem] text-[var(--ink-muted)]">
-                    {service.fr}
-                  </span>
-                  <span className="ar truncate text-[0.8125rem] text-[var(--ink-faint)]">
-                    {service.ar}
-                  </span>
-                </span>
-                <span className="text-[0.75rem] text-[var(--ink-faint)]">
-                  Bientôt
-                </span>
-              </li>
+          {error && (
+            <div className="mx-auto mt-8 max-w-xl">
+              <Notice>{error}</Notice>
+            </div>
+          )}
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {transactions.map((transaction) => (
+              <ServiceCard
+                key={transaction.transaction_type}
+                icon="modification"
+                titleAr={transaction.display_name_ar}
+                titleFr={transaction.display_name_fr}
+                href={`/msme/${transaction.transaction_type}`}
+                reference={transaction.official_reference}
+              />
             ))}
-          </ul>
-        </section>
-      </main>
+            {PLANNED.map((service) => (
+              <ServiceCard key={service.titleFr} {...service} />
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

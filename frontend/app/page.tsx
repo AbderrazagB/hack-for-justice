@@ -1,75 +1,116 @@
-import { ArrowRight, Building2, ClipboardCheck, Landmark } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 
-import { Wordmark } from "@/components/chrome";
+import { DotField } from "@/components/dot-field";
+import { HeroAurora } from "@/components/hero-aurora";
+import { PortalBar } from "@/components/chrome";
+import { RegistryFigures } from "@/components/registry-figures";
+import { ServiceCard, type ServiceIcon } from "@/components/service-card";
 
 /**
- * Entry. Full-bleed navy field with one statement of purpose and two routes in.
- * The two routes are deliberately NOT matching cards: businesses are the primary
- * audience and get the solid white panel; the officer route is a quieter inset
- * on the navy itself.
+ * Entry. Follows the layout language of the registry portal an applicant
+ * already knows — navy masthead, centred section heading, a grid of bilingual
+ * service cards, then a figures band — in Sahilli's own palette and wordmark.
+ * No state emblem, no flag, no RNE logo: this sits in front of the registry, it
+ * does not present itself as the registry.
  */
+
+const SERVICES: {
+  icon: ServiceIcon;
+  titleAr: string;
+  titleFr: string;
+  href?: string;
+  reference?: string;
+}[] = [
+  {
+    icon: "modification",
+    titleAr: "تحيين مؤسسة",
+    titleFr: "Modification Entreprise",
+    href: "/msme/RNE_MODIFICATION_ENTREPRISE",
+    reference: "RNE-M-005",
+  },
+  { icon: "immatriculation", titleAr: "ترسيم مؤسسة", titleFr: "Immatriculation Entreprise" },
+  { icon: "financials", titleAr: "إيداع القوائم المالية", titleFr: "Dépôt des états financiers" },
+  { icon: "denomination", titleAr: "حجز التسمية", titleFr: "Réservation dénomination" },
+  { icon: "assembly", titleAr: "دعوة للجلسة العامة", titleFr: "Convocation Assemblée Générale" },
+  { icon: "extract", titleAr: "إستخراج مضمون من السجل", titleFr: "Extrait du Registre" },
+  { icon: "beneficiary", titleAr: "التصريح بالمستفيد الحقيقي", titleFr: "Déclaration du bénéficiaire effectif" },
+  { icon: "cessation", titleAr: "شطب مؤسسة", titleFr: "Radiation / Cessation d'activité" },
+];
+
 export default function Home() {
   return (
-    <div className="on-navy flex min-h-screen flex-col bg-[var(--navy)]">
-      <header className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-        <Wordmark tone="dark" />
-      </header>
+    <div className="min-h-screen bg-[var(--canvas)]">
+      <PortalBar />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-16 sm:px-6">
-        <div className="max-w-2xl pt-10 sm:pt-16">
-          <h1 className="t-display text-white">
-            Vérifiez votre dossier RNE
-            <span className="block text-[var(--teal)]">avant de le déposer.</span>
-          </h1>
-          <p className="mt-5 text-[1rem] leading-relaxed text-white/70">
-            Sahilli contrôle les pièces d&apos;une Modification Entreprise, compare
-            les informations d&apos;un document à l&apos;autre et signale ce qui
-            bloquerait le dépôt — pièce manquante, numéro de CIN discordant, délai
-            légal de 30&nbsp;jours dépassé.
-          </p>
-          <p className="mt-3 text-[0.875rem] text-white/50">
-            Sahilli ne remplace pas le portail de dépôt du RNE. Il s&apos;utilise
-            avant, pour éviter un rejet.
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-4 lg:grid-cols-[1.45fr_1fr]">
-          {/* Primary route — solid, full weight. */}
-          <Link
-            href="/msme"
-            className="group block rounded-[var(--r-panel)] bg-[var(--surface)] p-7 transition-transform duration-200 hover:-translate-y-0.5 sm:p-8"
-          >
-            <Building2 size={22} strokeWidth={1.75} className="text-[var(--teal-ink)]" />
-            <h2 className="t-h2 mt-4 text-[var(--navy)]">Je prépare un dossier</h2>
-            <p className="mt-2 text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
-              Déposez vos cinq pièces et sachez immédiatement si le dossier
-              passerait le contrôle du registre.
+      {/* ------------------------------------------------ navy masthead --- */}
+      <section className="on-navy relative overflow-hidden bg-[var(--navy)]">
+        <HeroAurora />
+        <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <div className="max-w-2xl">
+            <h1 className="t-display text-white">
+              Vérifiez votre dossier
+              <span className="block text-[var(--teal)]">avant de le déposer.</span>
+            </h1>
+            <p className="ar mt-3 text-[1.125rem] text-white/70">
+              تثبّت من ملفك قبل الإيداع
             </p>
-            <span className="mt-6 inline-flex items-center gap-2 rounded-[var(--r-control)] bg-[var(--teal)] px-4 py-2.5 text-[0.875rem] font-medium text-white">
-              Commencer la vérification
-              <ArrowRight size={16} strokeWidth={2} aria-hidden />
-            </span>
-          </Link>
-
-          {/* Secondary route — recessed into the navy, visibly lighter weight. */}
-          <Link
-            href="/admin"
-            className="group block rounded-[var(--r-panel)] border border-white/12 bg-white/[0.04] p-7 transition-colors duration-200 hover:border-white/25 hover:bg-white/[0.07]"
-          >
-            <Landmark size={22} strokeWidth={1.75} className="text-white/60" />
-            <h2 className="t-h2 mt-4 text-white">Je suis agent RNE</h2>
-            <p className="mt-2 text-[0.9375rem] leading-relaxed text-white/60">
-              File de traitement, anomalies détectées et décision sur chaque
-              demande reçue.
+            <p className="mt-5 max-w-xl text-[0.9375rem] leading-relaxed text-white/70">
+              Sahilli contrôle les pièces d&apos;une Modification Entreprise,
+              compare les informations d&apos;un document à l&apos;autre et
+              signale ce qui bloquerait le dépôt — pièce manquante, numéro de CIN
+              discordant, délai légal de 30 jours dépassé.
             </p>
-            <span className="mt-6 inline-flex items-center gap-2 text-[0.875rem] font-medium text-[var(--teal)]">
-              <ClipboardCheck size={16} strokeWidth={2} aria-hidden />
-              Ouvrir la file
-            </span>
-          </Link>
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link
+                href="/msme"
+                className="rounded-full bg-[var(--teal)] px-5 py-2.5 text-[0.875rem] font-medium text-white transition-colors hover:bg-[var(--teal-ink)]"
+              >
+                Commencer la vérification
+              </Link>
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 px-5 py-2.5 text-[0.875rem] font-medium text-white/85 transition-colors hover:border-white/50 hover:text-white"
+              >
+                <ClipboardCheck size={16} strokeWidth={2} aria-hidden />
+                Espace agent RNE
+              </Link>
+            </div>
+          </div>
         </div>
-      </main>
+      </section>
+
+      {/* ------------------------------------------------- service grid --- */}
+      <section className="relative">
+        <DotField />
+        <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+          <h2 className="t-h1 text-center text-[var(--navy)]">
+            Accès rapide aux services
+          </h2>
+          <p className="mx-auto mt-2.5 max-w-xl text-center text-[0.9375rem] text-[var(--ink-muted)]">
+            Sahilli pré-valide votre dossier avant le dépôt officiel au Registre
+            National des Entreprises.
+          </p>
+
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {SERVICES.map((service) => (
+              <ServiceCard key={service.titleFr} {...service} />
+            ))}
+          </div>
+
+          <div className="mt-12">
+            <RegistryFigures />
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-[var(--line)] bg-[var(--surface)]">
+        <div className="mx-auto max-w-6xl px-4 py-6 text-center text-[0.8125rem] text-[var(--ink-muted)] sm:px-6">
+          Sahilli est une couche de pré-validation indépendante. Elle ne remplace
+          pas le portail de dépôt du Registre National des Entreprises.
+        </div>
+      </footer>
     </div>
   );
 }

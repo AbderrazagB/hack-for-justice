@@ -2,6 +2,7 @@ import { Flag, Inbox } from "lucide-react";
 import Link from "next/link";
 
 import { AdminBar } from "@/components/chrome";
+import { HeroAurora } from "@/components/hero-aurora";
 import { StatBand, type Figure } from "@/components/stat-band";
 import { EmptyState, Notice, StatusBadge } from "@/components/ui";
 import { getStats, listSubmissions } from "@/lib/api";
@@ -119,8 +120,9 @@ export default async function OfficerQueue({
       <AdminBar />
 
       {/* ---------------------------------------------- navy masthead --- */}
-      <div className="bg-[var(--navy)]">
-        <div className="mx-auto max-w-6xl px-4 pb-6 sm:px-6">
+      <div className="relative overflow-hidden bg-[var(--navy)]">
+        <HeroAurora />
+        <div className="relative mx-auto max-w-6xl px-4 pb-6 sm:px-6">
           <h1 className="t-h1 pb-5 text-white">File de traitement</h1>
           <StatBand figures={figures(stats)} />
         </div>
