@@ -140,10 +140,20 @@ class Submission:
         }
 
     def to_summary(self) -> dict[str, Any]:
-        """Compact shape for the officer queue list."""
+        """Compact shape for the officer queue list.
+
+        Carries the transaction's display names so the queue does not have to
+        map a type to a label itself -- it showed every row as "Modification
+        Entreprise" while that mapping lived in the frontend.
+        """
+        from app.services.rules_engine import TRANSACTION_RULES
+
+        rules = TRANSACTION_RULES.get(self.transaction_type, {})
         return {
             "id": self.id,
             "transaction_type": self.transaction_type,
+            "display_name_fr": rules.get("display_name_fr", self.transaction_type),
+            "display_name_ar": rules.get("display_name_ar", ""),
             "status": self.status,
             "created_at": self.created_at,
             "updated_at": self.updated_at,

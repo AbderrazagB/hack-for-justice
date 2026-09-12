@@ -118,6 +118,8 @@ export type Submission = {
 export type SubmissionSummary = {
   id: string;
   transaction_type: string;
+  display_name_fr: string;
+  display_name_ar: string;
   status: SubmissionStatus;
   created_at: string;
   updated_at: string;

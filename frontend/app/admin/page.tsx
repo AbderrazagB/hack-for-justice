@@ -5,9 +5,9 @@ import { AdminBar } from "@/components/chrome";
 import { HeroAurora } from "@/components/hero-aurora";
 import { StatBand, type Figure } from "@/components/stat-band";
 import { EmptyState, Notice, StatusBadge } from "@/components/ui";
-import { getStats, listSubmissions } from "@/lib/api";
+import { getStats, listSubmissions, listTransactions } from "@/lib/api";
 import { statusStyle } from "@/lib/status";
-import type { Stats, SubmissionSummary } from "@/lib/types";
+import type { Stats, SubmissionSummary, TransactionInfo } from "@/lib/types";
 
 /**
  * Officer queue.
@@ -93,21 +93,27 @@ function figures(stats: Stats | null): Figure[] {
 export default async function OfficerQueue({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; transaction?: string }>;
 }) {
-  const { status = "" } = await searchParams;
+  const { status = "", transaction = "" } = await searchParams;
 
   let submissions: SubmissionSummary[] = [];
   let stats: Stats | null = null;
+  let transactions: TransactionInfo[] = [];
   let error = "";
 
   try {
-    const [queue, figuresData] = await Promise.all([
-      listSubmissions(status ? { status } : {}),
+    const [queue, figuresData, transactionList] = await Promise.all([
+      listSubmissions({
+        ...(status ? { status } : {}),
+        ...(transaction ? { transactionType: transaction } : {}),
+      }),
       getStats(),
+      listTransactions(),
     ]);
     submissions = queue.submissions;
     stats = figuresData;
+    transactions = transactionList;
   } catch (requestError) {
     error =
       requestError instanceof Error
@@ -141,6 +147,29 @@ export default async function OfficerQueue({
       <main className="mx-auto max-w-[1400px] px-4 py-8 sm:px-8">
         {error && <Notice>{error}</Notice>}
 
+        {/* Transaction filter. Built from GET /transactions, so a new workflow
+            appears here without a frontend change. Hidden while only one
+            exists, since a filter with a single option is noise. */}
+        {transactions.length > 1 && (
+          <div className="mb-2.5 flex flex-wrap gap-1.5">
+            <FilterChip
+              href={queryFor({ status, transaction: "" })}
+              active={transaction === ""}
+            >
+              Toutes les démarches
+            </FilterChip>
+            {transactions.map((entry) => (
+              <FilterChip
+                key={entry.transaction_type}
+                href={queryFor({ status, transaction: entry.transaction_type })}
+                active={transaction === entry.transaction_type}
+              >
+                {entry.display_name_fr}
+              </FilterChip>
+            ))}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-1.5">
           {FILTERS.map((filter) => {
             const active = status === filter.value;
@@ -148,7 +177,7 @@ export default async function OfficerQueue({
             return (
               <Link
                 key={filter.value}
-                href={filter.value ? `/admin?status=${filter.value}` : "/admin"}
+                href={queryFor({ status: filter.value, transaction })}
                 aria-current={active ? "page" : undefined}
                 className={`rounded-[var(--r-control)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors ${
                   active
@@ -215,9 +244,9 @@ export default async function OfficerQueue({
                             </Link>
                           </td>
                           <td className="px-3 py-3.5 text-[0.875rem]">
-                            Modification Entreprise
+                            {submission.display_name_fr}
                             <span className="ar block text-[0.75rem] text-[var(--ink-faint)]">
-                              تحيين مؤسسة
+                              {submission.display_name_ar}
                             </span>
                           </td>
                           <td className="hidden px-3 py-3.5 text-[0.8125rem] text-[var(--ink-muted)] sm:table-cell">
@@ -293,5 +322,44 @@ function FlagCell({ total, errors }: { total: number; errors: number }) {
         </span>
       )}
     </span>
+  );
+}
+
+/** Build an /admin URL preserving whichever filters are not being changed. */
+function queryFor({
+  status,
+  transaction,
+}: {
+  status: string;
+  transaction: string;
+}): string {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (transaction) params.set("transaction", transaction);
+  const query = params.toString();
+  return query ? `/admin?${query}` : "/admin";
+}
+
+function FilterChip({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`rounded-[var(--r-control)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors ${
+        active
+          ? "bg-[var(--teal-ink)] text-white"
+          : "border border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
+      }`}
+    >
+      {children}
+    </Link>
   );
 }

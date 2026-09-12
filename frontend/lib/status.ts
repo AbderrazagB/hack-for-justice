@@ -133,4 +133,8 @@ export const DOCUMENT_SHORT_FR: Record<string, string> = {
   rne_extract: "Extrait RNE",
   tax_registration_card: "Carte d'identification fiscale",
   general_assembly_pv: "Procès-verbal",
+  financial_statements_signed: "États financiers",
+  general_assembly_pv_approval: "Procès-verbal de l'AGO",
+  auditor_report: "Rapport du commissaire aux comptes",
+  updated_shareholder_list: "Liste des associés",
 };
