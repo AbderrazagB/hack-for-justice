@@ -103,6 +103,17 @@ def auditor_report_required(submission: dict[str, Any]) -> bool:
     return bool(submission.get("auditor_required"))
 
 
+def ago_minutes_required(submission: dict[str, Any]) -> bool:
+    """Whether the AGO minutes must accompany this filing.
+
+    The RNE asks for the minutes "lorsqu'il existe" and permits filing the
+    statements alone before the deadline, completing the rest afterwards. So an
+    applicant who declares the assembly has not met yet is not incomplete --
+    they are early, which is the behaviour the registry is encouraging.
+    """
+    return not bool(submission.get("ago_not_held"))
+
+
 def is_individual(submission: dict[str, Any]) -> bool:
     return str(submission.get("company_type") or "").upper() in INDIVIDUAL_COMPANY_TYPES
 
@@ -199,8 +210,11 @@ CHECK_LABELS: dict[str, dict[str, str]] = {
 # corpus) precisely so it is not presented to users as if it were law.
 RNE_EXTRACT_MAX_AGE_DAYS = 90
 
-# Statutory: Law 52-2018 relating to the RNE. Mirrors the seeded corpus entry.
-FILING_DEADLINE_DAYS = 30
+# Statutory: Law 52-2018 article 26 -- "dans un délai d'un mois à compter de la
+# date des modifications". A calendar month, not 30 days: one month from 31
+# January is 28 February, so counting 30 days would pass a filing that is
+# already late.
+FILING_DEADLINE_MONTHS = 1
 
 
 class Status(str, Enum):
@@ -489,7 +503,7 @@ def _check_extract_age(
 def _check_filing_deadline(
     documents: dict[str, Any], submission: dict[str, Any], today: date
 ) -> CheckResult:
-    """Law 52-2018: file within 30 days of the triggering decision."""
+    """Law 52-2018 article 26: file within one month of the triggering decision."""
     name = "filed_within_30_days_of_decision_date"
     decision = _parse_date(_field(documents, "general_assembly_pv", "decision_date"))
     filed = _parse_date(submission.get("submitted_at")) or today
@@ -503,11 +517,13 @@ def _check_filing_deadline(
         )
 
     elapsed = (filed - decision).days
+    deadline = _add_months(decision, FILING_DEADLINE_MONTHS)
     evidence = {
         "decision_date": decision.isoformat(),
         "filed_date": filed.isoformat(),
+        "deadline": deadline.isoformat(),
         "elapsed_days": elapsed,
-        "deadline_days": FILING_DEADLINE_DAYS,
+        "deadline_months": FILING_DEADLINE_MONTHS,
     }
 
     if elapsed < 0:
@@ -519,30 +535,31 @@ def _check_filing_deadline(
             evidence,
         )
 
-    if elapsed > FILING_DEADLINE_DAYS:
-        # Penalty mirrors the seeded corpus entry: half the standard fee per
-        # month or fraction of a month of delay.
-        overdue = elapsed - FILING_DEADLINE_DAYS
+    if filed > deadline:
+        # Article 51: half the fee due for the operation, per month or part of a
+        # month of delay.
+        overdue = (filed - deadline).days
         months = -(-overdue // 30)  # ceil: any fraction counts as a whole month
         evidence |= {"days_overdue": overdue, "penalty_months": months}
         return CheckResult(
             name,
             CheckOutcome.FAIL,
-            f"Dépôt hors délai : {elapsed} jours après la décision du "
-            f"{decision:%d/%m/%Y} (limite {FILING_DEADLINE_DAYS} jours, "
-            f"loi 52-2018). Retard de {overdue} jours, soit une pénalité de "
-            f"{months} mois entamé(s).",
-            f"إيداع خارج الأجل: {elapsed} يوماً بعد قرار {decision:%d/%m/%Y} "
-            f"(الأجل {FILING_DEADLINE_DAYS} يوماً، القانون 52-2018). "
-            f"تأخير {overdue} يوماً أي خطية عن {months} شهراً.",
+            f"Dépôt hors délai : l'échéance était le {deadline:%d/%m/%Y} "
+            f"(un mois après la décision du {decision:%d/%m/%Y}, loi 52-2018 "
+            f"art. 26). Retard de {overdue} jours, soit une pénalité de "
+            f"{months} mois entamé(s) à raison de la moitié de la redevance "
+            f"par mois.",
+            f"إيداع خارج الأجل: آخر أجل كان {deadline:%d/%m/%Y} (شهر واحد بعد "
+            f"قرار {decision:%d/%m/%Y}، القانون 52-2018 الفصل 26). تأخير "
+            f"{overdue} يوماً أي خطية عن {months} شهراً بنصف المعلوم شهرياً.",
             evidence,
         )
 
     return CheckResult(
         name,
         CheckOutcome.PASS,
-        f"Déposé {elapsed} jours après la décision (limite {FILING_DEADLINE_DAYS}).",
-        f"تم الإيداع بعد {elapsed} يوماً من القرار (الأجل {FILING_DEADLINE_DAYS}).",
+        f"Déposé dans les délais : échéance au {deadline:%d/%m/%Y}.",
+        f"تم الإيداع في الأجل: آخر أجل {deadline:%d/%m/%Y}.",
         evidence,
     )
 
@@ -701,6 +718,16 @@ def _check_pv_registered(
     """
     name = "pv_registered_with_recette_des_finances_if_applicable"
     key = "general_assembly_pv_approval"
+
+    if not ago_minutes_required(submission):
+        return CheckResult(
+            name,
+            CheckOutcome.PASS,
+            "Assemblée générale non encore tenue : le procès-verbal sera à "
+            "déposer ultérieurement.",
+            "لم تنعقد الجلسة العامة بعد: يُودع المحضر لاحقاً.",
+            {"ago_held": False},
+        )
 
     if not _has_document(documents, key):
         return CheckResult(
@@ -1024,6 +1051,10 @@ def required_documents_for(
     declared: list[str] = list(rules["required_documents"])
     if "auditor_report" in declared and not auditor_report_required(submission):
         declared.remove("auditor_report")
+    if "general_assembly_pv_approval" in declared and not ago_minutes_required(
+        submission
+    ):
+        declared.remove("general_assembly_pv_approval")
     return declared
 
 

@@ -343,3 +343,42 @@ def test_flags_point_at_the_right_documents() -> None:
     assert flag.to_dict()["documents"][0]["label_fr"] == (
         "Liste actualisée des actionnaires/associés"
     )
+
+
+# ------------------------------- AGO minutes are conditional, not mandatory
+
+def test_ago_minutes_are_required_by_default() -> None:
+    submission = _submission()
+    del submission["documents"]["general_assembly_pv_approval"]
+
+    result = check_completeness(submission, today=TODAY)
+    assert "general_assembly_pv_approval" in result.missing_documents
+
+
+def test_statements_may_be_filed_before_the_assembly_has_met() -> None:
+    """The RNE permits filing the statements alone before the deadline and
+    completing the rest later, so an early filer is not incomplete."""
+    submission = _submission(ago_not_held=True)
+    del submission["documents"]["general_assembly_pv_approval"]
+
+    result = check_completeness(submission, today=TODAY)
+    assert result.status is Status.COMPLETE
+    assert "general_assembly_pv_approval" not in result.missing_documents
+
+
+def test_registration_check_passes_when_the_assembly_has_not_met() -> None:
+    submission = _submission(ago_not_held=True)
+    del submission["documents"]["general_assembly_pv_approval"]
+
+    result = check_completeness(submission, today=TODAY)
+    assert _outcome(
+        result, "pv_registered_with_recette_des_finances_if_applicable"
+    ) is CheckOutcome.PASS
+
+
+def test_required_documents_drop_the_minutes_when_the_assembly_has_not_met() -> None:
+    rules = TRANSACTION_RULES[TXN]
+    assert "general_assembly_pv_approval" in required_documents_for(rules, {})
+    assert "general_assembly_pv_approval" not in required_documents_for(
+        rules, {"ago_not_held": True}
+    )

@@ -56,10 +56,14 @@ def test_seed_corpus_has_the_four_curated_entries() -> None:
     assert topics == {"required_documents", "deadline", "penalty", "submission_channel"}
 
 
-def test_deadline_entry_records_30_days() -> None:
-    entry = next(e for e in load_seed_entries() if e["topic"] == "deadline")
-    assert entry["deadline_days"] == 30
-    assert "52-2018" in entry["official_reference"]
+def test_modification_deadline_entry_records_one_month() -> None:
+    """Article 26 says "un mois", not thirty days."""
+    entry = next(
+        e for e in load_seed_entries() if e["id"] == "rne-filing-deadline-30-days"
+    )
+    assert entry["deadline_months"] == 1
+    assert "deadline_days" not in entry
+    assert "article 26" in entry["official_reference"]
 
 
 def test_required_documents_match_the_rne_m_005_checklist() -> None:
@@ -129,11 +133,13 @@ def test_search_swallows_backend_failure(service: RetrievalService) -> None:
 def test_context_for_renders_citations(service: RetrievalService) -> None:
     entries = load_seed_entries()
     service.index_entries(entries)
-    deadline = next(e for e in entries if e["topic"] == "deadline")
+    deadline = next(
+        e for e in entries if e["id"] == "rne-filing-deadline-30-days"
+    )
 
     context = service.context_for(embeddable_text(deadline), limit=1, lang="fr")
     assert deadline["official_reference"] in context
-    assert "30" in context
+    assert "un mois" in context
 
     arabic = service.context_for(embeddable_text(deadline), limit=1, lang="ar")
     assert deadline["text_ar"] in arabic

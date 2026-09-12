@@ -23,22 +23,22 @@
       "id": "rne-filing-deadline-30-days",
       "topic": "deadline",
       "transaction_type": "RNE_MODIFICATION_ENTREPRISE",
-      "official_reference": "Loi n° 52-2018 relative au Registre National des Entreprises",
-      "title_fr": "Délai légal de dépôt — 30 jours",
-      "title_ar": "الأجل القانوني للإيداع — 30 يوماً",
-      "text_fr": "Délai légal : les dépôts doivent être effectués dans un délai de trente (30) jours à compter de la date de la décision qui les motive, conformément à la loi n° 52-2018 relative au Registre National des Entreprises.",
-      "text_ar": "الأجل القانوني: يجب إيداع المطالب في أجل ثلاثين (30) يوماً ابتداءً من تاريخ القرار الموجب لها، طبقاً للقانون عدد 52 لسنة 2018 المتعلق بالسجل الوطني للمؤسسات.",
-      "deadline_days": 30
+      "official_reference": "Loi n° 52-2018 relative au RNE, article 26",
+      "title_fr": "Délai légal de dépôt — un mois",
+      "title_ar": "الأجل القانوني للإيداع — شهر واحد",
+      "text_fr": "Délai légal : toute modification nécessitant la mise à jour du registre doit faire l'objet d'une demande d'inscription dans un délai d'un mois à compter de la date des modifications, conformément à l'article 26 de la loi n° 52-2018 relative au Registre National des Entreprises.",
+      "text_ar": "الأجل القانوني: يجب أن يكون كل تغيير يستوجب تحيين السجل موضوع مطلب ترسيم في أجل شهر واحد ابتداءً من تاريخ التغييرات، طبقاً للفصل 26 من القانون عدد 52 لسنة 2018 المتعلق بالسجل الوطني للمؤسسات.",
+      "deadline_months": 1
     },
     {
       "id": "rne-late-filing-penalty",
       "topic": "penalty",
       "transaction_type": "RNE_MODIFICATION_ENTREPRISE",
-      "official_reference": "Loi n° 52-2018 relative au Registre National des Entreprises",
+      "official_reference": "Loi n° 52-2018 relative au RNE, article 51",
       "title_fr": "Pénalité de retard",
       "title_ar": "خطية التأخير",
-      "text_fr": "Pénalité : tout dépôt tardif entraîne une pénalité égale à la moitié du tarif normal par mois ou fraction de mois de retard. La persistance du défaut de dépôt peut entraîner la suspension de l'inscription au registre.",
-      "text_ar": "الخطية: يترتب عن كل إيداع متأخر خطية تساوي نصف التعريفة العادية عن كل شهر أو جزء من شهر تأخير. ويمكن أن يؤدي التمادي في عدم الإيداع إلى تعليق الترسيم بالسجل.",
+      "text_fr": "Pénalité : tout dépôt tardif entraîne des pénalités de retard fixées à la moitié du montant de la redevance due au titre de l'opération concernée, pour chaque mois de retard ou une partie de celui-ci, conformément à l'article 51 de la loi n° 52-2018. La persistance du défaut de dépôt peut entraîner la suspension de l'inscription au registre.",
+      "text_ar": "الخطية: يترتب عن كل إيداع متأخر خطايا تأخير محددة بنصف مبلغ المعلوم المستوجب عن العملية المعنية، عن كل شهر تأخير أو جزء منه، طبقاً للفصل 51 من القانون عدد 52 لسنة 2018. ويمكن أن يؤدي التمادي في عدم الإيداع إلى تعليق الترسيم بالسجل.",
       "penalty_rate": "half the standard fee per month or fraction of a month of delay"
     },
     {
@@ -59,8 +59,8 @@
       "official_reference": "RNE — communiqué 2026 sur le dépôt des états financiers",
       "title_fr": "Pièces requises — Dépôt des États Financiers Annuels",
       "title_ar": "الوثائق المطلوبة — إيداع القوائم المالية السنوية",
-      "text_fr": "Pièces requises pour le dépôt des états financiers annuels : les états financiers signés ; le procès-verbal de l'assemblée générale ordinaire ayant approuvé les comptes ; le rapport du commissaire aux comptes lorsque la forme juridique de la société l'exige ; la liste actualisée des actionnaires ou associés.",
-      "text_ar": "الوثائق المطلوبة لإيداع القوائم المالية السنوية: القوائم المالية ممضاة؛ محضر الجلسة العامة العادية المصادقة على الحسابات؛ تقرير مراقب الحسابات عندما يقتضيه الشكل القانوني للشركة؛ قائمة محينة للمساهمين أو الشركاء.",
+      "text_fr": "Pièces requises pour le dépôt des états financiers annuels : les états financiers signés et cachetés ; le rapport du commissaire aux comptes lorsqu'il est nécessaire ; le procès-verbal de l'assemblée générale ordinaire ayant approuvé les comptes lorsqu'il existe ; la liste actualisée des actionnaires ou associés avec copies des pièces d'identité. Le RNE accepte le dépôt des états financiers seuls avant l'échéance, les autres pièces pouvant être complétées ensuite.",
+      "text_ar": "الوثائق المطلوبة لإيداع القوائم المالية السنوية: القوائم المالية ممضاة ومختومة؛ تقرير مراقب الحسابات عند الاقتضاء؛ محضر الجلسة العامة العادية المصادقة على الحسابات عند وجوده؛ قائمة محينة للمساهمين أو الشركاء مع نسخ من وثائق الهوية. ويقبل السجل إيداع القوائم المالية بمفردها قبل الأجل على أن تُستكمل بقية الوثائق لاحقاً.",
       "required_documents": [
         "financial_statements_signed",
         "general_assembly_pv_approval",
@@ -72,7 +72,7 @@
       "id": "rne-financial-statements-deadline-7-months",
       "topic": "deadline",
       "transaction_type": "RNE_FINANCIAL_STATEMENTS",
-      "official_reference": "Loi n° 52-2018 relative au Registre National des Entreprises",
+      "official_reference": "Loi n° 52-2018 relative au RNE, article 32",
       "title_fr": "Délai de dépôt des états financiers — 7 mois",
       "title_ar": "أجل إيداع القوائم المالية — 7 أشهر",
       "text_fr": "Les états financiers annuels doivent être déposés dans un délai de sept (7) mois à compter de la date de clôture de l'exercice comptable. Ainsi, les états financiers de l'exercice clos le 31 décembre 2025 étaient à déposer au plus tard le 31 juillet 2026.",
@@ -86,10 +86,12 @@
       "official_reference": "RNE — communiqué sur les pénalités de retard de dépôt",
       "title_fr": "Pénalité de retard — états financiers",
       "title_ar": "خطية التأخير — القوائم المالية",
-      "text_fr": "Tout retard dans le dépôt des états financiers annuels entraîne une pénalité de vingt-cinq (25) dinars par mois pour les personnes morales et de dix (10) dinars par mois pour les personnes physiques, par mois ou fraction de mois de retard. La persistance du défaut de dépôt peut entraîner la suspension du statut de l'entreprise au registre.",
-      "text_ar": "يترتب عن كل تأخير في إيداع القوائم المالية السنوية خطية قدرها خمسة وعشرون (25) ديناراً شهرياً بالنسبة للأشخاص المعنويين وعشرة (10) دنانير شهرياً بالنسبة للأشخاص الطبيعيين، عن كل شهر أو جزء من شهر تأخير. ويمكن أن يؤدي التمادي في عدم الإيداع إلى تعليق وضعية المؤسسة بالسجل.",
+      "text_fr": "Tout retard dans le dépôt des états financiers entraîne une pénalité égale à la moitié de la redevance due par mois ou fraction de mois de retard (article 51 de la loi 52-2018), soit vingt-cinq (25) dinars par mois pour les personnes morales, dont la redevance est de 50 dinars, et dix (10) dinars par mois pour les personnes physiques, dont la redevance est de 20 dinars. La persistance du défaut peut entraîner la suspension du statut de l'entreprise au registre.",
+      "text_ar": "يترتب عن كل تأخير في إيداع القوائم المالية خطية تساوي نصف المعلوم المستوجب عن كل شهر أو جزء من شهر تأخير (الفصل 51 من القانون 52 لسنة 2018)، أي خمسة وعشرون (25) ديناراً شهرياً للأشخاص المعنويين الذين يبلغ معلومهم 50 ديناراً، وعشرة (10) دنانير شهرياً للأشخاص الطبيعيين الذين يبلغ معلومهم 20 ديناراً. ويمكن أن يؤدي التمادي إلى تعليق وضعية المؤسسة بالسجل.",
       "penalty_tnd_per_month_legal_entity": 25,
-      "penalty_tnd_per_month_individual": 10
+      "penalty_tnd_per_month_individual": 10,
+      "fee_tnd_legal_entity": 50,
+      "fee_tnd_individual": 20
     }
   ]
 }

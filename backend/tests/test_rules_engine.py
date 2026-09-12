@@ -11,7 +11,7 @@ from datetime import date, timedelta
 import pytest
 
 from app.services.rules_engine import (
-    FILING_DEADLINE_DAYS,
+    FILING_DEADLINE_MONTHS,
     RNE_EXTRACT_MAX_AGE_DAYS,
     TRANSACTION_RULES,
     CheckOutcome,
@@ -274,73 +274,93 @@ def test_missing_extract_date_is_indeterminate() -> None:
 
 # --------------------------------------------------- filing deadline check
 
-@pytest.mark.parametrize(
-    ("elapsed", "expected"),
-    [
-        (0, CheckOutcome.PASS),
-        (FILING_DEADLINE_DAYS - 1, CheckOutcome.PASS),
-        (FILING_DEADLINE_DAYS, CheckOutcome.PASS),      # boundary: day 30 is in time
-        (FILING_DEADLINE_DAYS + 1, CheckOutcome.FAIL),  # day 31 is late
-    ],
-)
-def test_filing_deadline_boundary(elapsed: int, expected: CheckOutcome) -> None:
-    decision = (TODAY - timedelta(days=elapsed)).isoformat()
+def _filed(decision: str, filed: str) -> CheckOutcome:
     submission = _submission(
+        submitted_at=filed,
         documents={
             "general_assembly_pv": {
                 "fields": {
                     "decision_date": decision,
                     "id_number": "12345678",
                     "person_name": "Amine Ben Salah",
+                    "has_signature": True,
+                    "signature_date": decision,
                 }
             }
-        }
+        },
     )
-    result = check_completeness(submission, today=TODAY)
-    assert _outcome(result, "filed_within_30_days_of_decision_date") is expected
+    result = check_completeness(submission, today=date.fromisoformat(filed))
+    return _outcome(result, "filed_within_30_days_of_decision_date")
 
 
-def test_late_filing_reports_penalty_months_rounding_up() -> None:
-    """41 days elapsed = 11 days overdue = 1 started month of penalty."""
+def test_deadline_is_one_month_not_thirty_days() -> None:
+    """Article 26 says "un mois". One month from 31 January is 28 February --
+    28 days -- so counting 30 would pass a filing that is already late."""
+    assert _filed("2026-01-31", "2026-02-28") is CheckOutcome.PASS
+    assert _filed("2026-01-31", "2026-03-01") is CheckOutcome.FAIL
+    # Day 29 and day 30 after a 31 January decision are both late.
+    assert _filed("2026-01-31", "2026-03-02") is CheckOutcome.FAIL
+
+
+@pytest.mark.parametrize(
+    ("decision", "filed", "expected"),
+    [
+        ("2026-06-15", "2026-06-15", CheckOutcome.PASS),  # same day
+        ("2026-06-15", "2026-07-15", CheckOutcome.PASS),  # boundary: exactly one month
+        ("2026-06-15", "2026-07-16", CheckOutcome.FAIL),  # a day past it
+        ("2026-03-31", "2026-04-30", CheckOutcome.PASS),  # clamped to a valid day
+        ("2026-03-31", "2026-05-01", CheckOutcome.FAIL),
+    ],
+)
+def test_filing_deadline_boundary(decision: str, filed: str, expected: CheckOutcome) -> None:
+    assert _filed(decision, filed) is expected
+
+
+def test_deadline_constant_is_a_month() -> None:
+    assert FILING_DEADLINE_MONTHS == 1
+
+
+def _deadline_check(decision: str, filed: str = "2026-07-01"):
     submission = _submission(
+        submitted_at=filed,
         documents={
             "general_assembly_pv": {
                 "fields": {
-                    "decision_date": (TODAY - timedelta(days=41)).isoformat(),
+                    "decision_date": decision,
                     "id_number": "12345678",
                     "person_name": "Amine Ben Salah",
+                    "has_signature": True,
+                    "signature_date": decision,
                 }
             }
-        }
+        },
     )
-    check = next(
+    return next(
         c
-        for c in check_completeness(submission, today=TODAY).checks
+        for c in check_completeness(
+            submission, today=date.fromisoformat(filed)
+        ).checks
         if c.name == "filed_within_30_days_of_decision_date"
     )
+
+
+def test_late_filing_reports_penalty_months_rounding_up() -> None:
+    """Decision 21/05, deadline 21/06, filed 01/07 -- 10 days late, so one
+    started month of penalty."""
+    check = _deadline_check("2026-05-21")
+
     assert check.outcome is CheckOutcome.FAIL
-    assert check.evidence["days_overdue"] == 11
+    assert check.evidence["deadline"] == "2026-06-21"
+    assert check.evidence["days_overdue"] == 10
     assert check.evidence["penalty_months"] == 1
     assert "52-2018" in check.reason_fr
 
 
 def test_two_started_months_of_delay() -> None:
-    submission = _submission(
-        documents={
-            "general_assembly_pv": {
-                "fields": {
-                    "decision_date": (TODAY - timedelta(days=65)).isoformat(),
-                    "id_number": "12345678",
-                    "person_name": "Amine Ben Salah",
-                }
-            }
-        }
-    )
-    check = next(
-        c
-        for c in check_completeness(submission, today=TODAY).checks
-        if c.name == "filed_within_30_days_of_decision_date"
-    )
+    """Decision 27/04, deadline 27/05, filed 01/07 -- 35 days late."""
+    check = _deadline_check("2026-04-27")
+
+    assert check.evidence["deadline"] == "2026-05-27"
     assert check.evidence["days_overdue"] == 35
     assert check.evidence["penalty_months"] == 2
 

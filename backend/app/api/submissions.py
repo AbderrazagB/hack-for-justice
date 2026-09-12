@@ -128,6 +128,17 @@ CONTEXT_FIELDS: dict[str, list[ContextField]] = {
             help_fr="Le dépôt est dû dans les 7 mois suivant cette date.",
         ),
         ContextField(
+            name="ago_not_held",
+            label_fr="L'assemblée générale n'a pas encore approuvé les comptes",
+            label_ar="لم تصادق الجلسة العامة على الحسابات بعد",
+            type="checkbox",
+            required=False,
+            help_fr=(
+                "Le RNE accepte le dépôt des états financiers seuls avant "
+                "l'échéance ; le procès-verbal sera à déposer ensuite."
+            ),
+        ),
+        ContextField(
             name="auditor_required",
             label_fr="La société dépasse les seuils imposant un commissaire aux comptes",
             label_ar="الشركة تتجاوز العتبات الموجبة لمراقب حسابات",
@@ -139,7 +150,7 @@ CONTEXT_FIELDS: dict[str, list[ContextField]] = {
 }
 
 CONDITIONAL_DOCUMENTS: dict[str, list[str]] = {
-    "RNE_FINANCIAL_STATEMENTS": ["auditor_report"],
+    "RNE_FINANCIAL_STATEMENTS": ["auditor_report", "general_assembly_pv_approval"],
 }
 
 
@@ -193,6 +204,7 @@ async def create_submission(
     company_type: Annotated[str | None, Form()] = None,
     fiscal_year_end: Annotated[str | None, Form()] = None,
     auditor_required: Annotated[bool, Form()] = False,
+    ago_not_held: Annotated[bool, Form()] = False,
     store: SubmissionStore = Depends(get_store),
     upload_dir: Path = Depends(get_upload_dir),
     user: User | None = Depends(optional_user),
@@ -269,6 +281,8 @@ async def create_submission(
         context["fiscal_year_end"] = fiscal_year_end
     if auditor_required:
         context["auditor_required"] = True
+    if ago_not_held:
+        context["ago_not_held"] = True
 
     submission_payload = {
         "transaction_type": transaction_type,

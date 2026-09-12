@@ -70,12 +70,20 @@ def test_transaction_exposes_its_context_fields(client) -> None:
         t for t in client.get("/transactions").json() if t["transaction_type"] == TXN
     )
     names = {f["name"] for f in entry["context_fields"]}
-    assert names == {"company_type", "fiscal_year_end", "auditor_required"}
+    assert names == {
+        "company_type",
+        "fiscal_year_end",
+        "ago_not_held",
+        "auditor_required",
+    }
 
     company = next(f for f in entry["context_fields"] if f["name"] == "company_type")
     assert company["type"] == "select"
     assert any(o["value"] == "SA" for o in company["options"])
-    assert entry["conditional_documents"] == ["auditor_report"]
+    assert set(entry["conditional_documents"]) == {
+        "auditor_report",
+        "general_assembly_pv_approval",
+    }
 
 
 def test_modification_workflow_has_no_context_fields(client) -> None:

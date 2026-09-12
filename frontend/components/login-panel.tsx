@@ -56,8 +56,10 @@ const OPTIONS: {
     id: "mobileid",
     logo: "/brand/providers/ehouwiya.png",
     label: "MobileID",
+    // Not a convenience: since 1 July 2026 a digital identity is required to
+    // file anything at the RNE at all.
     description:
-      "Validation par identité mobile, sans ressaisie.",
+      "Identité numérique e-Houwiya — obligatoire pour déposer au RNE depuis le 1er juillet 2026.",
   },
   {
     id: "entreprise",
