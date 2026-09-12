@@ -1,0 +1,56 @@
+{
+  "collection": "rne_procedures",
+  "description": "Hand-curated corpus of RNE procedural text used to ground Sahilli's assistant. Every entry is sourced from RNE's own official documents and communications. Do not add paraphrased or invented entries: if it is not official RNE text, it does not belong here, because the assistant cites this corpus as authority.",
+  "entries": [
+    {
+      "id": "rne-m-005-required-documents",
+      "topic": "required_documents",
+      "transaction_type": "RNE_MODIFICATION_ENTREPRISE",
+      "official_reference": "RNE-M-005",
+      "title_fr": "Pièces requises — Modification Entreprise",
+      "title_ar": "الوثائق المطلوبة — تحيين مؤسسة",
+      "text_fr": "Pièces requises pour une Modification Entreprise (RNE-M-005) — changement de représentant légal : copie de la carte d'identité nationale du nouveau représentant ; copie des statuts mis à jour de la société ; copie de l'Extrait RNE en cours ; carte d'identification fiscale avec déclaration d'existence ; procès-verbal de la décision de l'assemblée générale.",
+      "text_ar": "الوثائق المطلوبة لتحيين مؤسسة (RNE-M-005) — تغيير الممثل القانوني: نسخة من بطاقة التعريف الوطنية للممثل الجديد؛ نسخة من النظام الأساسي المحيّن للشركة؛ نسخة من مضمون السجل الوطني للمؤسسات الحالي؛ بطاقة التعريف الجبائي مع التصريح بالوجود؛ محضر قرار الجلسة العامة.",
+      "required_documents": [
+        "id_new_representative",
+        "company_statutes",
+        "rne_extract",
+        "tax_registration_card",
+        "general_assembly_pv"
+      ]
+    },
+    {
+      "id": "rne-filing-deadline-30-days",
+      "topic": "deadline",
+      "transaction_type": "RNE_MODIFICATION_ENTREPRISE",
+      "official_reference": "Loi n° 52-2018 relative au Registre National des Entreprises",
+      "title_fr": "Délai légal de dépôt — 30 jours",
+      "title_ar": "الأجل القانوني للإيداع — 30 يوماً",
+      "text_fr": "Délai légal : les dépôts doivent être effectués dans un délai de trente (30) jours à compter de la date de la décision qui les motive, conformément à la loi n° 52-2018 relative au Registre National des Entreprises.",
+      "text_ar": "الأجل القانوني: يجب إيداع المطالب في أجل ثلاثين (30) يوماً ابتداءً من تاريخ القرار الموجب لها، طبقاً للقانون عدد 52 لسنة 2018 المتعلق بالسجل الوطني للمؤسسات.",
+      "deadline_days": 30
+    },
+    {
+      "id": "rne-late-filing-penalty",
+      "topic": "penalty",
+      "transaction_type": "RNE_MODIFICATION_ENTREPRISE",
+      "official_reference": "Loi n° 52-2018 relative au Registre National des Entreprises",
+      "title_fr": "Pénalité de retard",
+      "title_ar": "خطية التأخير",
+      "text_fr": "Pénalité : tout dépôt tardif entraîne une pénalité égale à la moitié du tarif normal par mois ou fraction de mois de retard. La persistance du défaut de dépôt peut entraîner la suspension de l'inscription au registre.",
+      "text_ar": "الخطية: يترتب عن كل إيداع متأخر خطية تساوي نصف التعريفة العادية عن كل شهر أو جزء من شهر تأخير. ويمكن أن يؤدي التمادي في عدم الإيداع إلى تعليق الترسيم بالسجل.",
+      "penalty_rate": "half the standard fee per month or fraction of a month of delay"
+    },
+    {
+      "id": "rne-digital-only-submission-2026",
+      "topic": "submission_channel",
+      "transaction_type": "RNE_MODIFICATION_ENTREPRISE",
+      "official_reference": "RNE — communication sur la dématérialisation des procédures",
+      "title_fr": "Dépôt exclusivement en ligne à compter du 1er juillet 2026",
+      "title_ar": "الإيداع عن بعد وجوباً ابتداءً من غرة جويلية 2026",
+      "text_fr": "À compter du 1er juillet 2026, toutes les procédures du Registre National des Entreprises doivent être déposées en ligne. Le dépôt physique sur support papier n'est plus accepté.",
+      "text_ar": "ابتداءً من غرة جويلية 2026، يجب إيداع جميع إجراءات السجل الوطني للمؤسسات عن بعد. ولم يعد الإيداع المادي على الورق مقبولاً.",
+      "effective_date": "2026-07-01"
+    }
+  ]
+}

@@ -30,3 +30,6 @@ dev = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = [
+    "integration: exercises the external Qdrant / BGE-M3 containers; skips when absent",
+]
