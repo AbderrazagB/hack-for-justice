@@ -145,6 +145,16 @@ body {
   line-height: 1.75;
 }
 
+/* An Arabic block inside a left-aligned LTR column would otherwise sit against
+   the far right edge of the container, detached from the French above it.
+   This keeps the RTL shaping but pins the line to the column's own edge. */
+.ar-left {
+  text-align: left;
+}
+.ar-center {
+  text-align: center;
+}
+
 /* --------------------------------------------------------------- focus --- */
 /* Visible on every interactive element, on light and on navy. */
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Wordmark } from "@/components/chrome";
+import { Logo } from "@/components/logo";
 import { StatusTracker } from "@/components/status-tracker";
 import {
   EmptyState,
@@ -71,9 +71,9 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
       {/* Sticky navy sub-header: the dossier id and the way back stay reachable
           on a screen that scrolls a long way. */}
       <header className="on-navy sticky top-0 z-20 bg-[var(--navy)]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
+        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3 sm:px-8">
           <div className="flex items-center gap-4">
-            <Wordmark tone="dark" />
+            <Logo size="sm" tone="dark" />
             <span aria-hidden className="h-5 w-px bg-white/15" />
             <span className="t-data text-white/85">{submission.id}</span>
           </div>
@@ -87,7 +87,7 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-[1400px] px-4 py-8 sm:px-8">
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div>
             <h1 className="t-h1">{submission.completeness.display_name_fr}</h1>

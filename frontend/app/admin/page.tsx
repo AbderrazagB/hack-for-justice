@@ -122,13 +122,13 @@ export default async function OfficerQueue({
       {/* ---------------------------------------------- navy masthead --- */}
       <div className="relative overflow-hidden bg-[var(--navy)]">
         <HeroAurora />
-        <div className="relative mx-auto max-w-6xl px-4 pb-6 sm:px-6">
+        <div className="relative mx-auto max-w-[1400px] px-4 pb-7 sm:px-8">
           <h1 className="t-h1 pb-5 text-white">File de traitement</h1>
           <StatBand figures={figures(stats)} />
         </div>
       </div>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-[1400px] px-4 py-8 sm:px-8">
         {error && <Notice>{error}</Notice>}
 
         <div className="flex flex-wrap gap-1.5">

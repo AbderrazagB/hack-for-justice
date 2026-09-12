@@ -1,6 +1,7 @@
 import { PortalBar } from "@/components/chrome";
 import { DotField } from "@/components/dot-field";
 import { ServiceCard, type ServiceIcon } from "@/components/service-card";
+import { SiteFooter } from "@/components/site-footer";
 import { Notice } from "@/components/ui";
 import { listTransactions } from "@/lib/api";
 import type { TransactionInfo } from "@/lib/types";
@@ -36,16 +37,16 @@ export default async function ServiceCatalogue() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--canvas)]">
+    <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
       <PortalBar />
 
       <section className="relative">
         <DotField />
-        <div className="relative mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-12 sm:px-8 sm:py-16">
           <h1 className="t-h1 text-center text-[var(--navy)]">
             Accès rapide aux services
           </h1>
-          <p className="ar mt-1.5 text-center text-[1.0625rem] text-[var(--ink-muted)]">
+          <p className="ar ar-center mt-1.5 text-[1.0625rem] text-[var(--ink-muted)]">
             الولوج السريع إلى الخدمات
           </p>
           <p className="mx-auto mt-3 max-w-xl text-center text-[0.9375rem] text-[var(--ink-muted)]">
@@ -59,7 +60,7 @@ export default async function ServiceCatalogue() {
             </div>
           )}
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-11 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {transactions.map((transaction) => (
               <ServiceCard
                 key={transaction.transaction_type}
@@ -76,6 +77,8 @@ export default async function ServiceCatalogue() {
           </div>
         </div>
       </section>
+
+      <SiteFooter />
     </div>
   );
 }

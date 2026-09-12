@@ -59,44 +59,51 @@ export function ServiceCard({
   const body = (
     <>
       <span
-        className={`flex h-11 items-start justify-center ${
+        className={`flex justify-center ${
           available ? "text-[var(--teal-ink)]" : "text-[var(--ink-faint)]"
         }`}
       >
-        <Icon size={30} strokeWidth={1.4} aria-hidden />
+        <Icon size={32} strokeWidth={1.4} aria-hidden />
       </span>
 
-      <h3
-        className={`ar mt-3 text-center text-[1.0625rem] font-semibold ${
-          available ? "text-[var(--navy)]" : "text-[var(--ink-muted)]"
-        }`}
-      >
-        {titleAr}
-      </h3>
-      <p
-        className={`mt-1 text-center text-[0.9375rem] ${
-          available ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
-        }`}
-      >
-        {titleFr}
-      </p>
-
-      {reference && (
-        <p className="t-data mt-1.5 text-center text-[var(--ink-faint)]">
-          {reference}
+      {/* Both titles sit in a fixed-height block so every card in the row has
+          its pill on the same baseline, whatever the title wraps to. */}
+      <span className="mt-4 flex min-h-[5.25rem] flex-col items-center justify-start">
+        <h3
+          className={`ar ar-center text-[1.0625rem] leading-snug font-semibold ${
+            available ? "text-[var(--navy)]" : "text-[var(--ink-muted)]"
+          }`}
+        >
+          {titleAr}
+        </h3>
+        <p
+          className={`mt-1 text-center text-[0.9375rem] leading-snug ${
+            available ? "text-[var(--ink)]" : "text-[var(--ink-muted)]"
+          }`}
+        >
+          {titleFr}
         </p>
-      )}
+        <span className="t-data mt-1.5 block text-center text-[var(--ink-faint)]">
+          {reference ?? "\u00A0"}
+        </span>
+      </span>
 
-      <span className="mt-auto w-full pt-5">
+      <span className="mt-auto w-full pt-4">
         {available ? (
-          <span className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--teal)] px-4 py-2.5 text-[0.875rem] font-medium text-white transition-colors group-hover:bg-[var(--teal-ink)]">
-            <ArrowLeft size={16} strokeWidth={2} aria-hidden />
-            <span>Accès au service</span>
-            <span aria-hidden className="text-white/50">/</span>
-            <span className="ar">الولوج الى الخدمة</span>
+          <span className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--teal)] px-3 py-2.5 text-white transition-colors group-hover:bg-[var(--teal-ink)]">
+            <ArrowLeft size={15} strokeWidth={2} className="shrink-0" aria-hidden />
+            <span className="text-[0.8125rem] font-medium whitespace-nowrap">
+              Accès au service
+            </span>
+            <span aria-hidden className="text-white/40">
+              |
+            </span>
+            <span className="ar text-[0.8125rem] font-medium whitespace-nowrap">
+              الولوج الى الخدمة
+            </span>
           </span>
         ) : (
-          <span className="flex w-full items-center justify-center rounded-full border border-dashed border-[var(--line-strong)] px-4 py-2.5 text-[0.8125rem] text-[var(--ink-faint)]">
+          <span className="flex w-full items-center justify-center rounded-full border border-dashed border-[var(--line-strong)] px-3 py-2.5 text-[0.8125rem] text-[var(--ink-faint)]">
             Bientôt disponible
           </span>
         )}
@@ -105,7 +112,7 @@ export function ServiceCard({
   );
 
   const shell =
-    "group flex h-full flex-col rounded-2xl border px-5 pt-6 pb-5 transition-all duration-200";
+    "group flex h-full flex-col rounded-2xl border px-5 pt-7 pb-5 transition-all duration-200";
 
   if (!available) {
     return (

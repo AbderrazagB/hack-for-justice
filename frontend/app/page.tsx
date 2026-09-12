@@ -6,6 +6,7 @@ import { HeroAurora } from "@/components/hero-aurora";
 import { PortalBar } from "@/components/chrome";
 import { RegistryFigures } from "@/components/registry-figures";
 import { ServiceCard, type ServiceIcon } from "@/components/service-card";
+import { SiteFooter } from "@/components/site-footer";
 
 /**
  * Entry. Follows the layout language of the registry portal an applicant
@@ -40,19 +41,19 @@ const SERVICES: {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[var(--canvas)]">
+    <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
       <PortalBar />
 
       {/* ------------------------------------------------ navy masthead --- */}
       <section className="on-navy relative overflow-hidden bg-[var(--navy)]">
         <HeroAurora />
-        <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-16 sm:px-8 sm:py-24">
           <div className="max-w-2xl">
             <h1 className="t-display text-white">
               Vérifiez votre dossier
               <span className="block text-[var(--teal)]">avant de le déposer.</span>
             </h1>
-            <p className="ar mt-3 text-[1.125rem] text-white/70">
+            <p className="ar ar-left mt-3 text-[1.125rem] text-white/70">
               تثبّت من ملفك قبل الإيداع
             </p>
             <p className="mt-5 max-w-xl text-[0.9375rem] leading-relaxed text-white/70">
@@ -84,7 +85,7 @@ export default function Home() {
       {/* ------------------------------------------------- service grid --- */}
       <section className="relative">
         <DotField />
-        <div className="relative mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-16">
+        <div className="relative mx-auto max-w-[1400px] px-4 py-16 sm:px-8">
           <h2 className="t-h1 text-center text-[var(--navy)]">
             Accès rapide aux services
           </h2>
@@ -93,7 +94,7 @@ export default function Home() {
             National des Entreprises.
           </p>
 
-          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-11 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {SERVICES.map((service) => (
               <ServiceCard key={service.titleFr} {...service} />
             ))}
@@ -105,12 +106,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-[var(--line)] bg-[var(--surface)]">
-        <div className="mx-auto max-w-6xl px-4 py-6 text-center text-[0.8125rem] text-[var(--ink-muted)] sm:px-6">
-          Sahilli est une couche de pré-validation indépendante. Elle ne remplace
-          pas le portail de dépôt du Registre National des Entreprises.
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

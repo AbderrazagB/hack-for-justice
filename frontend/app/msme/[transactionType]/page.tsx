@@ -5,6 +5,7 @@ import { use, useCallback, useEffect, useMemo, useState } from "react";
 
 import { AssistantPanel } from "@/components/assistant-panel";
 import { PortalBar } from "@/components/chrome";
+import { SiteFooter } from "@/components/site-footer";
 import { DocumentRail } from "@/components/document-rail";
 import { StatusTracker } from "@/components/status-tracker";
 import { Button, Notice, Panel, SectionHeading } from "@/components/ui";
@@ -84,7 +85,7 @@ export default function FilingFlow({
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
       <PortalBar />
 
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
@@ -194,6 +195,8 @@ export default function FilingFlow({
           </section>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   );
 }
