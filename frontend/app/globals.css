@@ -177,10 +177,10 @@ body {
 
 .hero-title {
   font-family: var(--font-space-grotesk), sans-serif;
-  font-size: clamp(2.75rem, 1.55rem + 4.8vw, 5.5rem);
-  line-height: 0.98;
+  font-size: clamp(2.75rem, 1.6rem + 4.6vw, 5.25rem);
+  line-height: 1.02;
   font-weight: 600;
-  letter-spacing: -0.055em;
+  letter-spacing: -0.045em;
   text-wrap: balance;
 }
 
@@ -192,7 +192,7 @@ body {
 
 .hero-cinematic-scrim {
   background:
-    linear-gradient(90deg, rgba(8, 26, 49, 0.99) 0%, rgba(8, 26, 49, 0.94) 34%, rgba(8, 26, 49, 0.5) 67%, rgba(8, 26, 49, 0.12) 100%),
+    linear-gradient(90deg, rgba(8, 26, 49, 0.985) 0%, rgba(8, 26, 49, 0.96) 42%, rgba(8, 26, 49, 0.78) 62%, rgba(8, 26, 49, 0.34) 82%, rgba(8, 26, 49, 0.1) 100%),
     linear-gradient(180deg, rgba(8, 26, 49, 0.12) 0%, rgba(8, 26, 49, 0.04) 55%, rgba(8, 26, 49, 0.72) 100%);
 }
 

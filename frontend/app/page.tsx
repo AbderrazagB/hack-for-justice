@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  BadgeCheck,
   ClipboardCheck,
   FileSearch,
   ScanLine,
@@ -10,7 +9,9 @@ import Link from "next/link";
 
 import { PortalBar } from "@/components/chrome";
 import { DotField } from "@/components/dot-field";
+import { HeroAccent } from "@/components/hero-accent";
 import { HeroAurora } from "@/components/hero-aurora";
+import { Logo } from "@/components/logo";
 import { RegistryFigures } from "@/components/registry-figures";
 import { ServiceCard, type ServiceIcon } from "@/components/service-card";
 import { SiteFooter } from "@/components/site-footer";
@@ -81,22 +82,17 @@ export default function Home() {
         <HeroAurora />
 
         <div className="relative mx-auto flex min-h-[660px] max-w-[1400px] items-center px-4 py-20 sm:px-8 lg:py-28">
-          <div className="max-w-[46rem]">
-            <div className="hero-eyebrow inline-flex items-center gap-2 rounded-full border border-white/14 bg-white/8 px-4 py-2 text-[0.8125rem] font-semibold tracking-[0.1em] text-white/85 uppercase backdrop-blur-md">
-              <BadgeCheck size={15} className="text-[var(--teal)]" aria-hidden />
-              Pré-validation intelligente
-            </div>
+          <div className="max-w-[62rem]">
+            <Logo size="xl" tone="dark" href={null} />
 
-            <h1 className="hero-title mt-7 text-white">
-              Vérifiez votre dossier
-              <span className="block text-[var(--teal)]">
-                avant de le déposer.
-              </span>
+            <h1 className="hero-title mt-9 text-white">
+              Vérifiez votre dossier{" "}
+              <HeroAccent>avant de le déposer.</HeroAccent>
             </h1>
             <p className="ar ar-left mt-5 text-[1.5rem] font-medium text-white/75">
               تثبّت من ملفك قبل الإيداع
             </p>
-            <p className="mt-7 max-w-2xl text-[1.125rem] leading-8 text-white/75 sm:text-[1.1875rem] sm:leading-9">
+            <p className="mt-7 max-w-[46rem] text-[1.125rem] leading-8 text-white/75 sm:text-[1.1875rem] sm:leading-9">
               Sahilli contrôle vos pièces, recoupe les informations et révèle
               ce qui pourrait bloquer votre dépôt au RNE — avant que vous ne
               perdiez du temps.
@@ -123,7 +119,7 @@ export default function Home() {
               </Link>
             </div>
 
-            <dl className="mt-14 grid max-w-3xl gap-5 border-t border-white/12 pt-7 sm:grid-cols-3">
+            <dl className="mt-14 grid max-w-[52rem] gap-5 border-t border-white/12 pt-7 sm:grid-cols-3">
               {SIGNALS.map((signal) => {
                 const Icon = signal.icon;
                 return (
