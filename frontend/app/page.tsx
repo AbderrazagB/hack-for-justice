@@ -32,7 +32,7 @@ export default function Home() {
     <main className="min-h-screen bg-slate-50 px-6 py-24 text-slate-900">
       <section className="mx-auto max-w-2xl rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200">
         <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600">
-          Hack4Justice
+          Sahilli · سهّلي
         </p>
         <h1 className="mt-3 text-3xl font-bold">Ask the prototype</h1>
         <p className="mt-3 text-slate-600">

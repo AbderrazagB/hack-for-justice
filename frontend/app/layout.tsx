@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hack4Justice Project",
-  description: "A general-purpose Hack4Justice project template",
+  title: "Sahilli — سهّلي",
+  description:
+    "AI-powered pre-validation and institutional review for Tunisia's National Business Registry (RNE)",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

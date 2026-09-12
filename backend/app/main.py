@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import health, query, upload
 
-app = FastAPI(title="Hack4Justice API", version="0.1.0")
+app = FastAPI(title="Sahilli API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
