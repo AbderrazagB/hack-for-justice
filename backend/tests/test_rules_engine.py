@@ -707,3 +707,112 @@ def test_an_individual_filer_gets_the_individual_rate() -> None:
     deadline = check_completeness(submission, today=date(2026, 9, 30)).to_dict()["deadline"]
 
     assert deadline["penalty_per_month_tnd"] == 10
+
+
+# ------------------------------------------- comparing names across alphabets
+
+def test_an_arabic_name_and_french_statutes_cannot_be_compared() -> None:
+    """A Tunisian identity card names its holder in Arabic only.
+
+    Statutes are routinely drafted in French. Two spellings in two scripts
+    never share a token, so the comparison cannot conclude -- and reporting
+    that as "the statutes do not name this person" accuses every bilingual
+    dossier, which is most of them. Found on a real dossier, not in theory.
+    """
+    submission = _submission(
+        documents={
+            "id_new_representative": {
+                "full_text": "بطاقة التعريف الوطنية",
+                "fields": {"id_number": "31790642", "person_name": "بن وليد"},
+            },
+            # The PV carries no Latin spelling either, so nothing we hold could
+            # have matched.
+            "general_assembly_pv": {
+                "full_text": "محضر الجلسة العامة",
+                "fields": {
+                    "decision_date": "2026-06-12",
+                    "id_number": "31790642",
+                    "has_signature": True,
+                    "signature_date": "2026-06-12",
+                },
+            },
+            "company_statutes": {
+                "full_text": "STATUTS DE LA SOCIETE",
+                "fields": {"full_text": "Monsieur Omar Ben Walid, tunisien, gérant"},
+            },
+        }
+    )
+    check = next(
+        c
+        for c in check_completeness(submission, today=TODAY).checks
+        if c.name == "statutes_reflect_new_representative_name"
+    )
+    assert check.outcome is CheckOutcome.INDETERMINATE
+    assert check.evidence["reason"] == "script_mismatch"
+
+
+def test_the_french_spelling_from_the_pv_answers_for_the_arabic_card() -> None:
+    """The card and the procès-verbal name the same person in two alphabets.
+
+    Either spelling appearing in the statutes answers the question, and they
+    are the same person by construction -- the CIN check has already compared
+    the two documents on the number.
+    """
+    submission = _submission(
+        documents={
+            "id_new_representative": {
+                "full_text": "بطاقة التعريف الوطنية",
+                "fields": {"id_number": "12345678", "person_name": "بن وليد"},
+            },
+            "company_statutes": {
+                "full_text": "STATUTS DE LA SOCIETE",
+                "fields": {"full_text": "Gérant: Amine Ben Salah"},
+            },
+        }
+    )
+    check = next(
+        c
+        for c in check_completeness(submission, today=TODAY).checks
+        if c.name == "statutes_reflect_new_representative_name"
+    )
+    assert check.outcome is CheckOutcome.PASS
+
+
+def test_a_genuinely_absent_name_in_the_same_script_still_fails() -> None:
+    """The guard must not swallow the case the check exists for."""
+    submission = _submission(
+        documents={
+            "company_statutes": {
+                "full_text": "STATUTS DE LA SOCIETE",
+                "fields": {"full_text": "Gérant: Quelqu'un D'Autre"},
+            }
+        }
+    )
+    check = next(
+        c
+        for c in check_completeness(submission, today=TODAY).checks
+        if c.name == "statutes_reflect_new_representative_name"
+    )
+    assert check.outcome is CheckOutcome.FAIL
+
+
+def test_bilingual_statutes_are_still_compared() -> None:
+    """A deed carrying both scripts can be searched, so the comparison stands."""
+    submission = _submission(
+        documents={
+            "id_new_representative": {
+                "full_text": "بطاقة التعريف الوطنية",
+                "fields": {"id_number": "31790642", "person_name": "بن وليد"},
+            },
+            "company_statutes": {
+                "full_text": "STATUTS",
+                "fields": {"full_text": "Monsieur Omar Ben Walid / السيد عمر بن وليد"},
+            },
+        }
+    )
+    check = next(
+        c
+        for c in check_completeness(submission, today=TODAY).checks
+        if c.name == "statutes_reflect_new_representative_name"
+    )
+    assert check.outcome is CheckOutcome.PASS

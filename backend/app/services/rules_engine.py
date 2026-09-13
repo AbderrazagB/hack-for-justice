@@ -496,9 +496,22 @@ def _check_statutes_name(
 ) -> CheckResult:
     """The updated statutes must actually name the incoming representative."""
     name = "statutes_reflect_new_representative_name"
-    person = _field(documents, "id_new_representative", "person_name") or _field(
-        documents, "general_assembly_pv", "person_name"
-    )
+
+    # Both spellings of the same person, because they come in different
+    # alphabets: a Tunisian identity card names its holder in Arabic, while the
+    # procès-verbal naming the incoming gérant is usually French. Either one
+    # appearing in the statutes answers the question. They are the same person
+    # by construction -- id_number_matches_across_documents has already
+    # compared the card and the PV on the number.
+    candidates = [
+        value
+        for value in (
+            _field(documents, "id_new_representative", "person_name"),
+            _field(documents, "general_assembly_pv", "person_name"),
+        )
+        if value
+    ]
+    person = candidates[0] if candidates else None
     statutes = documents.get("company_statutes") or {}
     haystack = " ".join(
         str(value)
@@ -518,13 +531,34 @@ def _check_statutes_name(
             "تعذّرت المقارنة: اسم الممثل أو نص النظام الأساسي غير متوفر.",
         )
 
-    if _name_present(person, haystack):
+    found = next(
+        (value for value in candidates if _name_present(value, haystack)), None
+    )
+    if found:
         return CheckResult(
             name,
             CheckOutcome.PASS,
-            f"Les statuts mentionnent bien {person}.",
-            f"النظام الأساسي يذكر {person}.",
-            {"person_name": person},
+            f"Les statuts mentionnent bien {found}.",
+            f"النظام الأساسي يذكر {found}.",
+            {"person_name": found},
+        )
+
+    # A Tunisian identity card carries the holder's name in Arabic only, while
+    # statutes are routinely drafted in French. Two spellings in two scripts
+    # never share a token, so a name comparison across them cannot conclude --
+    # and reporting that as "the statutes do not name this person" would
+    # accuse every bilingual dossier, which is most of them.
+    # Only undecidable when NO spelling we hold could have matched.
+    if all(_scripts_differ(value, haystack) for value in candidates):
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            f"Le nom lu sur la carte d'identité ({person}) et le texte des "
+            "statuts ne sont pas dans le même alphabet : la correspondance ne "
+            "peut pas être établie automatiquement. À vérifier par un agent.",
+            "الاسم المقروء على بطاقة التعريف ونص النظام الأساسي ليسا بنفس "
+            "الأبجدية: تعذّر التثبّت آلياً. يستوجب نظر عون.",
+            {"person_name": person, "reason": "script_mismatch"},
         )
 
     return CheckResult(
@@ -535,6 +569,30 @@ def _check_statutes_name(
         f"النظام الأساسي المقدَّم لا يذكر الممثل الجديد {person}. يجب تقديم نظام أساسي محيّن.",
         {"person_name": person},
     )
+
+
+def _has_arabic(text: str) -> bool:
+    return any("\u0600" <= char <= "\u06ff" for char in str(text))
+
+
+def _has_latin(text: str) -> bool:
+    return any(char.isascii() and char.isalpha() for char in str(text))
+
+
+def _scripts_differ(person: str, haystack: str) -> bool:
+    """True when the two sides cannot share a token because of their alphabets.
+
+    Only when each side is single-script and they disagree. A statutes text
+    containing both -- which a bilingual deed does -- can be compared, so the
+    comparison stands.
+    """
+    person_ar, person_lat = _has_arabic(person), _has_latin(person)
+    hay_ar, hay_lat = _has_arabic(haystack), _has_latin(haystack)
+    if person_ar and not person_lat:
+        return hay_lat and not hay_ar
+    if person_lat and not person_ar:
+        return hay_ar and not hay_lat
+    return False
 
 
 def _check_extract_age(
