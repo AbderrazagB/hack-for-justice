@@ -15,7 +15,7 @@ import { PortalBar } from "@/components/chrome";
 import { SiteFooter } from "@/components/site-footer";
 import { ActionButton } from "@/components/action-button";
 import { ContextForm } from "@/components/context-form";
-import { DeclarationForm } from "@/components/declaration-form";
+import { DeclarationForm, declarationGroups } from "@/components/declaration-form";
 import { DocumentRail } from "@/components/document-rail";
 import { FilingSteps, type FilingStep } from "@/components/filing-steps";
 import { FilingSummary, type SummaryRow } from "@/components/filing-summary";
@@ -41,6 +41,9 @@ export default function FilingFlow({
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
   const [step, setStep] = useState(0);
+  // Which section of the declaration is showing. Nine questions on one screen
+  // is a scroll nobody finishes; they are paged three at a time.
+  const [declGroup, setDeclGroup] = useState(0);
   // How far the applicant has got. Steps behind this stay clickable, so fixing
   // an answer never means walking forward through the others again.
   const [furthest, setFurthest] = useState(0);
@@ -167,11 +170,60 @@ export default function FilingFlow({
     return rows;
   }, [contextFields, context, transaction, declaration, attachedCount, required]);
 
-  const goTo = useCallback((index: number) => {
-    setStep(index);
-    setFurthest((reached) => Math.max(reached, index));
+  const declGroups = useMemo(
+    () => declarationGroups(transaction?.declaration_fields ?? []),
+    [transaction],
+  );
+
+  const toTop = useCallback(() => {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  const goTo = useCallback(
+    (index: number) => {
+      setStep(index);
+      setFurthest((reached) => Math.max(reached, index));
+      // Arriving at the declaration from the step bar starts at its first
+      // section; arriving by stepping backwards lands on its last, which
+      // `retreat` sets instead.
+      if (steps[index]?.key === "declaration") setDeclGroup(0);
+      toTop();
+    },
+    [steps, toTop],
+  );
+
+  /**
+   * Forward through the declaration's sections first, then on to the next step.
+   * The step bar tracks the phase; the section pager inside tracks the part.
+   */
+  const advance = useCallback(() => {
+    if (stepKey === "declaration" && declGroup < declGroups.length - 1) {
+      setDeclGroup((current) => current + 1);
+      toTop();
+      return;
+    }
+    goTo(step + 1);
+  }, [stepKey, declGroup, declGroups.length, goTo, step, toTop]);
+
+  const retreat = useCallback(() => {
+    if (stepKey === "declaration" && declGroup > 0) {
+      setDeclGroup((current) => current - 1);
+      toTop();
+      return;
+    }
+    goTo(step - 1);
+    if (steps[step - 1]?.key === "declaration") {
+      setDeclGroup(Math.max(declGroups.length - 1, 0));
+    }
+  }, [stepKey, declGroup, declGroups.length, goTo, step, steps, toTop]);
+
+  /** What the back control returns to, named. */
+  const backLabel =
+    stepKey === "declaration" && declGroup > 0
+      ? declGroups[declGroup - 1].label_fr
+      : step > 0
+        ? steps[step - 1].label_fr
+        : null;
 
   const attach = useCallback((key: string, file: File | null) => {
     setFiles((current) => {
@@ -302,6 +354,7 @@ export default function FilingFlow({
               }
               modificationType={transaction.modification_type_fr}
               modificationTypeAr={transaction.modification_type_ar}
+              groupIndex={declGroup}
             />
           )}
 
@@ -360,14 +413,14 @@ export default function FilingFlow({
 
           {/* ------------------------------------------------- step footer --- */}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-[var(--line)] pt-5">
-            {step > 0 ? (
+            {backLabel ? (
               <button
                 type="button"
-                onClick={() => goTo(step - 1)}
+                onClick={retreat}
                 className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--ink-muted)] transition-colors hover:text-[var(--ink)]"
               >
                 <ArrowLeft size={15} strokeWidth={2} aria-hidden />
-                {steps[step - 1].label_fr}
+                {backLabel}
               </button>
             ) : (
               <span />
@@ -416,7 +469,7 @@ export default function FilingFlow({
                 </ActionButton>
               ) : (
                 <ActionButton
-                  onClick={() => goTo(step + 1)}
+                  onClick={advance}
                   disabled={stepKey === "context" && unanswered.length > 0}
                 >
                   Continuer

@@ -29,119 +29,163 @@ import type { DeclarationField } from "@/lib/types";
  * rather than a full-bleed field; and the standing help line folded into the
  * "Pourquoi ?" disclosure, which said roughly the same thing at greater length.
  */
-export function DeclarationForm({
-  fields,
-  values,
-  onChange,
-  modificationType,
-  modificationTypeAr,
-}: {
+export type DeclarationGroup = {
+  key: string;
+  label_fr: string;
+  label_ar: string;
   fields: DeclarationField[];
-  values: Record<string, string>;
-  onChange: (name: string, value: string) => void;
-  modificationType: string | null;
-  modificationTypeAr: string | null;
-}) {
-  if (fields.length === 0) return null;
+};
 
-  // The form's own order already groups cleanly, so sections are drawn over it
-  // rather than rearranging it (a backend test holds that true).
-  const sections: { key: string; label_fr: string; label_ar: string; fields: DeclarationField[] }[] =
-    [];
+/**
+ * The nine entries, split into the sections the official form's own ordering
+ * already groups them into. Exported because the page pages through them: a
+ * backend test holds that each group stays contiguous, so this never reorders
+ * the form.
+ */
+export function declarationGroups(fields: DeclarationField[]): DeclarationGroup[] {
+  const groups: DeclarationGroup[] = [];
   for (const field of fields) {
-    const last = sections[sections.length - 1];
+    const last = groups[groups.length - 1];
     if (last && last.key === field.group) last.fields.push(field);
     else
-      sections.push({
+      groups.push({
         key: field.group,
         label_fr: field.group_fr,
         label_ar: field.group_ar,
         fields: [field],
       });
   }
+  return groups;
+}
 
+export function DeclarationForm({
+  fields,
+  values,
+  onChange,
+  modificationType,
+  modificationTypeAr,
+  groupIndex,
+}: {
+  fields: DeclarationField[];
+  values: Record<string, string>;
+  onChange: (name: string, value: string) => void;
+  modificationType: string | null;
+  modificationTypeAr: string | null;
+  /** Which section to show. The rest are not rendered. */
+  groupIndex: number;
+}) {
+  if (fields.length === 0) return null;
+
+  const groups = declarationGroups(fields);
+  const index = Math.min(Math.max(groupIndex, 0), groups.length - 1);
+  const section = groups[index];
   const comparedCount = fields.filter((field) => field.cross_checked).length;
+  // The preamble earns its height once. After the first section it is in the
+  // way of the questions it was introducing.
+  const first = index === 0;
 
   return (
     <Panel className="p-5 sm:p-6">
-      <div className="flex items-start gap-3">
-        <span
-          aria-hidden
-          className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--teal-wash)] text-[var(--teal-ink)]"
-        >
-          <FileSignature size={18} strokeWidth={1.8} />
-        </span>
-        <div className="min-w-0">
-          <h2 className="t-h3 text-[var(--navy)]">Votre déclaration</h2>
-          <p className="ar ar-left text-[0.8125rem] text-[var(--ink-faint)]">
-            التصريح
-          </p>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div className="flex items-start gap-3">
+          <span
+            aria-hidden
+            className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-[var(--teal-wash)] text-[var(--teal-ink)]"
+          >
+            <FileSignature size={18} strokeWidth={1.8} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="t-h3 text-[var(--navy)]">{section.label_fr}</h2>
+            <p className="ar ar-left text-[0.8125rem] text-[var(--ink-faint)]">
+              {section.label_ar}
+            </p>
+          </div>
+        </div>
+
+        {/* Where you are inside the declaration. The step bar above says
+            "Votre déclaration"; this says which part of it. */}
+        <div className="flex items-center gap-2">
+          <span className="t-data text-[0.75rem] text-[var(--ink-muted)]">
+            {index + 1} / {groups.length}
+          </span>
+          <span className="flex gap-1" aria-hidden>
+            {groups.map((group, position) => (
+              <span
+                key={group.key}
+                className={`h-1.5 rounded-full transition-all ${
+                  position === index
+                    ? "w-5 bg-[var(--navy)]"
+                    : position < index
+                      ? "w-1.5 bg-[var(--navy)]"
+                      : "w-1.5 bg-[var(--line-strong)]"
+                }`}
+              />
+            ))}
+          </span>
         </div>
       </div>
 
-      <p className="mt-3 text-[0.8125rem] leading-relaxed text-[var(--ink-muted)]">
-        Le formulaire officiel RNE-F-005, posé en questions. Vous n&apos;avez ni
-        à le télécharger ni à le déchiffrer&nbsp;: répondez ici, nous le
-        remplissons.
-      </p>
+      {first && (
+        <>
+          <p className="mt-3 text-[0.8125rem] leading-relaxed text-[var(--ink-muted)]">
+            Le formulaire officiel RNE-F-005, posé en questions. Vous n&apos;avez
+            ni à le télécharger ni à le déchiffrer&nbsp;: répondez ici, nous le
+            remplissons.
+          </p>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[var(--r-control)] bg-[var(--canvas)] px-3 py-2.5 text-[0.75rem]">
-        {/* The obvious objection -- "pourquoi me demander ce qui figure déjà sur
-            mes pièces ?" -- answered where it is raised. */}
-        <span className="flex items-center gap-1.5 text-[var(--ink-muted)]">
-          <GitCompareArrows
-            size={13}
-            strokeWidth={2}
-            className="shrink-0 text-[var(--teal-ink)]"
-            aria-hidden
-          />
-          <span>
-            <strong className="font-medium text-[var(--ink)]">
-              {comparedCount} réponses
-            </strong>{" "}
-            sont recoupées avec vos pièces — d&apos;où la comparaison qui
-            détecte les contradictions.
-          </span>
-        </span>
-        {modificationType && (
-          <span className="flex flex-wrap items-center gap-x-2 text-[var(--ink-muted)]">
-            <span>Nature&nbsp;:</span>
-            <span className="font-medium text-[var(--navy)]">{modificationType}</span>
-            {modificationTypeAr && (
-              <span className="ar text-[var(--ink-faint)]">{modificationTypeAr}</span>
-            )}
-          </span>
-        )}
-      </div>
-
-      <div className="mt-6 space-y-6">
-        {sections.map((section) => (
-          <section key={section.key}>
-            <div className="flex items-baseline gap-2 border-b border-[var(--line)] pb-1.5">
-              <h3 className="t-label text-[var(--ink-muted)]">{section.label_fr}</h3>
-              <span className="ar text-[0.75rem] text-[var(--ink-faint)]">
-                {section.label_ar}
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[var(--r-control)] bg-[var(--canvas)] px-3 py-2.5 text-[0.75rem]">
+            {/* The obvious objection -- "pourquoi me demander ce qui figure déjà
+                sur mes pièces ?" -- answered where it is raised. */}
+            <span className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+              <GitCompareArrows
+                size={13}
+                strokeWidth={2}
+                className="shrink-0 text-[var(--teal-ink)]"
+                aria-hidden
+              />
+              <span>
+                <strong className="font-medium text-[var(--ink)]">
+                  {comparedCount} réponses
+                </strong>{" "}
+                sont recoupées avec vos pièces — d&apos;où la comparaison qui
+                détecte les contradictions.
               </span>
-            </div>
-            <div className="mt-3.5 space-y-4">
-              {section.fields.map((field) => (
-                <Field
-                  key={field.name}
-                  field={field}
-                  value={values[field.name] ?? ""}
-                  onChange={(value) => onChange(field.name, value)}
-                />
-              ))}
-            </div>
-          </section>
+            </span>
+            {modificationType && (
+              <span className="flex flex-wrap items-center gap-x-2 text-[var(--ink-muted)]">
+                <span>Nature&nbsp;:</span>
+                <span className="font-medium text-[var(--navy)]">
+                  {modificationType}
+                </span>
+                {modificationTypeAr && (
+                  <span className="ar text-[var(--ink-faint)]">
+                    {modificationTypeAr}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+        </>
+      )}
+
+      <div className="mt-5 space-y-4">
+        {section.fields.map((field) => (
+          <Field
+            key={field.name}
+            field={field}
+            value={values[field.name] ?? ""}
+            onChange={(value) => onChange(field.name, value)}
+          />
         ))}
       </div>
 
-      <p className="mt-6 flex items-start gap-2 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
-        <Info size={12} strokeWidth={1.8} className="mt-0.5 shrink-0" aria-hidden />
-        Le formulaire officiel précise que toute donnée manquante entraîne le
-        rejet de la demande.
-      </p>
+      {index === groups.length - 1 && (
+        <p className="mt-5 flex items-start gap-2 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
+          <Info size={12} strokeWidth={1.8} className="mt-0.5 shrink-0" aria-hidden />
+          Le formulaire officiel précise que toute donnée manquante entraîne le
+          rejet de la demande.
+        </p>
+      )}
     </Panel>
   );
 }
