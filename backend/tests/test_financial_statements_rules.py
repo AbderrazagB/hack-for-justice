@@ -84,6 +84,7 @@ def test_transaction_is_registered_alongside_the_first_workflow() -> None:
     ]
     assert rules["checks"] == [
         "documents_match_their_type",
+        "no_instructions_addressed_to_the_system",
         "financial_statements_signed_and_stamped",
         "pv_registered_with_recette_des_finances_if_applicable",
         "auditor_report_present_if_required_by_company_type",

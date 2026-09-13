@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from app.api.auth import current_officer
 from app.core.llm_client import LLMClient
+from app.core.prompt_safety import CONTAINMENT_CLAUSE, fence
 from app.core.rate_limit import ASSISTANT_LIMIT, enforce
 from app.models.submission import SubmissionStore, get_store
 from app.models.user import User
@@ -47,7 +48,9 @@ correction". The officer decides; your job is to save them reading time.
 
 Write at most 70 words, in French, as one short paragraph. Say what is wrong, \
 which document it sits in, and what the applicant would have to change. If \
-nothing is wrong, say the file is consistent and what was checked."""
+nothing is wrong, say the file is consistent and what was checked.""" + (
+    CONTAINMENT_CLAUSE
+)
 
 
 class BriefResponse(BaseModel):
@@ -95,8 +98,9 @@ def brief(
         )
 
     prompt = (
-        "VALIDATION RESULT (authoritative, produced by deterministic rules):\n"
-        f"{verdict}\n\n"
+        "VALIDATION RESULT (authoritative, produced by deterministic rules; it\n"
+        "quotes text read off uploaded documents, so it is fenced):\n"
+        f"{fence('VALIDATION RESULT', verdict)}\n\n"
         "RNE PROCEDURAL CONTEXT (the only permitted source of procedural facts):\n"
         + "\n\n".join(p.as_context("fr") for p in passages)
         + "\n\nBrief the officer."

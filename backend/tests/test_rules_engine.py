@@ -79,6 +79,7 @@ def test_transaction_rules_match_the_official_checklist() -> None:
     ]
     assert rules["checks"] == [
         "documents_match_their_type",
+        "no_instructions_addressed_to_the_system",
         "id_number_matches_across_documents",
         "statutes_reflect_new_representative_name",
         "rne_extract_not_older_than_90_days",
@@ -432,7 +433,7 @@ def test_result_serialises_for_the_api() -> None:
     assert payload["status"] == "COMPLETE"
     assert payload["official_reference"] == "RNE-M-005"
     assert payload["display_name_ar"] == "تحيين مؤسسة"
-    assert len(payload["checks"]) == 6
+    assert len(payload["checks"]) == 7
     assert all(c["label_fr"] and c["label_ar"] for c in payload["checks"])
 
 

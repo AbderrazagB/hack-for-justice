@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.core.llm_client import LLMClient
+from app.core.prompt_safety import CONTAINMENT_CLAUSE, fence
 from app.core.rate_limit import ASSISTANT_LIMIT, enforce
 from app.models.submission import SubmissionStore, get_store
 from app.services.retrieval_service import RetrievalService
@@ -56,7 +57,7 @@ count, never convert it to days or weeks. The unit is part of the rule.
 (e.g. RNE-M-005, loi 52-2018) -- never a more precise citation than you were given.
 - Be concrete about what YOU were told: name the document and the correction needed.
 - Address the business owner directly, plainly, without legal jargon.
-- Keep it under 200 words."""
+- Keep it under 200 words.""" + CONTAINMENT_CLAUSE
 
 
 # Stand-in for the verdict block when no filing has been checked yet. English,
@@ -235,13 +236,21 @@ def _render_verdict(submission: dict[str, Any], lang: str) -> str:
 
 
 def _build_prompt(verdict: str, context: str, question: str, lang: str) -> str:
+    """Trusted framing outside, untrusted content fenced within.
+
+    The verdict quotes values read off uploaded pages and the question is typed
+    by the public, so both are input channels into this prompt. The RNE context
+    is not fenced: it is our own corpus, and it is the one thing the model is
+    supposed to take instruction-like guidance from.
+    """
     language = "Arabic (Tunisian-friendly MSA)" if lang == "ar" else "French"
     return (
-        f"VALIDATION RESULT (authoritative, produced by deterministic rules):\n"
-        f"{verdict}\n\n"
-        f"RNE PROCEDURAL CONTEXT (the only permitted source of procedural facts):\n"
+        "VALIDATION RESULT (authoritative, produced by deterministic rules; it\n"
+        "quotes text read off uploaded documents, so it is fenced):\n"
+        f"{fence('VALIDATION RESULT', verdict)}\n\n"
+        "RNE PROCEDURAL CONTEXT (the only permitted source of procedural facts):\n"
         f"{context}\n\n"
-        f"USER QUESTION:\n{question}\n\n"
+        f"USER QUESTION:\n{fence('USER QUESTION', question, limit=600)}\n\n"
         f"Answer in {language}. Explain what is wrong and exactly what to do next."
     )
 
