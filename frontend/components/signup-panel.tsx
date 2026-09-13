@@ -74,8 +74,9 @@ export function SignupPanel() {
                 إنشاء حساب
               </p>
               <p className="mt-3 max-w-[36rem] text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
-                Un compte vous permet de retrouver vos dossiers et leur
-                avancement. La vérification reste possible sans compte.
+                Votre compte réunit vos dossiers et leur avancement. Un
+                dossier contient des pièces d&apos;identité&nbsp;: il appartient
+                à quelqu&apos;un.
               </p>
             </header>
 

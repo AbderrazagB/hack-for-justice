@@ -21,13 +21,33 @@ if ! curl -sf "$API_URL/health" >/dev/null; then
 fi
 
 echo
+echo "Seeding the demo accounts..."
+(cd "$PROJECT_DIR/backend" && uv run python ../scripts/seed_accounts.py)
+
+echo
 echo "Submitting cases to $API_URL..."
 python3 - "$API_URL" "$DEMO_DIR" <<'PY'
-import json, sys, urllib.request, uuid
+import http.cookiejar, json, sys, urllib.request, uuid
 from pathlib import Path
 
 api_url, demo_dir = sys.argv[1], Path(sys.argv[2])
 manifest = json.loads((demo_dir / "manifest.json").read_text(encoding="utf-8"))
+
+# Filing requires a session now, so the seeded dossiers belong to the demo
+# applicant -- which is also what makes them visible when you sign in as that
+# account rather than only to an officer.
+jar = http.cookiejar.CookieJar()
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+
+login = urllib.request.Request(
+    f"{api_url}/auth/login",
+    data=json.dumps({"email": "pme@sahilli.tn", "password": "DemoSahilli2026"}).encode(),
+    headers={"Content-Type": "application/json"},
+)
+with opener.open(login) as response:
+    who = json.load(response)["user"]
+print(f"  signed in as {who['email']} ({who['role']})")
+print()
 
 for case in manifest["cases"]:
     boundary = uuid.uuid4().hex
@@ -64,7 +84,7 @@ for case in manifest["cases"]:
         data=b"".join(parts),
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
-    with urllib.request.urlopen(request) as response:
+    with opener.open(request) as response:
         body = json.load(response)
     print(f"  {case['case_id']}  {body['completeness']['status']:<12} "
           f"flags={body['flag_summary']['total']}  {case['label']}")

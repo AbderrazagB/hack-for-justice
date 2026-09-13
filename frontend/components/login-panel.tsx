@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { ActionButton } from "@/components/action-button";
@@ -31,10 +31,10 @@ import { login } from "@/lib/api";
  * The four ways in, matching the registry portal's own sign-in options.
  *
  * Digigo and MobileID carry their real marks, downloaded rather than drawn.
- * "Compte entreprise" and "Compte invité" are account types rather than
+ * "Compte entreprise" and "Créer un compte" are account types rather than
  * branded products, so they take icons.
  *
- * Only the guest route works today; the rest are marked "Bientôt". Showing a
+ * Only email and password work today; the rest are marked "Bientôt". Showing a
  * provider's mark must not imply the integration exists.
  */
 const OPTIONS: {
@@ -69,17 +69,35 @@ const OPTIONS: {
       "Identifiants de votre espace entreprise.",
   },
   {
-    id: "invite",
+    id: "creer",
     icon: UserRound,
-    label: "Compte invité",
-    description:
-      "Sans création de compte. Vérifiez un dossier immédiatement.",
-    href: "/msme",
+    label: "Créer un compte",
+    // Guest filing existed and is gone: a dossier carries identity documents,
+    // and one with no owner could not be shown to its owner or to nobody else.
+    description: "Un dossier appartient à quelqu'un. Vérifier demande un compte.",
+    href: "/signup",
   },
 ];
 
+/**
+ * Seeded by scripts/seed_accounts.py. Rendered only outside production: they
+ * are convenience for a demo, and a login screen that advertises working
+ * credentials is not something to ship.
+ */
+const DEMO_PASSWORD = "DemoSahilli2026";
+const DEMO_ACCOUNTS =
+  process.env.NODE_ENV === "production"
+    ? []
+    : [
+        { label: "PME (déposant)", email: "pme@sahilli.tn" },
+        { label: "Agent RNE", email: "agent@rne.tn" },
+      ];
+
 export function LoginPanel() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Where the visitor was heading before the session check turned them back.
+  const next = searchParams.get("next") ?? "/msme";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -90,8 +108,11 @@ export function LoginPanel() {
     setPending(true);
     setError("");
     try {
-      await login(email, password);
-      router.push("/msme");
+      const session = await login(email, password);
+      // An officer signing in wants the queue, not the filing flow.
+      const destination =
+        next !== "/msme" ? next : session.user.role === "officer" ? "/admin" : "/msme";
+      router.push(destination);
       router.refresh();
     } catch (loginError) {
       setError(
@@ -122,8 +143,9 @@ export function LoginPanel() {
                 تسجيل الدخول
               </p>
               <p className="mt-3 max-w-[36rem] text-[0.9375rem] leading-relaxed text-[var(--ink-muted)]">
-                Retrouvez vos dossiers et leur avancement. Vous pouvez aussi
-                vérifier un dossier sans compte.
+                Retrouvez vos dossiers et leur avancement. Un dossier
+                appartient à quelqu&apos;un&nbsp;: la vérification demande un
+                compte.
               </p>
             </header>
 
@@ -195,6 +217,37 @@ export function LoginPanel() {
                     {pending ? "Connexion en cours" : "Se connecter"}
                   </ActionButton>
                 </form>
+
+                {DEMO_ACCOUNTS.length > 0 && (
+                  <div className="mt-5 rounded-[var(--r-control)] border border-dashed border-[var(--line-strong)] bg-[var(--canvas)] p-3">
+                    <p className="t-label text-[var(--ink-muted)]">
+                      Comptes de démonstration
+                    </p>
+                    <p className="mt-1 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
+                      Visible en développement uniquement. Cliquez pour remplir.
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-2">
+                      {DEMO_ACCOUNTS.map((account) => (
+                        <button
+                          key={account.email}
+                          type="button"
+                          onClick={() => {
+                            setEmail(account.email);
+                            setPassword(DEMO_PASSWORD);
+                          }}
+                          className="rounded-[var(--r-control)] border border-[var(--line-strong)] bg-[var(--surface)] px-2.5 py-1.5 text-left transition-colors hover:border-[var(--teal)]"
+                        >
+                          <span className="block text-[0.75rem] font-medium text-[var(--ink)]">
+                            {account.label}
+                          </span>
+                          <span className="t-data block text-[0.6875rem] text-[var(--ink-faint)]">
+                            {account.email}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </section>
 
               <section>

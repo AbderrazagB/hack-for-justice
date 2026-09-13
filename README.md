@@ -224,9 +224,32 @@ docker-compose up --build
 
 ## Accounts
 
+**Everything goes through login.** `/msme` and `/admin` are behind a session:
+filing a dossier, reading one, and the officer queue all require an account,
+and Next middleware redirects a signed-out visitor to `/login?next=…` so
+signing in finishes the journey they started.
+
 Applicants sign up at `/signup` and sign in at `/login`. Sessions are JWTs in an
 **httpOnly** cookie, so page JavaScript cannot read them and an XSS bug cannot
 exfiltrate a session. Passwords are hashed with **Argon2id**.
+
+### Demo accounts
+
+```bash
+cd backend && uv run python ../scripts/seed_accounts.py
+```
+
+| Account | Role | Password |
+|---|---|---|
+| `pme@sahilli.tn` | applicant — files and checks a dossier | `DemoSahilli2026` |
+| `agent@rne.tn` | officer — works the queue and decides | `DemoSahilli2026` |
+
+The script is idempotent: an account left from an earlier run has its password
+reset to the one above, so the credentials it prints always work. `/login`
+shows both as click-to-fill buttons outside production. These are demo
+credentials in a public repository — fine on a laptop, not fine anywhere
+reachable. `./scripts/seed_demo_data.sh` runs this first and files its fourteen
+cases as the applicant.
 
 **Officer accounts cannot be self-registered.** `POST /auth/signup` always
 creates an applicant, because a self-grantable officer role would hand anyone
@@ -251,13 +274,24 @@ cd backend && uv run python ../scripts/create_officer.py agent@rne.tn "Nom Agent
 
 What is enforced today, and what is deliberately not.
 
-**Authorization.** The officer surfaces — the queue, the live stats, the stored
-documents and the review decision — require an officer session. An applicant
-account receives 403, an anonymous caller 401. Submitting stays open to guests,
-because checking a dossier without an account is a product requirement; a guest
-submission is then readable by anyone holding its id, which is a capability URL
-and the price of that choice. The acting officer on a review comes from the
-session, never the request body, so the audit trail cannot be forged.
+**Authorization.** Every route that touches a dossier requires a session. The
+officer surfaces — the queue, the live stats, the stored documents and the
+review decision — require an *officer* session: an applicant account receives
+403, an anonymous caller 401. Filing requires an account too, so every dossier
+has an owner, and reading one is the owner or an officer and nobody else.
+
+Guest filing existed and was removed. It bought "check a dossier without an
+account" at the price of a capability URL — a submission readable by anyone
+holding its twelve-hex id — and of dossiers full of identity documents that
+belonged to nobody. Dossiers seeded before accounts existed still carry no
+owner; an absent owner now means officer-only, not public.
+
+The acting officer on a review comes from the session, never the request body,
+so the audit trail cannot be forged.
+
+Demo accounts for a local run come from `scripts/seed_accounts.py`, which
+prints the credentials it seeds. They are demo credentials in a public
+repository: fine on a laptop, not fine anywhere reachable.
 
 **Uploads.** Each file is capped at 10 MB, a submission at 12 files and 40 MB,
 and the request body at 48 MB. The declared `Content-Type` is ignored: the file

@@ -8,12 +8,14 @@ a review was whatever the caller typed.
 
 from __future__ import annotations
 
+import uuid
 from io import BytesIO
 from unittest.mock import patch
 
 import pytest
 from PIL import Image
 
+from app.api.auth import current_user
 from app.core.rate_limit import Limit, RateLimiter, limiter
 from app.core.uploads import (
     MAX_FILE_BYTES,
@@ -21,6 +23,8 @@ from app.core.uploads import (
     sniff_type,
     validate_upload,
 )
+from app.main import app
+from app.models.user import User, UserRole
 from app.services.ocr_service import OCRResult, OCRService
 
 TXN = "RNE_MODIFICATION_ENTREPRISE"
@@ -41,56 +45,34 @@ def _fake_extract(self, content, filename="", document_type="general", force_loc
         ("get", "/documents/rne_extract/anything.png"),
     ],
 )
-def test_officer_surfaces_reject_anonymous_callers(client, method: str, path: str) -> None:
+def test_officer_surfaces_reject_anonymous_callers(
+    anon_client, method: str, path: str
+) -> None:
     """The queue, the stats and the stored documents expose every applicant's
     filing. None of them may serve an unauthenticated caller."""
-    response = getattr(client, method)(path)
+    response = getattr(anon_client, method)(path)
     assert response.status_code == 401
 
 
-def test_review_rejects_anonymous_callers(client, png) -> None:
-    """This endpoint decides whether a citizen's filing is accepted."""
-    with patch.object(OCRService, "extract", _fake_extract):
-        created = client.post(
-            ENDPOINT,
-            files=[("files", ("a.png", png, "image/png"))],
-            data={"document_types": ["rne_extract"]},
-        )
-    submission_id = created.json()["submission_id"]
+def test_review_rejects_anonymous_callers(anon_client, store) -> None:
+    """This endpoint decides whether a citizen's filing is accepted.
 
-    response = client.post(
-        f"/submissions/{submission_id}/review", json={"action": "approve"}
+    The dossier is created through the store rather than the API, because the
+    API now refuses an anonymous caller too -- and this test is about the
+    review endpoint, not about how the filing got there.
+    """
+    submission = store.create(
+        transaction_type="RNE_MODIFICATION_ENTREPRISE",
+        documents={},
+        completeness={"status": "COMPLETE"},
+        flags=[],
+        status="SUBMITTED",
+    )
+
+    response = anon_client.post(
+        f"/submissions/{submission.id}/review", json={"action": "approve"}
     )
     assert response.status_code == 401
-
-
-def test_submitting_stays_open_to_guests(client, png) -> None:
-    """Checking a dossier without an account is a product requirement."""
-    with patch.object(OCRService, "extract", _fake_extract):
-        response = client.post(
-            ENDPOINT,
-            files=[("files", ("a.png", png, "image/png"))],
-            data={"document_types": ["rne_extract"]},
-        )
-    assert response.status_code == 201
-
-
-def test_reviewer_identity_comes_from_the_session(officer_client, png) -> None:
-    """Otherwise the audit trail is whatever the caller typed."""
-    with patch.object(OCRService, "extract", _fake_extract):
-        created = officer_client.post(
-            ENDPOINT,
-            files=[("files", ("a.png", png, "image/png"))],
-            data={"document_types": ["rne_extract"]},
-        )
-    submission_id = created.json()["submission_id"]
-
-    officer_client.post(
-        f"/submissions/{submission_id}/review",
-        json={"action": "approve", "officer": "quelqu-un-dautre@exemple.tn"},
-    )
-    review = officer_client.get(f"/submissions/{submission_id}").json()["reviews"][0]
-    assert review["officer"] == "officer@rne.tn"
 
 
 # ------------------------------------------------------------ upload guards --
@@ -228,3 +210,88 @@ def test_hsts_is_not_asserted_over_plain_http(client) -> None:
     """Pinning HSTS from an http deployment would lock browsers to a scheme
     this instance cannot serve."""
     assert "Strict-Transport-Security" not in client.get("/health").headers
+
+
+# ------------------------------------------------------ everything needs a session
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/submissions/anything",
+        "/submissions/anything/declaration.pdf",
+    ],
+)
+def test_reading_a_filing_requires_a_session(anon_client, path: str) -> None:
+    """A dossier carries identity documents and a home address."""
+    assert anon_client.get(path).status_code == 401
+
+
+def test_filing_requires_a_session(anon_client, png) -> None:
+    """Filing used to be open to anyone, which left dossiers with no owner."""
+    with patch.object(OCRService, "extract", _fake_extract):
+        response = anon_client.post(
+            ENDPOINT,
+            files=[("files", ("a.png", png, "image/png"))],
+            data={"document_types": ["rne_extract"]},
+        )
+    assert response.status_code == 401
+
+
+def test_a_filing_belongs_to_whoever_made_it(client, png) -> None:
+    with patch.object(OCRService, "extract", _fake_extract):
+        created = client.post(
+            ENDPOINT,
+            files=[("files", ("a.png", png, "image/png"))],
+            data={"document_types": ["rne_extract"]},
+        )
+    detail = client.get(f"/submissions/{created.json()['submission_id']}").json()
+    assert detail["owner_id"] == str(client.stub_user.id)
+
+
+def test_one_applicant_cannot_read_another_applicants_filing(
+    client, store, tmp_path, png
+) -> None:
+    """The capability-URL branch is gone: an id is no longer an access grant."""
+    with patch.object(OCRService, "extract", _fake_extract):
+        created = client.post(
+            ENDPOINT,
+            files=[("files", ("a.png", png, "image/png"))],
+            data={"document_types": ["rne_extract"]},
+        )
+    submission_id = created.json()["submission_id"]
+
+    stranger = User(
+        id=uuid.uuid4(),
+        email="stranger@example.tn",
+        password_hash="x",
+        full_name="Stranger",
+        role=UserRole.APPLICANT.value,
+    )
+    app.dependency_overrides[current_user] = lambda: stranger
+
+    assert client.get(f"/submissions/{submission_id}").status_code == 403
+    assert client.get(f"/submissions/{submission_id}/declaration.pdf").status_code == 403
+
+
+def test_an_ownerless_filing_is_officer_only_not_public(client, store) -> None:
+    """Seeded dossiers predate accounts. An absent owner is not a public dossier."""
+    orphan = store.create(
+        transaction_type="RNE_MODIFICATION_ENTREPRISE",
+        documents={},
+        completeness={"status": "COMPLETE"},
+        flags=[],
+        status="SUBMITTED",
+        owner_id=None,
+    ).id
+
+    assert client.get(f"/submissions/{orphan}").status_code == 403
+
+    officer = User(
+        id=uuid.uuid4(),
+        email="agent@rne.tn",
+        password_hash="x",
+        full_name="Agent",
+        role=UserRole.OFFICER.value,
+    )
+    app.dependency_overrides[current_user] = lambda: officer
+    assert client.get(f"/submissions/{orphan}").status_code == 200

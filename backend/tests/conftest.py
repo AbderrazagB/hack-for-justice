@@ -39,8 +39,38 @@ def store(tmp_path: Path) -> SubmissionStore:
 
 @pytest.fixture
 def client(store: SubmissionStore, tmp_path: Path) -> TestClient:
-    """Store and uploads both redirected to tmp; tests never touch data/raw."""
+    """A client signed in as an applicant.
+
+    Filing requires an account, so this is what an ordinary caller now is. The
+    gate itself -- that an anonymous caller is refused -- is asserted with
+    `anon_client` below, and the dependency's own behaviour against real
+    Postgres lives in test_auth_api.py.
+    """
     uploads = tmp_path / "uploads"
+    applicant = _stub_user(UserRole.APPLICANT)
+
+    app.dependency_overrides[get_store] = lambda: store
+    app.dependency_overrides[get_upload_dir] = lambda: uploads
+    app.dependency_overrides[current_user] = lambda: applicant
+    app.dependency_overrides[optional_user] = lambda: applicant
+
+    with TestClient(app) as test_client:
+        test_client.stub_user = applicant
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def anon_client(store: SubmissionStore, tmp_path: Path) -> TestClient:
+    """A caller with no session, for asserting the gate rather than passing it.
+
+    Explicitly drops the auth overrides: a test that asks for `client` as well
+    (to create something worth being refused) would otherwise inherit its
+    session here, and the refusal it asserts would never be tested.
+    """
+    uploads = tmp_path / "uploads"
+    for dependency in (current_user, optional_user, current_officer):
+        app.dependency_overrides.pop(dependency, None)
     app.dependency_overrides[get_store] = lambda: store
     app.dependency_overrides[get_upload_dir] = lambda: uploads
     with TestClient(app) as test_client:

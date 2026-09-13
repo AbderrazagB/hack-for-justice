@@ -23,7 +23,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
-from app.api.auth import current_officer, optional_user
+from app.api.auth import current_officer, current_user
 from app.core.rate_limit import SUBMISSION_LIMIT, enforce
 from app.core.uploads import validate_batch, validate_upload
 from app.models.submission import (
@@ -274,9 +274,13 @@ async def create_submission(
     declaration: Annotated[str | None, Form()] = None,
     store: SubmissionStore = Depends(get_store),
     upload_dir: Path = Depends(get_upload_dir),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> dict[str, Any]:
     """Accept documents, run OCR + completeness + flagging, return the verdict.
+
+    Requires an account. Filings used to be accepted from anyone, which left
+    dossiers with no owner and no way to tell whose they were; every submission
+    now belongs to the person who made it.
 
     `document_types[i]` names what `files[i]` is (see TRANSACTION_RULES
     required_documents). Types are supplied by the caller, never guessed, so the
@@ -398,7 +402,7 @@ async def create_submission(
         status=_initial_status(completeness.status).value,
         submitted_at=submitted_at,
         context={**context, "declaration": declared} if declared else context,
-        owner_id=str(user.id) if user else None,
+        owner_id=str(user.id),
     )
 
     return {
@@ -459,7 +463,7 @@ def _parse_iso_date(value: str | None) -> date | None:
 def declaration_sheet(
     submission_id: str,
     store: SubmissionStore = Depends(get_store),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> Response:
     """The applicant's preparation sheet for RNE-F-005.
 
@@ -581,28 +585,30 @@ def submission_stats(
 def get_submission(
     submission_id: str,
     store: SubmissionStore = Depends(get_store),
-    user: User | None = Depends(optional_user),
+    user: User = Depends(current_user),
 ) -> dict[str, Any]:
     """Full detail: status, extracted fields, flags, and review history.
 
-    Readable by an officer, by the applicant who filed it, or by anyone holding
-    the id of a guest filing. That last case is a capability URL: guest filings
-    have no owner to check against, and the id is a random 12-hex token. It is
-    the price of letting people check a dossier without an account -- an
-    accounts-only product would drop this branch.
+    Readable by the applicant who filed it, or by an officer. There used to be
+    a third case -- anyone holding the id of an ownerless guest filing, a
+    capability URL -- and it is gone with guest filing itself.
     """
     submission = _require(store.get(submission_id), submission_id)
     _assert_may_read(submission, user)
     return submission.to_dict()
 
 
-def _assert_may_read(submission: Submission, user: User | None) -> None:
-    """An officer, the owner, or anyone holding a guest filing's id."""
-    owner_id = submission.owner_id
-    is_owner = user is not None and str(user.id) == owner_id
-    is_officer = user is not None and user.role == UserRole.OFFICER.value
+def _assert_may_read(submission: Submission, user: User) -> None:
+    """The owner, or an officer. Nobody else, owner recorded or not.
 
-    if owner_id and not (is_owner or is_officer):
+    Submissions seeded before accounts existed carry no owner_id. They are not
+    therefore public: an absent owner now means *no applicant* may read it, and
+    only officers can, rather than everyone being treated as the owner.
+    """
+    is_officer = user.role == UserRole.OFFICER.value
+    is_owner = bool(submission.owner_id) and str(user.id) == submission.owner_id
+
+    if not (is_owner or is_officer):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ce dossier ne vous appartient pas.",
