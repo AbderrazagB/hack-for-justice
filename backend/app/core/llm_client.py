@@ -1,12 +1,14 @@
 """Provider-neutral text generation for Sahilli.
 
-Mistral is primary; Gemini is the fallback so a single provider outage cannot
+Mistral is primary; Groq is the fallback so a single provider outage cannot
 take the demo down. Both are reached over their vendor APIs -- unlike the
 retrieval stack, this layer is not self-hosted yet. See README > Local AI
 Infrastructure for why that split is deliberate and what the migration path is.
 
-Uses `google-genai`, not `google-generativeai`: the latter is end-of-life and
-warns on every import.
+The fallback speaks Groq's OpenAI-compatible chat API over plain HTTP, so it
+costs no second SDK and its model is open-weight -- the same reasoning that
+picked the OCR model, and the same reason the migration path in that README
+section is real rather than aspirational.
 """
 
 from __future__ import annotations
@@ -20,9 +22,13 @@ from app.core.retry import with_retry
 
 logger = logging.getLogger(__name__)
 
-Provider = Literal["mistral", "gemini"]
+Provider = Literal["mistral", "groq"]
 
-GEMINI_MODEL = "gemini-2.0-flash"
+# Groq speaks the OpenAI chat API, so the fallback needs an HTTP call and no
+# second SDK. The model is open-weight, which keeps the whole reasoning path
+# self-hostable in principle -- the same reason the OCR model was chosen.
+GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 # Preference order for text generation, Apache-2.0 open-weight first -- the
 # same sovereignty argument as the vision model, and verified to be what a
@@ -73,18 +79,18 @@ class LLMClient:
         self.provider = provider
 
     def generate(self, prompt: str, system: str = "") -> str:
-        if self.provider == "gemini":
-            return self._generate_gemini(prompt, system)
+        if self.provider == "groq":
+            return self._generate_groq(prompt, system)
 
         try:
             return self._generate_mistral(prompt, system)
         except Exception as exc:  # noqa: BLE001 - any Mistral failure triggers fallback
-            logger.warning("Mistral generation failed, falling back to Gemini: %s", exc)
+            logger.warning("Mistral generation failed, falling back to Groq: %s", exc)
             try:
-                return self._generate_gemini(prompt, system)
+                return self._generate_groq(prompt, system)
             except Exception as fallback_exc:
                 raise LLMError(
-                    f"Both providers failed. Mistral: {exc}. Gemini: {fallback_exc}"
+                    f"Both providers failed. Mistral: {exc}. Groq: {fallback_exc}"
                 ) from fallback_exc
 
     def _generate_mistral(self, prompt: str, system: str) -> str:
@@ -107,17 +113,28 @@ class LLMClient:
         content = response.choices[0].message.content
         return content if isinstance(content, str) else str(content)
 
-    def _generate_gemini(self, prompt: str, system: str) -> str:
-        if not settings.gemini_api_key:
-            raise ValueError("GEMINI_API_KEY is not configured")
+    def _generate_groq(self, prompt: str, system: str) -> str:
+        """The fallback, over Groq's OpenAI-compatible chat endpoint."""
+        if not settings.groq_api_key:
+            raise ValueError("GROQ_API_KEY is not configured")
 
-        from google import genai
-        from google.genai import types
+        import httpx
 
-        client = genai.Client(api_key=settings.gemini_api_key)
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(system_instruction=system or None),
-        )
-        return response.text or ""
+        messages: list[dict[str, str]] = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        def call() -> httpx.Response:
+            response = httpx.post(
+                GROQ_URL,
+                json={"model": GROQ_MODEL, "messages": messages},
+                headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+                timeout=60.0,
+            )
+            response.raise_for_status()
+            return response
+
+        response = with_retry(call, description=f"Groq chat ({GROQ_MODEL})")
+        content = response.json()["choices"][0]["message"]["content"]
+        return content if isinstance(content, str) else str(content)

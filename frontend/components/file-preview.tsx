@@ -42,7 +42,39 @@ function isImage(file: File): boolean {
   return file.type.startsWith("image/");
 }
 
-/** A small view of the attached page, opening the full one on click. */
+/** Fills its container with the page, opening the full one on click. */
+export function FilePreview({ file, label }: { file: File; label: string }) {
+  const url = useObjectUrl(file);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group size-full"
+        aria-label={`Aperçu : ${label}`}
+      >
+        {url && isImage(file) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={url} alt="" className="size-full object-cover object-top" />
+        ) : (
+          <span className="flex size-full flex-col items-center justify-center gap-1.5 text-[var(--ink-faint)]">
+            <FileText size={20} strokeWidth={1.7} aria-hidden />
+            <span className="text-[0.6875rem]">PDF · voir</span>
+          </span>
+        )}
+        <span className="sr-only">Ouvrir l&apos;aperçu</span>
+      </button>
+
+      {open && url && (
+        <FileViewer file={file} url={url} label={label} onClose={() => setOpen(false)} />
+      )}
+    </>
+  );
+}
+
+/** A small chip view, used where a page sits beside a control. */
 export function FileThumbnail({ file, label }: { file: File; label: string }) {
   const url = useObjectUrl(file);
   const [open, setOpen] = useState(false);

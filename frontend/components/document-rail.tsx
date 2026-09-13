@@ -3,14 +3,18 @@
 import { Check, Paperclip, RotateCcw, X } from "lucide-react";
 import { useRef } from "react";
 
-import { FileThumbnail } from "@/components/file-preview";
+import { FilePreview } from "@/components/file-preview";
 import { DOCUMENT_SHORT_FR } from "@/lib/status";
 import type { BilingualLabel } from "@/lib/types";
 
 /**
- * The upload checklist as a vertical rail: a connecting line with one state
- * marker per document, so how far along you are is legible without counting.
- * Structural and borderless by design — it is not a card.
+ * The upload checklist as a grid of the pages themselves.
+ *
+ * It was a vertical rail: five rows of label, filename and buttons, which read
+ * as a list of chores and showed nothing of what had been attached. Five cards
+ * show which slots are filled at a glance and what went into each -- and a
+ * folder of similarly named scans is exactly where a page ends up in the wrong
+ * slot, which is the mistake that costs a full minute of OCR to discover.
  */
 export function DocumentRail({
   documents,
@@ -22,25 +26,21 @@ export function DocumentRail({
   onAttach: (key: string, file: File | null) => void;
 }) {
   return (
-    <ol className="relative">
-      {/* The connecting line, behind the markers. */}
-      <span
-        aria-hidden
-        className="absolute top-4 bottom-4 left-[11px] w-px bg-[var(--line)]"
-      />
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {documents.map((document) => (
-        <DocumentRow
-          key={document.key}
-          document={document}
-          file={files[document.key]}
-          onAttach={(file) => onAttach(document.key, file)}
-        />
+        <li key={document.key}>
+          <DocumentCard
+            document={document}
+            file={files[document.key]}
+            onAttach={(file) => onAttach(document.key, file)}
+          />
+        </li>
       ))}
-    </ol>
+    </ul>
   );
 }
 
-function DocumentRow({
+function DocumentCard({
   document,
   file,
   onAttach,
@@ -54,32 +54,46 @@ function DocumentRow({
   const label = DOCUMENT_SHORT_FR[document.key] ?? document.label_fr;
 
   return (
-    <li className="relative flex gap-4 py-3.5 pl-0">
-      <span
-        aria-hidden
-        className={`relative z-10 mt-0.5 flex size-[23px] shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-          attached
-            ? "border-[var(--teal)] bg-[var(--teal)]"
-            : "border-[var(--line-strong)] bg-[var(--surface)]"
-        }`}
-      >
-        {attached && <Check size={12} strokeWidth={3} className="text-white" />}
-      </span>
+    <div
+      className={`flex h-full flex-col overflow-hidden rounded-[var(--r-panel)] border transition-colors ${
+        attached
+          ? "border-[var(--teal)] bg-[var(--surface)]"
+          : "border-dashed border-[var(--line-strong)] bg-[var(--canvas)]"
+      }`}
+    >
+      <div className="relative flex h-32 items-center justify-center overflow-hidden bg-[var(--canvas)]">
+        {file ? (
+          <FilePreview file={file} label={label} />
+        ) : (
+          <span className="flex flex-col items-center gap-1.5 text-[var(--ink-faint)]">
+            <Paperclip size={18} strokeWidth={1.7} aria-hidden />
+            <span className="text-[0.75rem]">Aucune pièce</span>
+          </span>
+        )}
+        {attached && (
+          <span
+            aria-hidden
+            className="absolute top-2 left-2 flex size-5 items-center justify-center rounded-full bg-[var(--teal)]"
+          >
+            <Check size={12} strokeWidth={3} className="text-white" />
+          </span>
+        )}
+      </div>
 
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0 flex-1">
+      <div className="flex flex-1 flex-col justify-between gap-2 border-t border-[var(--line)] p-3">
+        <div className="min-w-0">
           <p className="t-label text-[var(--ink)]">{label}</p>
-          <p className="ar ar-left text-[0.75rem] text-[var(--ink-faint)]">
+          <p className="ar ar-left text-[0.6875rem] text-[var(--ink-faint)]">
             {document.label_ar}
           </p>
+          {file && (
+            <p className="mt-1 truncate text-[0.6875rem] text-[var(--ink-faint)]">
+              {file.name}
+            </p>
+          )}
         </div>
 
-        {/* Preview and actions travel together on the right, so five rows read
-            as a column rather than as three ragged ones. The page itself, not
-            just its filename: a folder of similar scans is exactly where one
-            ends up in the wrong slot. */}
-        <div className="flex shrink-0 items-center gap-2">
-          {file && <FileThumbnail file={file} label={label} />}
+        <div className="flex items-center gap-1">
           <input
             ref={input}
             type="file"
@@ -91,16 +105,16 @@ function DocumentRow({
           <button
             type="button"
             onClick={() => input.current?.click()}
-            className="inline-flex items-center gap-1.5 rounded-[var(--r-control)] border border-[var(--line-strong)] px-2.5 py-1.5 text-[0.8125rem] font-medium text-[var(--ink)] transition-colors hover:border-[var(--ink-faint)] hover:bg-[var(--canvas)]"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-[var(--r-control)] border border-[var(--line-strong)] px-2 py-1.5 text-[0.75rem] font-medium text-[var(--ink)] transition-colors hover:border-[var(--teal)] hover:bg-[var(--surface)]"
           >
             {attached ? (
               <>
-                <RotateCcw size={13} strokeWidth={2} aria-hidden />
+                <RotateCcw size={12} strokeWidth={2} aria-hidden />
                 Remplacer
               </>
             ) : (
               <>
-                <Paperclip size={13} strokeWidth={2} aria-hidden />
+                <Paperclip size={12} strokeWidth={2} aria-hidden />
                 Joindre
               </>
             )}
@@ -115,11 +129,11 @@ function DocumentRow({
               aria-label={`Retirer : ${label}`}
               className="rounded-[var(--r-control)] p-1.5 text-[var(--ink-faint)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--st-rejected-ink)]"
             >
-              <X size={14} strokeWidth={2} aria-hidden />
+              <X size={13} strokeWidth={2} aria-hidden />
             </button>
           )}
         </div>
       </div>
-    </li>
+    </div>
   );
 }

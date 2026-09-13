@@ -46,7 +46,7 @@ decision.
 | `app/services/retrieval_service.py` | Embed + search the curated RNE corpus |
 | `app/core/vector_store.py` | Qdrant wrapper (external container) |
 | `app/services/embedding_service.py` | HTTP client for the external BGE-M3 container |
-| `app/core/llm_client.py` | Mistral primary, Gemini fallback |
+| `app/core/llm_client.py` | Mistral primary, Groq fallback |
 | `app/models/submission.py` | Submission model + JSON-backed store |
 
 ## Data Flow

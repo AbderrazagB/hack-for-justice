@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     """
 
     mistral_api_key: str = Field(default="", validation_alias="MISTRAL_API_KEY")
-    gemini_api_key: str = Field(default="", validation_alias="GEMINI_API_KEY")
+    groq_api_key: str = Field(default="", validation_alias="GROQ_API_KEY")
 
     # Self-hosted Qdrant. Blank falls back to an in-memory store so the app still
     # boots for tests without the container running.

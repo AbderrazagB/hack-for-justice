@@ -90,7 +90,7 @@ the first version got it wrong.
   API, with a local Tesseract fallback
 - **Highlight locator:** Tesseract where its binary exists, otherwise
   `rapidocr-onnxruntime` — no system dependency required
-- **LLM reasoning:** Mistral with a Google Gemini fallback
+- **LLM reasoning:** Mistral, with an open-weight Groq model as fallback
 
 ## Infrastructure
 

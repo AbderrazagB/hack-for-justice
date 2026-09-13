@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 
 import { Logo } from "@/components/logo";
 import { ActionButton } from "@/components/action-button";
+import { DocumentGrid } from "@/components/document-grid";
 import { OfficerBrief } from "@/components/officer-brief";
 import { StatusTracker } from "@/components/status-tracker";
 import {
@@ -186,48 +187,22 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
             Pièces du dossier
           </SectionHeading>
 
-          <div className="flex flex-wrap gap-1.5">
-            {documentKeys.map((key) => {
-              const active = selected === key;
-              const flagCount = submission.flags.filter((f) =>
-                f.documents.some((d) => d.key === key),
-              ).length;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setSelected(key)}
-                  aria-pressed={active}
-                  className={`inline-flex items-center gap-1.5 rounded-[var(--r-control)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors ${
-                    active
-                      ? "bg-[var(--navy)] text-white"
-                      : "border border-[var(--line)] text-[var(--ink-muted)] hover:border-[var(--line-strong)] hover:text-[var(--ink)]"
-                  }`}
-                >
-                  {DOCUMENT_SHORT_FR[key] ?? key}
-                  {flagCount > 0 && (
-                    /* The count, not a dot: it says how much is wrong with
-                       this piece, which is what the officer is deciding
-                       where to look next on. */
-                    <span
-                      aria-label={`${flagCount} anomalie${flagCount > 1 ? "s" : ""}`}
-                      className="ml-0.5 inline-flex min-w-[1.125rem] items-center justify-center rounded-full px-1 text-[0.6875rem] font-semibold tabular-nums"
-                      style={
-                        active
-                          ? { background: "rgba(255,255,255,0.2)", color: "#fff" }
-                          : {
-                              background: "var(--st-correction-wash)",
-                              color: "var(--st-correction-ink)",
-                            }
-                      }
-                    >
-                      {flagCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {/* A grid of pages, not a row of labels: the officer picks the
+              document they mean by looking at it. */}
+          <DocumentGrid
+            submissionId={submission.id}
+            documentKeys={documentKeys}
+            flagCounts={Object.fromEntries(
+              documentKeys.map((key) => [
+                key,
+                submission.flags.filter((flag) =>
+                  flag.documents.some((d) => d.key === key),
+                ).length,
+              ]),
+            )}
+            selected={selected}
+            onSelect={setSelected}
+          />
 
           {document ? (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
