@@ -81,6 +81,17 @@ export type Completeness = {
   missing_documents: BilingualLabel[];
   present_documents: string[];
   checks: CheckResult[];
+  /** The legal clock, when the transaction has one. */
+  deadline: {
+    date: string;
+    article: string;
+    days_remaining: number;
+    days_overdue: number | null;
+    penalty_months: number | null;
+    penalty_per_month_tnd: number;
+    penalty_estimate_tnd: number;
+    outcome: CheckOutcome;
+  } | null;
   /** Declared checks this filing did not run, and why. */
   skipped_checks: {
     name: string;

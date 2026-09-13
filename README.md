@@ -32,6 +32,11 @@ page with the disputed value outlined on it. A grounded assistant floats over
 the whole app and cites the RNE text behind every answer. Then the dossier can
 be transmitted to the registry and followed from **Mes dossiers**.
 
+The verdict also puts the legal clock in days and in dinars — *"Échéance
+dépassée de 56 jours · date limite 19 juillet 2026 (loi 52-2018, art. 26) ·
+pénalité estimée 50 DT"* — because "dépôt hors délai" is accurate and abstract,
+and the rules engine already knew all three numbers.
+
 **For the RNE officer.** A queue filterable by status and procedure, with live
 figures. Opening a dossier gives a **synthèse** first — what blocks, what is
 missing, which documents those sit in, how long it has waited — then the

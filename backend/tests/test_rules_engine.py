@@ -675,3 +675,35 @@ def test_the_type_check_ignores_what_the_extractor_was_told_to_expect() -> None:
     result = check_completeness(submission, today=TODAY)
     check = next(c for c in result.checks if c.name == "documents_match_their_type")
     assert check.outcome is CheckOutcome.FAIL
+
+
+# ------------------------------------------------------------ the legal clock
+
+def test_the_deadline_is_reported_in_days_and_dinars() -> None:
+    """"Dépôt hors délai" is accurate and abstract; this is what people act on."""
+    submission = _submission(submitted_at="2026-09-30")
+    payload = check_completeness(submission, today=date(2026, 9, 30)).to_dict()
+
+    deadline = payload["deadline"]
+    assert deadline["article"] == "loi 52-2018, art. 26"
+    assert deadline["days_overdue"] > 0
+    assert deadline["penalty_per_month_tnd"] == 25
+    assert deadline["penalty_estimate_tnd"] == deadline["penalty_months"] * 25
+
+
+def test_a_filing_in_time_reports_the_days_left_and_no_penalty() -> None:
+    submission = _submission(submitted_at="2026-07-01")
+    deadline = check_completeness(submission, today=date(2026, 7, 1)).to_dict()["deadline"]
+
+    assert deadline["days_remaining"] > 0
+    assert deadline["days_overdue"] is None
+    assert deadline["penalty_estimate_tnd"] == 0
+
+
+def test_an_individual_filer_gets_the_individual_rate() -> None:
+    """25 DT for a legal entity, 10 for a natural person — article 51's half-fee."""
+    submission = _submission(submitted_at="2026-09-30")
+    submission["company_type"] = "PERSONNE_PHYSIQUE"
+    deadline = check_completeness(submission, today=date(2026, 9, 30)).to_dict()["deadline"]
+
+    assert deadline["penalty_per_month_tnd"] == 10

@@ -13,6 +13,7 @@ import { useState } from "react";
 
 import BlurText from "@/components/BlurText";
 import { useReducedMotion } from "@/components/motion";
+import { DeadlinePanel } from "@/components/deadline-panel";
 import { EvidenceViewer } from "@/components/evidence-viewer";
 import { FloatingPanel, SeverityTag } from "@/components/ui";
 import { preparationSheetUrl } from "@/lib/api";
@@ -190,6 +191,8 @@ export function VerdictPanel({ result }: { result: SubmissionResult }) {
           tell what it actually looked at -- and a PASS is the part that says
           the check ran and found nothing, which is different from not having
           been checked. */}
+      <DeadlinePanel result={result} />
+
       {/* A check we did not run is named, not omitted. Leaving it out reads
           as a check that passed -- the applicant who skipped the declaration
           screens was being told nothing at all about them. */}

@@ -286,6 +286,8 @@ class CompletenessResult:
     checks: list[CheckResult] = field(default_factory=list)
     # Declared checks this filing did not run, and why.
     skipped: list[str] = field(default_factory=list)
+    # The legal clock, when this transaction has one.
+    deadline: dict[str, Any] | None = None
 
     @property
     def failed_checks(self) -> list[CheckResult]:
@@ -312,6 +314,7 @@ class CompletenessResult:
                 for key in self.missing_documents
             ],
             "present_documents": self.present_documents,
+            "deadline": self.deadline,
             "checks": [check.to_dict() for check in self.checks],
             # Named, not omitted: a check that simply is not there reads as a
             # check that passed.
@@ -389,7 +392,53 @@ def check_completeness(
         present_documents=present,
         checks=checks,
         skipped=skipped,
+        deadline=_deadline_summary(checks, submission, today),
     )
+
+
+# The checks that carry a legal clock, and the article each one rests on.
+DEADLINE_CHECKS: dict[str, str] = {
+    "filed_within_legal_deadline_of_decision_date": "loi 52-2018, art. 26",
+    "filed_within_7_months_of_fiscal_year_close": "loi 52-2018, art. 32",
+}
+
+
+def _deadline_summary(
+    checks: list[CheckResult], submission: dict[str, Any], today: date
+) -> dict[str, Any] | None:
+    """The legal clock, lifted out of whichever deadline check ran.
+
+    A verdict that says "dépôt hors délai" is accurate and abstract. What an
+    applicant needs is the date, the days left or lost, and what the delay
+    costs -- which the rules engine already knows and was keeping to itself.
+
+    The penalty is an estimate and labelled as one: article 51 sets it as half
+    the fee due for the operation per month or part of a month, and the fee
+    depends on the operation.
+    """
+    for check in checks:
+        article = DEADLINE_CHECKS.get(check.name)
+        if not article or not check.evidence.get("deadline"):
+            continue
+
+        try:
+            deadline = date.fromisoformat(str(check.evidence["deadline"]))
+        except ValueError:
+            return None
+
+        rate = penalty_per_month(submission)
+        months = check.evidence.get("penalty_months")
+        return {
+            "date": deadline.isoformat(),
+            "article": article,
+            "days_remaining": (deadline - today).days,
+            "days_overdue": check.evidence.get("days_overdue"),
+            "penalty_months": months,
+            "penalty_per_month_tnd": rate,
+            "penalty_estimate_tnd": months * rate if months else 0,
+            "outcome": check.outcome.value,
+        }
+    return None
 
 
 # ---------------------------------------------------------------------------
