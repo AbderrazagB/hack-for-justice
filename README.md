@@ -427,9 +427,11 @@ flags it was built to raise.
 
 Honest about what is not done.
 
-- **`JWT_SECRET` is the repository default.** Anyone who has read this repo
-  could mint a valid session. The backend logs a warning at startup while it is
-  in use. Set it before exposing Sahilli beyond localhost.
+- **`JWT_SECRET` on an existing checkout.** `./scripts/setup.sh` now generates
+  a unique one into `.env` when the shipped default is still there, so a fresh
+  clone is fine. A checkout made before that change still carries the default,
+  which anyone who has read this repo could use to mint a session — the backend
+  logs a warning at startup while it is in use. Replace it, or re-run setup.
 - **Two workflows of the RNE's many.** The rules engine is table-driven
   (`TRANSACTION_RULES`), so a third is a table entry plus its checks, but it is
   still two.

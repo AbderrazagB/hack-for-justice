@@ -9,5 +9,25 @@ echo "Syncing backend Python dependencies with uv..."
 echo "Installing frontend Node.js dependencies with npm..."
 (cd "$PROJECT_DIR/frontend" && npm install)
 
+# The shipped JWT_SECRET is in the repository, so anyone who has read it could
+# mint a valid session. A fresh clone gets its own before it ever serves a
+# request; an operator who set their own is left alone.
+DEFAULT_SECRET="sahilli-local-development-secret-do-not-use-in-production"
+ENV_FILE="$PROJECT_DIR/.env"
+
+if [ -f "$ENV_FILE" ] && grep -q "^JWT_SECRET=$DEFAULT_SECRET$" "$ENV_FILE"; then
+  SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+  # A literal replacement, so a secret containing / or & cannot break sed.
+  python3 - "$ENV_FILE" "$DEFAULT_SECRET" "$SECRET" <<'PYEOF'
+import sys
+path, old, new = sys.argv[1:4]
+with open(path, encoding="utf-8") as handle:
+    text = handle.read()
+with open(path, "w", encoding="utf-8") as handle:
+    handle.write(text.replace(f"JWT_SECRET={old}", f"JWT_SECRET={new}", 1))
+PYEOF
+  echo "Generated a unique JWT_SECRET in .env (the shipped default was still in place)."
+fi
+
 echo "Setup complete."
 
