@@ -24,6 +24,9 @@ DEFAULT_STORE_PATH = PROJECT_ROOT / "data" / "processed" / "submissions.json"
 DEFAULT_UPLOAD_DIR = PROJECT_ROOT / "data" / "raw"
 
 
+from app.core.audit import GENESIS, link_hash
+
+
 class SubmissionStatus(str, Enum):
     """The tracker the MSME sees, in order."""
 
@@ -56,6 +59,20 @@ TERMINAL_STATUSES = {
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _head_hash(data: dict[str, dict[str, Any]]) -> str:
+    """The most recent decision hash across every stored submission."""
+    entries = [
+        {**review, "submission_id": submission_id}
+        for submission_id, raw in data.items()
+        for review in raw.get("reviews") or []
+    ]
+    entries.sort(key=lambda entry: (str(entry.get("at") or ""), entry["submission_id"]))
+    for entry in reversed(entries):
+        if entry.get("hash"):
+            return str(entry["hash"])
+    return GENESIS
 
 
 @dataclass
@@ -275,7 +292,19 @@ class SubmissionStore:
             raw = data.get(submission_id)
             if raw is None:
                 return None
-            raw["reviews"].append(event.to_dict())
+
+            # Chain this decision to the last one recorded anywhere, so an
+            # edit to any stored decision -- including deleting one -- stops
+            # every later hash from matching. Computed inside the lock, from
+            # the data just read, so two concurrent reviews cannot both link
+            # to the same predecessor.
+            entry = event.to_dict()
+            entry["submission_id"] = submission_id
+            previous = _head_hash(data)
+            entry["previous_hash"] = previous
+            entry["hash"] = link_hash(previous, entry)
+
+            raw["reviews"].append(entry)
             raw["status"] = new_status.value
             raw["updated_at"] = event.at
             data[submission_id] = raw

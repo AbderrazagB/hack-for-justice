@@ -385,6 +385,25 @@ Demo accounts for a local run come from `scripts/seed_accounts.py`, which
 prints the credentials it seeds. They are demo credentials in a public
 repository: fine on a laptop, not fine anywhere reachable.
 
+**A decision record that cannot be quietly rewritten.** An officer's decision
+is the part of this system with legal weight, and it lives in a file on disk
+that anyone reaching the machine can edit. Each decision therefore carries the
+hash of the one before it, chained across every dossier rather than per-dossier
+— a per-dossier chain would verify cleanly after someone deleted a whole
+dossier's history. `GET /audit/verify` recomputes it; the officer chrome shows
+the result. This does not prevent tampering and is not meant to: it makes
+tampering visible and names the decision where the record stopped being true.
+
+To see it, edit a note in `data/processed/submissions.json` and reload the
+dashboard. The badge turns red and the endpoint names the entry:
+
+```
+intact=False
+broken at position 0, dossier 21691982fe26
+officer on record: agent@rne.tn
+reason: the decision's own content does not match its hash
+```
+
 **Prompt injection.** Document text and typed answers reach LLM prompts, so
 both are fenced in an explicit untrusted block whose delimiters are neutralised
 in the content, and every system prompt carries a clause saying that block is

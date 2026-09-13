@@ -16,6 +16,7 @@ import pytest
 from PIL import Image
 
 from app.api.auth import current_user
+from app.core.audit import GENESIS, decisions_in_order
 from app.core.rate_limit import Limit, RateLimiter, limiter
 from app.core.uploads import (
     MAX_FILE_BYTES,
@@ -301,3 +302,83 @@ def test_an_ownerless_filing_is_officer_only_not_public(client, store) -> None:
     )
     app.dependency_overrides[current_user] = lambda: officer
     assert client.get(f"/submissions/{orphan}").status_code == 200
+
+
+# ------------------------------------------------ a record that cannot be edited quietly
+
+def _review(client, store, action="approve", note="") -> str:
+    submission = store.create(
+        transaction_type="RNE_MODIFICATION_ENTREPRISE",
+        documents={},
+        completeness={"status": "COMPLETE"},
+        flags=[],
+        status="SUBMITTED",
+    )
+    client.post(
+        f"/submissions/{submission.id}/review", json={"action": action, "note": note}
+    )
+    return submission.id
+
+
+def test_each_decision_is_chained_to_the_one_before_it(officer_client, store) -> None:
+    _review(officer_client, store, note="premier")
+    _review(officer_client, store, note="deuxième")
+
+    entries = decisions_in_order(store.list())
+    assert len(entries) == 2
+    assert entries[0]["previous_hash"] == GENESIS
+    assert entries[1]["previous_hash"] == entries[0]["hash"]
+    assert officer_client.get("/audit/verify").json()["intact"] is True
+
+
+def test_editing_a_stored_decision_breaks_the_chain(officer_client, store) -> None:
+    """The point of the whole thing: an edit on disk becomes visible."""
+    first = _review(officer_client, store, note="vu par l'agent")
+    _review(officer_client, store, note="deuxième")
+
+    # Tamper with the note exactly as someone with file access would.
+    raw = store._read_all()
+    raw[first]["reviews"][0]["note"] = "note réécrite après coup"
+    store._write_all(raw)
+
+    body = officer_client.get("/audit/verify").json()
+    assert body["intact"] is False
+    assert body["broken_at"]["submission_id"] == first
+
+
+def test_deleting_a_decision_breaks_the_chain(officer_client, store) -> None:
+    """A per-dossier chain would verify cleanly here. A single chain does not."""
+    first = _review(officer_client, store, note="premier")
+    _review(officer_client, store, note="deuxième")
+
+    raw = store._read_all()
+    raw[first]["reviews"] = []
+    store._write_all(raw)
+
+    assert officer_client.get("/audit/verify").json()["intact"] is False
+
+
+def test_changing_the_acting_officer_breaks_the_chain(officer_client, store) -> None:
+    first = _review(officer_client, store)
+    raw = store._read_all()
+    raw[first]["reviews"][0]["officer"] = "quelqun.dautre@rne.tn"
+    store._write_all(raw)
+
+    body = officer_client.get("/audit/verify").json()
+    assert body["intact"] is False
+    assert "does not match its hash" in body["broken_at"]["reason"]
+
+
+def test_an_empty_record_verifies(officer_client) -> None:
+    body = officer_client.get("/audit/verify").json()
+    assert body["intact"] is True
+    assert body["entries"] == 0
+
+
+def test_the_audit_trail_is_anonymous_proof(anon_client) -> None:
+    assert anon_client.get("/audit/verify").status_code == 401
+
+
+def test_the_audit_trail_is_officer_only(client) -> None:
+    """An applicant may not enumerate every officer's decisions."""
+    assert client.get("/audit/verify").status_code == 403

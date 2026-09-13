@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 
+import { AuditBadge } from "@/components/audit-badge";
 import { Logo } from "@/components/logo";
 import { currentUser, logout } from "@/lib/api";
 import type { AuthUser } from "@/lib/types";
@@ -126,7 +127,9 @@ export function AdminBar({ trailing }: { trailing?: ReactNode }) {
     <header className="on-navy sticky top-0 z-40 bg-[var(--navy)]">
       <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-8">
         <Logo size="md" tone="dark" />
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* The guarantee belongs where the decisions are made. */}
+          <AuditBadge />
           <span className="rounded-[var(--r-control)] border border-white/15 px-2.5 py-1 text-[0.75rem] font-medium text-white/75">
             Espace agent
           </span>

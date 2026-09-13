@@ -1,6 +1,7 @@
 import type {
   AuthUser,
   ExplainResponse,
+  AuditVerification,
   Brief,
   FlagEvidence,
   UploadProgress,
@@ -208,6 +209,11 @@ export async function currentUser(): Promise<AuthUser | null> {
     if (error instanceof ApiError && error.status === 401) return null;
     throw error;
   }
+}
+
+/** Recompute the decision chain. Officer-only. */
+export function verifyAuditTrail(): Promise<AuditVerification> {
+  return request<AuditVerification>("/audit/verify");
 }
 
 /** The officer's thirty-second read of a dossier. Officer-only. */

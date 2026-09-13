@@ -218,6 +218,19 @@ export type AtAGlance = {
   reviewed: boolean;
 };
 
+export type AuditVerification = {
+  intact: boolean;
+  entries: number;
+  broken_at: {
+    position: number;
+    submission_id: string;
+    at: string;
+    officer: string;
+    reason: string;
+  } | null;
+  head: string;
+};
+
 export type Brief = {
   submission_id: string;
   at_a_glance: AtAGlance;

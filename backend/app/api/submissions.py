@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 
 from app.api.auth import current_officer, current_user
 from app.core import progress
+from app.core.audit import head, verify
 from app.core.rate_limit import SUBMISSION_LIMIT, enforce
 from app.core.uploads import validate_batch, validate_upload
 from app.models.submission import (
@@ -712,6 +713,24 @@ def list_submissions(
         "count": len(submissions),
         "submissions": [s.to_summary() for s in submissions],
     }
+
+
+@router.get("/audit/verify")
+def verify_audit_trail(
+    store: SubmissionStore = Depends(get_store),
+    officer: User = Depends(current_officer),
+) -> dict[str, Any]:
+    """Recompute the decision chain and report whether it still matches.
+
+    Officer decisions are the part of this system with legal weight, and they
+    live in a file on disk that anyone reaching the machine can edit. Each one
+    carries the hash of the one before it, so this cannot prevent an edit -- it
+    makes one visible, and names the decision where the record stopped being
+    true.
+    """
+    submissions = store.list()
+    result = verify(submissions)
+    return {**result.to_dict(), "head": head(submissions)}
 
 
 @router.get("/submissions/mine")
