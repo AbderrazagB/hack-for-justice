@@ -56,6 +56,20 @@ TERMINAL_STATUSES = {
     SubmissionStatus.NEEDS_CORRECTION,
 }
 
+# Statuses an applicant may still replace pages in.
+#
+# NEEDS_CORRECTION is terminal for the *review* -- the officer is finished --
+# but it is precisely the state that asks the applicant to act, so it belongs
+# here. APPROVED and REJECTED do not: a decided dossier is a record, and
+# changing the pages under a decision would make the decision describe
+# something that no longer exists.
+CORRECTABLE_STATUSES = {
+    SubmissionStatus.SUBMITTED,
+    SubmissionStatus.PRE_VALIDATED,
+    SubmissionStatus.UNDER_INSTITUTIONAL_REVIEW,
+    SubmissionStatus.NEEDS_CORRECTION,
+}
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
@@ -307,6 +321,39 @@ class SubmissionStore:
             raw["reviews"].append(entry)
             raw["status"] = new_status.value
             raw["updated_at"] = event.at
+            data[submission_id] = raw
+            self._write_all(data)
+        return Submission.from_dict(raw)
+
+    def replace_documents(
+        self,
+        submission_id: str,
+        documents: dict[str, Any],
+        completeness: dict[str, Any],
+        flags: list[dict[str, Any]],
+        status: str,
+        context: dict[str, Any] | None = None,
+    ) -> Submission | None:
+        """Swap in corrected pages and the verdict they produce.
+
+        Merges rather than replaces the document set: an applicant correcting
+        one page is not withdrawing the other four. The review history is left
+        alone -- a decision that was made was made, and erasing it because the
+        applicant answered it would be rewriting the record.
+        """
+        with self._lock:
+            data = self._read_all()
+            raw = data.get(submission_id)
+            if raw is None:
+                return None
+
+            raw["documents"] = {**raw.get("documents", {}), **documents}
+            raw["completeness"] = completeness
+            raw["flags"] = flags
+            raw["status"] = status
+            if context is not None:
+                raw["context"] = context
+            raw["updated_at"] = _now()
             data[submission_id] = raw
             self._write_all(data)
         return Submission.from_dict(raw)

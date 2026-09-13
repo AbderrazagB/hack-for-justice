@@ -29,8 +29,12 @@ in about a minute. The verdict lists every rule that ran — passed, failed, or
 *not verifiable* — and every rule that did **not** run, with the reason. Any
 finding that concerns a document offers **"Voir sur la pièce"**, which opens the
 page with the disputed value outlined on it. A grounded assistant floats over
-the whole app and cites the RNE text behind every answer. Then the dossier can
-be transmitted to the registry and followed from **Mes dossiers**.
+the whole app and cites the RNE text behind every answer. Then the dossier can be transmitted to the registry and followed from **Mes
+dossiers** — where it can also be reopened and *corrected in place*: replace
+the page a finding names and the dossier is rechecked, keeping the id the
+registry was given and the decisions attached to it. A dossier already approved
+or rejected cannot be changed, because altering pages under a decision would
+make that decision describe something that no longer exists.
 
 The verdict also puts the legal clock in days and in dinars — *"Échéance
 dépassée de 56 jours · date limite 19 juillet 2026 (loi 52-2018, art. 26) ·

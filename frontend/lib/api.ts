@@ -229,6 +229,36 @@ export function mySubmissions(): Promise<{
   return request("/submissions/mine");
 }
 
+/**
+ * Replace pages on an existing dossier and re-run the checks.
+ *
+ * Corrected pages are merged into the dossier rather than replacing it, so the
+ * id the registry was given survives the correction.
+ */
+export function correctSubmission(
+  submissionId: string,
+  documents: { documentType: string; file: File }[],
+  declaration?: Record<string, string>,
+): Promise<SubmissionResult & { replaced: string[] }> {
+  const form = new FormData();
+  for (const { documentType, file } of documents) {
+    form.append("files", file);
+    form.append("document_types", documentType);
+  }
+  if (declaration) {
+    const declared = Object.fromEntries(
+      Object.entries(declaration).filter(([, value]) => value.trim() !== ""),
+    );
+    if (Object.keys(declared).length > 0) {
+      form.append("declaration", JSON.stringify(declared));
+    }
+  }
+  return request<SubmissionResult & { replaced: string[] }>(
+    `/submissions/${submissionId}/documents`,
+    { method: "POST", body: form },
+  );
+}
+
 /** Hand a dossier to the registry for institutional review. */
 export function submitForReview(
   submissionId: string,

@@ -31,6 +31,7 @@ from app.core.rate_limit import SUBMISSION_LIMIT, enforce
 from app.core.storage import DocumentStorage, build_storage, object_key
 from app.core.uploads import sniff_type, validate_batch, validate_upload
 from app.models.submission import (
+    CORRECTABLE_STATUSES,
     DEFAULT_UPLOAD_DIR,
     TERMINAL_STATUSES,
     ReviewAction,
@@ -380,26 +381,7 @@ async def create_submission(
     if ago_not_held:
         context["ago_not_held"] = True
 
-    declared: dict[str, Any] = {}
-    if declaration:
-        try:
-            parsed = json.loads(declaration)
-        except json.JSONDecodeError:
-            raise HTTPException(
-                status_code=400, detail="Déclaration illisible."
-            ) from None
-        if not isinstance(parsed, dict):
-            raise HTTPException(
-                status_code=400, detail="Déclaration invalide."
-            )
-        # Keep only the form's own fields, trimmed and length-capped: this goes
-        # into a stored document and a generated PDF.
-        known = {spec.name for spec in DECLARATION_FIELDS}
-        declared = {
-            key: str(value).strip()[:200]
-            for key, value in parsed.items()
-            if key in known and value not in (None, "")
-        }
+    declared = _parse_declaration(declaration)
 
     submission_payload = {
         "transaction_type": transaction_type,
@@ -467,6 +449,31 @@ def get_storage(upload_dir: Path) -> DocumentStorage:
     `get_upload_dir` at a tmp directory, which gives them their own entry.
     """
     return build_storage(upload_dir)
+
+
+def _parse_declaration(declaration: str | None) -> dict[str, Any]:
+    """The RNE-F-005 answers off a multipart field.
+
+    Shared by intake and correction so both apply the same rules: only the
+    form's own fields, trimmed, length-capped -- this ends up in a stored
+    document and a generated PDF.
+    """
+    if not declaration:
+        return {}
+
+    try:
+        parsed = json.loads(declaration)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Déclaration illisible.") from None
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=400, detail="Déclaration invalide.")
+
+    known = {spec.name for spec in DECLARATION_FIELDS}
+    return {
+        key: str(value).strip()[:200]
+        for key, value in parsed.items()
+        if key in known and value not in (None, "")
+    }
 
 
 def _persist(
@@ -763,6 +770,127 @@ def my_submissions(
     return {
         "count": len(mine),
         "submissions": [submission.to_summary() for submission in mine],
+    }
+
+
+@router.post("/submissions/{submission_id}/documents")
+async def replace_documents(
+    submission_id: str,
+    request: Request,
+    files: Annotated[list[UploadFile], File()] = [],
+    document_types: Annotated[list[str], Form()] = [],
+    declaration: Annotated[str | None, Form()] = None,
+    store: SubmissionStore = Depends(get_store),
+    upload_dir: Path = Depends(get_upload_dir),
+    user: User = Depends(current_user),
+) -> dict[str, Any]:
+    """Replace pages on an existing dossier and re-run the checks.
+
+    An applicant told to fix one document had no way to fix it: the dossier
+    existed, the finding named the page, and the only route back was filing the
+    whole thing again as a new dossier -- losing the id the registry had been
+    given and the history attached to it.
+
+    Corrected pages are merged into the existing set, so replacing one does not
+    withdraw the other four, and the verdict is recomputed over the whole
+    dossier. The status returns to what a fresh check would give it, which
+    means a corrected dossier has to be transmitted again -- an officer should
+    not find pages changing underneath a decision they are in the middle of.
+    """
+    submission = _require(store.get(submission_id), submission_id)
+
+    if submission.owner_id != str(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ce dossier ne vous appartient pas.",
+        )
+
+    if submission.status not in {s.value for s in CORRECTABLE_STATUSES}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Ce dossier a été tranché par un agent et ne peut plus être "
+                "modifié. Déposez un nouveau dossier."
+            ),
+        )
+
+    enforce(request, "submission", SUBMISSION_LIMIT)
+
+    files = files or []
+    document_types = document_types or []
+    if len(files) != len(document_types):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{len(files)} file(s) but {len(document_types)} document type(s).",
+        )
+
+    rules = TRANSACTION_RULES[submission.transaction_type]
+    allowed = set(rules["required_documents"])
+    unknown = sorted({d for d in document_types if d not in allowed})
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown document type(s) for this transaction: {', '.join(unknown)}",
+        )
+
+    ocr = OCRService()
+    storage = get_storage(upload_dir)
+    replaced: dict[str, Any] = {}
+    total_bytes = 0
+
+    for upload, doc_type in zip(files, document_types):
+        content = await upload.read()
+        detected_type = validate_upload(content, upload.filename or doc_type)
+        total_bytes += len(content)
+        validate_batch(len(files), total_bytes)
+
+        stored_name = _persist(
+            content, upload.filename or doc_type, doc_type, storage, detected_type
+        )
+        result = await run_in_threadpool(
+            ocr.extract, content, upload.filename or "", doc_type
+        )
+        replaced[doc_type] = {
+            "filename": Path(upload.filename or doc_type).name,
+            "stored_path": stored_name,
+            "content_type": detected_type,
+            "size_bytes": len(content),
+            **result.to_dict(),
+        }
+
+    documents = {**submission.documents, **replaced}
+    context = dict(submission.context or {})
+    if declaration is not None:
+        context["declaration"] = _parse_declaration(declaration)
+
+    payload = {
+        "transaction_type": submission.transaction_type,
+        "documents": documents,
+        "submitted_at": submission.submitted_at,
+        "declaration": context.get("declaration") or {},
+        **{k: v for k, v in context.items() if k != "declaration"},
+    }
+    completeness = check_completeness(
+        payload, today=_parse_iso_date(submission.submitted_at)
+    )
+    flags = flags_from_result(completeness)
+
+    updated = store.replace_documents(
+        submission_id,
+        replaced,
+        completeness.to_dict(),
+        [flag.to_dict() for flag in flags],
+        _initial_status(completeness.status).value,
+        context,
+    )
+
+    return {
+        "submission_id": submission_id,
+        "status": updated.status if updated else submission.status,
+        "completeness": completeness.to_dict(),
+        "flags": [flag.to_dict() for flag in flags],
+        "flag_summary": flag_summary(flags),
+        "replaced": sorted(replaced),
     }
 
 

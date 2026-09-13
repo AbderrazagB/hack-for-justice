@@ -100,7 +100,12 @@ export function MyDossiers() {
                 : null;
               return (
                 <li key={submission.id}>
-                  <div className="rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-4 sm:p-5">
+                  {/* The row is the way in. A dossier you cannot reopen is a
+                      dossier you filed once, not one you own. */}
+                  <Link
+                    href={`/msme/dossiers/${submission.id}`}
+                    className="block rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--teal)] sm:p-5"
+                  >
                     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
                       <div className="min-w-0">
                         <p className="text-[0.9375rem] font-medium text-[var(--navy)]">
@@ -133,7 +138,11 @@ export function MyDossiers() {
                           }.`}
                       {completeness ? ` ${completeness.fr}.` : ""}
                     </p>
-                  </div>
+                    <p className="mt-2 inline-flex items-center gap-1 text-[0.75rem] font-medium text-[var(--teal-ink)]">
+                      Ouvrir et corriger
+                      <ArrowRight size={13} strokeWidth={2} aria-hidden />
+                    </p>
+                  </Link>
                 </li>
               );
             })}

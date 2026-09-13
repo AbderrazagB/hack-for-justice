@@ -261,3 +261,151 @@ def test_the_brief_is_told_to_stay_inside_this_procedure(officer_client, png) ->
     officer_client.get(f"/submissions/{submission_id}/brief")
 
     assert "Describe ONLY that procedure" in llm.calls[0]["system"]
+
+
+# ------------------------------------------------- correcting an existing dossier
+
+def _png() -> bytes:
+    from io import BytesIO
+
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (60, 30), "white").save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def test_a_corrected_page_joins_the_dossier_it_belongs_to(client, png) -> None:
+    """The id the registry was given has to survive the correction.
+
+    Filing again as a new dossier loses it, and the decisions attached to it.
+    """
+    submission_id = _create(client, png)
+    before = client.get(f"/submissions/{submission_id}").json()
+
+    with patch.object(OCRService, "extract", _fake_extract):
+        response = client.post(
+            f"/submissions/{submission_id}/documents",
+            files=[("files", ("fixed.png", _png(), "image/png"))],
+            data={"document_types": ["general_assembly_pv"]},
+        )
+    assert response.status_code == 200
+    assert response.json()["replaced"] == ["general_assembly_pv"]
+
+    after = client.get(f"/submissions/{submission_id}").json()
+    assert after["id"] == before["id"]
+    # The replaced page is new; the one not replaced is untouched.
+    assert after["documents"]["general_assembly_pv"]["filename"] == "fixed.png"
+    assert (
+        after["documents"]["id_new_representative"]["stored_path"]
+        == before["documents"]["id_new_representative"]["stored_path"]
+    )
+
+
+def test_correcting_re_runs_the_checks(client, png) -> None:
+    submission_id = _create(client, png)
+    assert client.get(f"/submissions/{submission_id}").json()["flags"]
+
+    def clean(self, content, filename="", document_type="general", force_local=False):
+        return OCRResult(
+            document_type=document_type,
+            fields={"id_number": "12345678", "person_name": "Amine Ben Salah"},
+            full_text=document_text(document_type),
+            engine="test",
+        )
+
+    with patch.object(OCRService, "extract", clean):
+        client.post(
+            f"/submissions/{submission_id}/documents",
+            files=[("files", ("fixed.png", _png(), "image/png"))],
+            data={"document_types": ["general_assembly_pv"]},
+        )
+
+    after = client.get(f"/submissions/{submission_id}").json()
+    codes = {flag["code"] for flag in after["flags"]}
+    assert "id_number_matches_across_documents" not in codes
+
+
+def test_a_decided_dossier_cannot_have_its_pages_changed(officer_client, png) -> None:
+    """Changing pages under a decision would make the decision describe
+    something that no longer exists."""
+    submission_id = _create(officer_client, png)
+    officer_client.post(
+        f"/submissions/{submission_id}/review", json={"action": "approve"}
+    )
+
+    with patch.object(OCRService, "extract", _fake_extract):
+        response = officer_client.post(
+            f"/submissions/{submission_id}/documents",
+            files=[("files", ("fixed.png", _png(), "image/png"))],
+            data={"document_types": ["general_assembly_pv"]},
+        )
+    assert response.status_code == 409
+
+
+def test_a_dossier_sent_back_for_correction_can_be_corrected(officer_client, png) -> None:
+    """NEEDS_CORRECTION is terminal for the review and is exactly the state
+    that asks the applicant to act."""
+    submission_id = _create(officer_client, png)
+    officer_client.post(
+        f"/submissions/{submission_id}/review",
+        json={"action": "request_correction", "note": "Remplacez le PV"},
+    )
+
+    with patch.object(OCRService, "extract", _fake_extract):
+        response = officer_client.post(
+            f"/submissions/{submission_id}/documents",
+            files=[("files", ("fixed.png", _png(), "image/png"))],
+            data={"document_types": ["general_assembly_pv"]},
+        )
+    assert response.status_code == 200
+
+
+def test_correcting_someone_elses_dossier_is_403(client, png) -> None:
+    submission_id = _create(client, png)
+    stranger = User(
+        id=uuid.uuid4(),
+        email="stranger2@example.tn",
+        password_hash="x",
+        full_name="Stranger",
+        role=UserRole.APPLICANT.value,
+    )
+    app.dependency_overrides[current_user] = lambda: stranger
+
+    response = client.post(
+        f"/submissions/{submission_id}/documents",
+        files=[("files", ("fixed.png", _png(), "image/png"))],
+        data={"document_types": ["general_assembly_pv"]},
+    )
+    assert response.status_code == 403
+
+
+def test_a_correction_cannot_smuggle_in_a_foreign_document_type(client, png) -> None:
+    submission_id = _create(client, png)
+    response = client.post(
+        f"/submissions/{submission_id}/documents",
+        files=[("files", ("x.png", _png(), "image/png"))],
+        data={"document_types": ["auditor_report"]},
+    )
+    assert response.status_code == 400
+
+
+def test_the_review_history_survives_a_correction(officer_client, png) -> None:
+    """A decision that was made was made. Erasing it because the applicant
+    answered it would be rewriting the record."""
+    submission_id = _create(officer_client, png)
+    officer_client.post(
+        f"/submissions/{submission_id}/review",
+        json={"action": "request_correction", "note": "Remplacez le PV"},
+    )
+
+    with patch.object(OCRService, "extract", _fake_extract):
+        officer_client.post(
+            f"/submissions/{submission_id}/documents",
+            files=[("files", ("fixed.png", _png(), "image/png"))],
+            data={"document_types": ["general_assembly_pv"]},
+        )
+
+    reviews = officer_client.get(f"/submissions/{submission_id}").json()["reviews"]
+    assert len(reviews) == 1
+    assert reviews[0]["note"] == "Remplacez le PV"
