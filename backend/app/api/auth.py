@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -18,6 +20,7 @@ from app.core.security import (
     create_session_token,
     decode_session_token,
 )
+from app.models.revoked_token import is_revoked, revoke
 from app.models.user import User, UserRole
 from app.services.user_service import (
     EmailAlreadyRegistered,
@@ -122,6 +125,15 @@ async def current_user(
             detail=str(exc),
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
+
+    # A token that was signed out is refused for the rest of its life, not
+    # merely removed from the browser that held it.
+    if await is_revoked(session, str(payload.get("jti") or "")):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session terminée.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     user = await get_by_id(session, payload.get("sub", ""))
     if user is None:
@@ -237,12 +249,36 @@ async def me(user: Annotated[User, Depends(current_user)]) -> UserResponse:
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-def logout(response: Response) -> dict[str, Any]:
-    """Clear the session cookie.
+async def logout(
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """End the session, on this device and for this token.
 
-    Deliberately does not require a valid session: signing out must work even
-    when the token is already expired or malformed.
+    Clearing the cookie removes the token from the browser and nothing else: a
+    copy captured beforehand stays valid until it expires, which made "sign
+    out" quietly mean "sign out here". The token's id is recorded so every
+    later request carrying it is refused.
+
+    Still does not require a valid session -- signing out must work when the
+    token is already expired or malformed -- it simply has nothing to revoke
+    in that case.
     """
+    token = request.cookies.get(SESSION_COOKIE)
+    if token:
+        try:
+            claims = decode_session_token(token)
+        except TokenError:
+            claims = {}
+        jti = str(claims.get("jti") or "")
+        expires = claims.get("exp")
+        if jti and expires:
+            with contextlib.suppress(Exception):
+                await revoke(
+                    session, jti, datetime.fromtimestamp(int(expires), tz=UTC)
+                )
+
     response.delete_cookie(
         key=SESSION_COOKIE,
         path="/",

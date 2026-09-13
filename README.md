@@ -436,7 +436,10 @@ renamed `.png` is refused. Document types must belong to the transaction being
 filed.
 
 **Credentials.** Argon2id hashes, JWT sessions in an httpOnly SameSite=lax
-cookie, algorithm pinned on decode. Login is rate limited to 10 attempts per 5
+cookie, algorithm pinned on decode. Signing out revokes the token rather than
+only clearing the cookie: a copy captured beforehand is refused for the rest of
+its life. The denylist is per token id, so signing out of one device does not
+sign you out of the others. Login is rate limited to 10 attempts per 5
 minutes per client, signup to 5 per hour, submissions to 20 per hour, the
 assistant to 30 per 10 minutes.
 

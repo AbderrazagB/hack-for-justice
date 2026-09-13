@@ -65,7 +65,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def init_models() -> None:
     """Create tables that do not exist yet. See the module docstring on Alembic."""
-    from app.models import user  # noqa: F401 - registers the table on Base
+    from app.models import revoked_token, user  # noqa: F401 - registers the tables
 
     async with get_engine().begin() as connection:
         await connection.run_sync(Base.metadata.create_all)

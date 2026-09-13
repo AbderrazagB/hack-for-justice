@@ -308,3 +308,57 @@ async def test_officer_accounts_are_created_out_of_band(db_sessionmaker) -> None
             role=UserRole.OFFICER,
         )
     assert officer.role == "officer"
+
+
+# ------------------------------------------- signing out ends the token, not just the cookie
+
+def test_a_signed_out_token_is_refused_afterwards(auth_client) -> None:
+    """Clearing the cookie removes the token from the browser and nothing else.
+
+    A copy captured beforehand -- a shared machine, a proxy log, a screenshot of
+    devtools -- stayed valid until it expired, which made "se déconnecter" mean
+    "sign out here".
+    """
+    _signup(auth_client)
+    token = auth_client.cookies.get(SESSION_COOKIE)
+    assert token
+
+    assert auth_client.get("/auth/me").status_code == 200
+    auth_client.post("/auth/logout")
+
+    # Replay the captured token, as someone holding a copy would.
+    replayed = auth_client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert replayed.status_code == 401
+
+
+def test_signing_out_one_session_leaves_the_others_alone(auth_client) -> None:
+    """A denylist on the token id, not a version stamp on the account."""
+    email = _unique_email()
+    _signup(auth_client, email=email)
+    first = auth_client.cookies.get(SESSION_COOKIE)
+
+    login = auth_client.post(
+        "/auth/login", json={"email": email, "password": VALID_PASSWORD}
+    )
+    second = login.cookies.get(SESSION_COOKIE)
+    assert first and second and first != second
+
+    auth_client.cookies.set(SESSION_COOKIE, first)
+    auth_client.post("/auth/logout")
+    # current_user prefers the cookie, so clear the jar and present each token
+    # explicitly -- otherwise both assertions would be about the same token.
+    auth_client.cookies.clear()
+
+    assert (
+        auth_client.get("/auth/me", headers={"Authorization": f"Bearer {first}"}).status_code
+        == 401
+    )
+    assert (
+        auth_client.get("/auth/me", headers={"Authorization": f"Bearer {second}"}).status_code
+        == 200
+    )
+
+
+def test_signing_out_without_a_session_still_succeeds(auth_client) -> None:
+    auth_client.cookies.clear()
+    assert auth_client.post("/auth/logout").status_code == 200
