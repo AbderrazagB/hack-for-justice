@@ -39,6 +39,10 @@ now `NEEDS_REVIEW`, with the real finding — *"Le numéro de CIN de la carte
 d'identité (X) ne correspond pas au numéro cité dans le procès-verbal (Y)"*.
 That is a cross-document check no single-document OCR tool catches.
 
+**2b. The evidence (30 s).** Click **Voir sur la pièce** under that finding.
+Both pages open with each number outlined where it actually appears. The
+verdict stops asking to be believed.
+
 **3. The grounded assistant (1 min).** Open it from **Besoin d'aide ?** in the
 bottom-right -- it follows you across the applicant-facing app, and answers about
 the procedure even before anything is uploaded. Ask *"Quel est le délai légal pour

@@ -13,8 +13,55 @@ triage dashboard that surfaces exactly what is wrong with each incoming request.
 Sahilli is **not** a replacement for RNE's filing portal. It is a validation
 layer that sits in front of it.
 
-**Workflow covered:** *Modification Entreprise* / **تحيين مؤسسة** — specifically
-*changement de représentant légal* (official checklist reference **RNE-M-005**).
+**Workflows covered**
+
+| Procedure | Reference | What it checks |
+|---|---|---|
+| *Modification Entreprise* / **تحيين مؤسسة** — changement de représentant légal | `RNE-M-005` | 5 documents, 7 rules |
+| *Dépôt des États Financiers Annuels* / **إيداع القوائم المالية السنوية** | Loi 52-2018 | 4 documents, 7 rules |
+
+## What it does
+
+**For the business.** A stepped filing flow, three or four questions per screen:
+answer the official **RNE-F-005** declaration as plain questions instead of
+deciphering a two-page bilingual PDF grid, attach the pieces, and get a verdict
+in about a minute. The verdict lists every rule that ran — passed, failed, or
+*not verifiable* — and every rule that did **not** run, with the reason. Any
+finding that concerns a document offers **"Voir sur la pièce"**, which opens the
+page with the disputed value outlined on it. A grounded assistant floats over
+the whole app and cites the RNE text behind every answer. Then the dossier can
+be transmitted to the registry and followed from **Mes dossiers**.
+
+**For the RNE officer.** A queue filterable by status and procedure, with live
+figures. Opening a dossier gives a **synthèse** first — what blocks, what is
+missing, which documents those sit in, how long it has waited — then the
+anomalies, then each page beside the data read from it, then approve / request a
+correction / reject. The acting officer comes from the session, never the
+request body, so the audit trail cannot be forged.
+
+## Design principles
+
+These are the rules the code actually enforces, and most of them exist because
+the first version got it wrong.
+
+1. **The LLM never decides whether a filing is valid.** Every verdict comes from
+   a deterministic rules engine. Models read documents, explain results and brief
+   officers; they do not rule. The officer brief is even forbidden, in its
+   prompt, from recommending a decision.
+2. **Silence is not agreement.** A check that could not run is named with its
+   reason, never omitted — an absent check reads as a check that passed. A
+   comparison with nothing to compare against reports itself as uncertain, not
+   as concordance.
+3. **Never point at the wrong place.** A value that cannot be located on a page
+   gets no highlight at all, and the response says so. A rectangle over the
+   wrong part of a page is worse than none.
+4. **Law and practice stay separate.** The one-month deadline is statutory and
+   sits in the grounding corpus. The 90-day Extrait freshness expectation is
+   registry practice, lives in the rules engine, and is deliberately kept *out*
+   of the corpus so the assistant can never cite it as law.
+5. **Every procedural claim is cited.** Answers are built only from retrieved
+   RNE text; when retrieval fails, the answer says it is unsourced rather than
+   bluffing.
 
 ## Tech stack
 
@@ -25,6 +72,8 @@ layer that sits in front of it.
 - **Embeddings:** BAAI/bge-m3 via HuggingFace Text Embeddings Inference (self-hosted)
 - **OCR / vision:** an open-weight, Apache-2.0 multimodal model via Mistral's
   API, with a local Tesseract fallback
+- **Highlight locator:** Tesseract where its binary exists, otherwise
+  `rapidocr-onnxruntime` — no system dependency required
 - **LLM reasoning:** Mistral with a Google Gemini fallback
 
 ## Local AI Infrastructure
@@ -160,7 +209,9 @@ check readiness with `curl http://localhost:8090/health`.
 - Docker and Docker Compose
 - **Poppler** (`pdf2image` needs it to rasterise PDF pages):
   `sudo apt install poppler-utils`
-- **Tesseract** (local OCR fallback):
+- **Tesseract** — *optional*. Used for the local OCR fallback and for
+  word-level highlight boxes when present; `rapidocr-onnxruntime` covers both
+  without a system dependency when it is not.
   `sudo apt install tesseract-ocr tesseract-ocr-fra tesseract-ocr-ara`
 
 ## Setup
@@ -213,7 +264,42 @@ check readiness with `curl http://localhost:8090/health`.
    npm run dev
    ```
 
+8. Seed the demo accounts and a realistic officer queue:
+
+   ```bash
+   ./scripts/seed_demo_data.sh
+   ```
+
+   This generates fourteen synthetic dossiers, creates the demo accounts, and
+   files the cases through the real API — real OCR, real rules. It takes a few
+   minutes and leaves the dashboard looking like a working day.
+
 Open http://localhost:3000. The FastAPI docs are at http://localhost:8000/docs.
+
+### Five-minute demo
+
+Sign in at `/login` — the two buttons under the form fill the credentials.
+
+1. **As `pme@sahilli.tn`**, open *Modification Entreprise*. Answer the four
+   declaration screens, then attach the five pages from
+   `data/demo/DEMO-001/`. Watch the counter read the pages one by one.
+2. The verdict comes back **NEEDS_REVIEW**: *"Le numéro de CIN de la carte
+   d'identité (98797309) ne correspond pas au numéro cité dans le procès-verbal
+   (70753645)"* — a cross-document contradiction no single-document OCR tool
+   catches. Click **Voir sur la pièce**: both pages open with each number
+   outlined on the document it is actually on.
+3. Open **Ce que nous avons vérifié** to see all seven rules and their reasons.
+4. Try a wrong answer deliberately — put `11111111` as the declarant's identity
+   number — and the declaration cross-check names the value on the card.
+5. Put a page in the wrong slot — `DEMO-001/id_new_representative.png` as the
+   Extrait RNE — and it is caught before anything else: *"Le contenu ne
+   correspond pas au document attendu"*.
+6. **Transmettre au registre**, then **Mes dossiers** to see it at *Examen RNE*.
+7. **Sign out, sign in as `agent@rne.tn`.** The queue has it. Open it: the
+   synthèse summarises the dossier before you read a line of it, then the
+   anomalies, then each page beside the data read from it, then the decision.
+8. Ask the floating assistant *"Que se passe-t-il si je dépose en retard ?"* and
+   switch to **AR**. Every answer carries the RNE reference it was built from.
 
 To run backend + frontend with Docker instead (Qdrant and embeddings stay
 external, as described above):
@@ -323,6 +409,39 @@ Create an officer account (never self-registerable):
 ```bash
 cd backend && uv run python ../scripts/create_officer.py agent@rne.tn "Nom Agent"
 ```
+
+## Tests
+
+```bash
+cd backend && uv run pytest -q          # 364 tests
+cd frontend && npx tsc --noEmit && npx eslint . && npm run build
+```
+
+The suite runs against real Postgres and the real rules engine; OCR and the LLM
+are stubbed where the test is about routing or rules rather than extraction
+quality. `tests/test_security.py` covers the authorization boundaries,
+`test_sample_data.py` asserts each of the fourteen demo cases raises exactly the
+flags it was built to raise.
+
+## Known gaps
+
+Honest about what is not done.
+
+- **`JWT_SECRET` is the repository default.** Anyone who has read this repo
+  could mint a valid session. The backend logs a warning at startup while it is
+  in use. Set it before exposing Sahilli beyond localhost.
+- **Two workflows of the RNE's many.** The rules engine is table-driven
+  (`TRANSACTION_RULES`), so a third is a table entry plus its checks, but it is
+  still two.
+- **`home.registre-entreprises.tn` was unreachable** throughout the research
+  behind the checklists, so the document lists come from secondary sources and
+  the published text of Law 52-2018. They should be confirmed against the
+  registry's own pages before anyone relies on them.
+- **Storage is a JSON file.** Adequate here, atomic on write, survives restarts;
+  replacing it means reimplementing `SubmissionStore` and nothing else.
+- **The Arabic interface is bilingual labelling, not a full RTL layout.** Every
+  label, finding and assistant answer exists in Arabic; the page chrome is
+  still laid out left to right.
 
 ## Project structure
 
