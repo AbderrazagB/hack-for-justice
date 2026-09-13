@@ -18,6 +18,7 @@ import { ActionButton } from "@/components/action-button";
 import { ContextForm } from "@/components/context-form";
 import { DeclarationForm, declarationGroups } from "@/components/declaration-form";
 import { DocumentRail } from "@/components/document-rail";
+import { CorrectionPanel } from "@/components/correction-panel";
 import { FilingProgress } from "@/components/filing-progress";
 import { FilingSteps, type FilingStep } from "@/components/filing-steps";
 import { FilingSummary, type SummaryRow } from "@/components/filing-summary";
@@ -214,6 +215,18 @@ export default function FilingFlow({
   const declarationRequired = (transaction?.declaration_fields ?? []).filter(
     (field) => field.required,
   ).length;
+
+  /** Pieces a finding names, plus any missing outright. */
+  const flaggedDocuments = useMemo(() => {
+    const keys = new Set<string>();
+    for (const flag of result?.flags ?? []) {
+      for (const document of flag.documents ?? []) keys.add(document.key);
+    }
+    for (const missing of result?.completeness.missing_documents ?? []) {
+      keys.add(missing.key);
+    }
+    return keys;
+  }, [result]);
 
   const goTo = useCallback(
     (index: number) => {
@@ -445,6 +458,22 @@ export default function FilingFlow({
               <div className="mt-6">
                 <VerdictPanel result={result} />
               </div>
+
+              {/* Fix a page here rather than walking back through the stepper
+                  and putting all five through OCR again to correct one. */}
+              {!submitted && (
+                <div className="mt-6">
+                  <SectionHeading hint="Seule la pièce remplacée est relue">
+                    Corriger une pièce
+                  </SectionHeading>
+                  <CorrectionPanel
+                    submissionId={result.submission_id}
+                    documents={required}
+                    flagged={flaggedDocuments}
+                    onCorrected={setResult}
+                  />
+                </div>
+              )}
               <div className="mt-6">
                 <SectionHeading>Transmettre au registre</SectionHeading>
                 <Panel className="p-5">

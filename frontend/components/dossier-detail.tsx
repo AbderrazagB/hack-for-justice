@@ -1,18 +1,19 @@
 "use client";
 
-import { ArrowLeft, Loader2, MessagesSquare, Send, Upload } from "lucide-react";
+import { ArrowLeft, Loader2, MessagesSquare, Send } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { ActionButton } from "@/components/action-button";
 import { PortalBar } from "@/components/chrome";
+import { CorrectionPanel } from "@/components/correction-panel";
 import { StatusTracker } from "@/components/status-tracker";
-import { Notice, Panel, SectionHeading } from "@/components/ui";
+import { Notice, SectionHeading } from "@/components/ui";
 import { VerdictPanel } from "@/components/verdict-panel";
 import { openAssistant, setActiveSubmission } from "@/lib/active-submission";
-import { correctSubmission, getSubmission, submitForReview } from "@/lib/api";
+import { getSubmission, submitForReview } from "@/lib/api";
 import { DOCUMENT_SHORT_FR } from "@/lib/status";
-import type { Submission, SubmissionResult } from "@/lib/types";
+import type { BilingualLabel, Submission, SubmissionResult } from "@/lib/types";
 
 /**
  * One of your own dossiers, reopened.
@@ -26,8 +27,7 @@ import type { Submission, SubmissionResult } from "@/lib/types";
 export function DossierDetail({ submissionId }: { submissionId: string }) {
   const [dossier, setDossier] = useState<Submission | null>(null);
   const [error, setError] = useState("");
-  const [replacements, setReplacements] = useState<Record<string, File>>({});
-  const [working, setWorking] = useState<"" | "correcting" | "submitting">("");
+  const [transmitting, setTransmitting] = useState(false);
   const [note, setNote] = useState("");
 
   const load = useCallback(() => {
@@ -93,36 +93,20 @@ export function DossierDetail({ submissionId }: { submissionId: string }) {
   for (const missing of dossier.completeness.missing_documents ?? []) {
     flagged.add(missing.key);
   }
-  const replaceable = Array.from(
+  // Every piece the dossier holds, flagged ones first so the one to fix is
+  // the one in front of you.
+  const pieces: BilingualLabel[] = Array.from(
     new Set([...flagged, ...Object.keys(dossier.documents)]),
-  );
-
-  async function correct() {
-    setWorking("correcting");
-    setError("");
-    setNote("");
-    try {
-      const documents = Object.entries(replacements).map(([documentType, file]) => ({
-        documentType,
-        file,
-      }));
-      const result = await correctSubmission(dossier!.id, documents);
-      setReplacements({});
-      setNote(
-        `${result.replaced.length} pièce${result.replaced.length > 1 ? "s" : ""} remplacée${
-          result.replaced.length > 1 ? "s" : ""
-        }. Le dossier a été revérifié.`,
-      );
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "La correction n'a pas abouti.");
-    } finally {
-      setWorking("");
-    }
-  }
+  )
+    .map((key) => ({
+      key,
+      label_fr: DOCUMENT_SHORT_FR[key] ?? key,
+      label_ar: "",
+    }))
+    .sort((a, b) => Number(flagged.has(b.key)) - Number(flagged.has(a.key)));
 
   async function transmit() {
-    setWorking("submitting");
+    setTransmitting(true);
     setError("");
     try {
       await submitForReview(dossier!.id);
@@ -131,7 +115,7 @@ export function DossierDetail({ submissionId }: { submissionId: string }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Le dépôt n'a pas abouti.");
     } finally {
-      setWorking("");
+      setTransmitting(false);
     }
   }
 
@@ -183,81 +167,28 @@ export function DossierDetail({ submissionId }: { submissionId: string }) {
             Corriger le dossier
           </SectionHeading>
 
-          {decided ? (
-            <Panel className="p-5 text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
-              Ce dossier a été tranché par un agent. Ses pièces ne peuvent plus
-              être modifiées&nbsp;: un dossier décidé est un enregistrement, et
-              changer les pièces sous une décision ferait décrire à cette
-              décision quelque chose qui n&apos;existe plus. Déposez un nouveau
-              dossier si nécessaire.
-            </Panel>
-          ) : (
-            <Panel className="p-5">
-              <ul className="space-y-3">
-                {replaceable.map((key) => {
-                  const isFlagged = flagged.has(key);
-                  const chosen = replacements[key];
-                  return (
-                    <li
-                      key={key}
-                      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2"
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-[0.875rem] text-[var(--ink)]">
-                          {DOCUMENT_SHORT_FR[key] ?? key}
-                        </span>
-                        {isFlagged && (
-                          <span className="text-[0.75rem] text-[var(--st-correction-ink)]">
-                            Signalée
-                          </span>
-                        )}
-                        {chosen && (
-                          <span className="block truncate text-[0.75rem] text-[var(--teal-ink)]">
-                            {chosen.name}
-                          </span>
-                        )}
-                      </span>
-                      <label className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-[var(--r-control)] border border-[var(--line-strong)] px-2.5 py-1.5 text-[0.75rem] font-medium text-[var(--ink)] transition-colors hover:border-[var(--teal)]">
-                        <Upload size={13} strokeWidth={2} aria-hidden />
-                        {chosen ? "Changer" : "Remplacer"}
-                        <input
-                          type="file"
-                          className="sr-only"
-                          accept="image/png,image/jpeg,application/pdf"
-                          onChange={(event) => {
-                            const file = event.target.files?.[0];
-                            if (file) {
-                              setReplacements((current) => ({ ...current, [key]: file }));
-                            }
-                          }}
-                        />
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
+          <CorrectionPanel
+            submissionId={dossier.id}
+            documents={pieces}
+            flagged={flagged}
+            disabled={decided}
+            disabledReason="Ce dossier a été tranché par un agent. Ses pièces ne peuvent plus être modifiées : un dossier décidé est un enregistrement, et changer les pièces sous une décision ferait décrire à cette décision quelque chose qui n'existe plus. Déposez un nouveau dossier si nécessaire."
+            onCorrected={() => {
+              setNote("Pièce remplacée. Le dossier a été revérifié.");
+              load();
+            }}
+          />
 
-              <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-[var(--line)] pt-4">
-                <ActionButton
-                  onClick={correct}
-                  disabled={working !== "" || Object.keys(replacements).length === 0}
-                >
-                  <Upload size={17} strokeWidth={1.9} aria-hidden />
-                  {working === "correcting"
-                    ? "Vérification en cours"
-                    : "Remplacer et revérifier"}
-                </ActionButton>
-                <ActionButton onClick={transmit} disabled={working !== ""} variant="teal">
-                  <Send size={17} strokeWidth={1.9} aria-hidden />
-                  {working === "submitting" ? "Transmission" : "Transmettre au registre"}
-                </ActionButton>
-              </div>
-              <p className="mt-3 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
-                Une pièce remplacée rejoint le dossier existant&nbsp;: son
-                numéro et son historique sont conservés. Après correction, le
-                dossier doit être transmis à nouveau.
+          {!decided && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <ActionButton onClick={transmit} disabled={transmitting} variant="teal">
+                <Send size={17} strokeWidth={1.9} aria-hidden />
+                {transmitting ? "Transmission" : "Transmettre au registre"}
+              </ActionButton>
+              <p className="text-[0.75rem] text-[var(--ink-faint)]">
+                Après correction, le dossier doit être transmis à nouveau.
               </p>
-            </Panel>
+            </div>
           )}
 
           <button

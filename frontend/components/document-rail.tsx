@@ -3,6 +3,7 @@
 import { Check, Paperclip, RotateCcw, X } from "lucide-react";
 import { useRef } from "react";
 
+import { FileThumbnail } from "@/components/file-preview";
 import { DOCUMENT_SHORT_FR } from "@/lib/status";
 import type { BilingualLabel } from "@/lib/types";
 
@@ -66,19 +67,19 @@ function DocumentRow({
       </span>
 
       <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="t-label text-[var(--ink)]">{label}</p>
-          <p className="ar text-[0.75rem] text-[var(--ink-faint)]">
+          <p className="ar ar-left text-[0.75rem] text-[var(--ink-faint)]">
             {document.label_ar}
           </p>
-          {file && (
-            <p className="mt-0.5 truncate text-[0.75rem] text-[var(--teal-ink)]">
-              {file.name}
-            </p>
-          )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        {/* Preview and actions travel together on the right, so five rows read
+            as a column rather than as three ragged ones. The page itself, not
+            just its filename: a folder of similar scans is exactly where one
+            ends up in the wrong slot. */}
+        <div className="flex shrink-0 items-center gap-2">
+          {file && <FileThumbnail file={file} label={label} />}
           <input
             ref={input}
             type="file"
