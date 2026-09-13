@@ -94,6 +94,28 @@ reproducible. A test asserts that only the three fields the cross-check actually
 compares say they are compared -- so a clean result is never read as more
 assurance than it is.
 
+**Is each page the document it claims to be?** `documents_match_their_type`
+runs first on both workflows. Every other check compares values *between*
+documents and so assumes each one is what it says; nothing verified that, so an
+applicant who attached their identity card in the Extrait RNE slot got a verdict
+about fields that were never going to be there. It reads the page's own text for
+words that make the document recognisable, and an unreadable page is
+INDETERMINATE, never FAIL.
+
+It reads `full_text` and nothing else, which matters more than it sounds. The
+first version also searched the extracted fields, and the failure was
+instructive: asked to read an identity card as an Extrait RNE, the vision model
+wrote "This document is a national identity card, not an Extrait RNE (registre
+national des entreprises)" into a notes field — and those words made the check
+declare the page a valid Extrait. The model's explanation that the document was
+wrong was what vouched for it.
+
+**Progress.** `GET /uploads/{id}/progress` reports documents read out of total,
+against an id the caller generates and sends with the upload. In-memory and
+process-local on purpose: it is progress on a request this process is already
+handling. The bar never advances on a timer — a bar that moves while a request
+is hung is worse than no bar.
+
 **Evidence.** `GET /submissions/{id}/evidence/{check}` answers "show me". A
 flag already names the documents it concerns and carries the values in dispute,
 so the values are searched for inside those pages and returned as boxes in page

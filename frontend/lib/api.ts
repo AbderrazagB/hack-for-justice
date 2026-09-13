@@ -2,6 +2,7 @@ import type {
   AuthUser,
   ExplainResponse,
   FlagEvidence,
+  UploadProgress,
   ReviewAction,
   Stats,
   SessionResponse,
@@ -98,8 +99,11 @@ export function createSubmission(
   /** Answers to the RNE-F-005 declaration, keyed by field name. */
   declaration: Record<string, string> = {},
   submittedAt?: string,
+  /** Poll /uploads/{id}/progress with this to follow the read. */
+  uploadId?: string,
 ): Promise<SubmissionResult> {
   const form = new FormData();
+  if (uploadId) form.append("upload_id", uploadId);
   for (const { documentType, file } of documents) {
     form.append("files", file);
     form.append("document_types", documentType);
@@ -203,6 +207,11 @@ export async function currentUser(): Promise<AuthUser | null> {
     if (error instanceof ApiError && error.status === 401) return null;
     throw error;
   }
+}
+
+/** How far the server has got reading an upload it is still working on. */
+export function uploadProgress(uploadId: string): Promise<UploadProgress> {
+  return request<UploadProgress>(`/uploads/${encodeURIComponent(uploadId)}/progress`);
 }
 
 /** Where a flag's disputed values sit on the pages they came from. */

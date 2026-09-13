@@ -10,6 +10,7 @@ between two runs on the same submission.
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from enum import Enum
@@ -32,6 +33,7 @@ TRANSACTION_RULES = {
             "general_assembly_pv",
         ],
         "checks": [
+            "documents_match_their_type",
             "id_number_matches_across_documents",
             "statutes_reflect_new_representative_name",
             "rne_extract_not_older_than_90_days",
@@ -51,6 +53,7 @@ TRANSACTION_RULES = {
             "updated_shareholder_list",
         ],
         "checks": [
+            "documents_match_their_type",
             "financial_statements_signed_and_stamped",
             "pv_registered_with_recette_des_finances_if_applicable",
             "auditor_report_present_if_required_by_company_type",
@@ -184,6 +187,10 @@ CHECK_LABELS: dict[str, dict[str, str]] = {
     "pv_is_signed": {
         "fr": "Le procès-verbal est signé et daté",
         "ar": "المحضر ممضى ومؤرخ",
+    },
+    "documents_match_their_type": {
+        "fr": "Chaque pièce correspond au document demandé",
+        "ar": "كل وثيقة تطابق الوثيقة المطلوبة",
     },
     "declaration_matches_documents": {
         "fr": "La déclaration concorde avec les pièces fournies",
@@ -998,6 +1005,154 @@ def _check_declaration(
     )
 
 
+
+# Words that make a document recognisably what it claims to be. A page is
+# accepted when it carries any one of them, in either language.
+#
+# These are markers of *identity*, not of validity: an Extrait RNE that says
+# "Registre National des Entreprises" is an Extrait RNE, whatever else is wrong
+# with it. The list is deliberately generous, because the cost of a false
+# accusation ("this is not your tax card") is far higher than the cost of
+# missing a genuinely mislabelled page -- the cross-document checks catch those
+# on the values anyway.
+DOCUMENT_MARKERS: dict[str, list[str]] = {
+    "id_new_representative": [
+        "carte d'identite nationale", "carte d identite", "cin",
+        "بطاقة التعريف", "بطاقة تعريف وطنية",
+    ],
+    "company_statutes": [
+        "statuts", "statut", "gerant", "gérant", "societe", "société",
+        "القانون الأساسي", "النظام الأساسي",
+    ],
+    "rne_extract": [
+        "registre national des entreprises", "extrait", "rne",
+        "identifiant unique", "السجل الوطني للمؤسسات", "مضمون",
+    ],
+    "tax_registration_card": [
+        "identification fiscale", "declaration d'existence",
+        "déclaration d'existence", "matricule fiscal",
+        "التعريف الجبائي", "التصريح بالوجود",
+    ],
+    "general_assembly_pv": [
+        "proces-verbal", "procès-verbal", "proces verbal", "assemblee",
+        "assemblée", "محضر", "الجلسة العامة",
+    ],
+    "general_assembly_pv_approval": [
+        "proces-verbal", "procès-verbal", "assemblee", "assemblée",
+        "approbation", "محضر", "الجلسة العامة", "المصادقة",
+    ],
+    "financial_statements_signed": [
+        "etats financiers", "états financiers", "bilan", "resultat",
+        "résultat", "القوائم المالية", "الموازنة",
+    ],
+    "auditor_report": [
+        "commissaire aux comptes", "rapport", "مراقب الحسابات", "تقرير",
+    ],
+    "updated_shareholder_list": [
+        "associes", "associés", "actionnaires", "liste", "parts",
+        "الشركاء", "المساهمين", "قائمة",
+    ],
+}
+
+# Below this many characters the page was not read well enough to judge.
+MIN_READABLE_CHARS = 20
+
+
+def _check_document_types(
+    documents: dict[str, Any], submission: dict[str, Any], today: date
+) -> CheckResult:
+    """Does each page look like the document it was filed as?
+
+    Every other check compares values *between* documents and so assumes each
+    one is what it claims. Nothing verified that assumption: an applicant who
+    attached their identity card in the Extrait RNE slot got a verdict about
+    fields that were never going to be there, with no hint of the real problem.
+
+    This reads the page's own text for words that make it recognisable. A page
+    that cannot be read is INDETERMINATE, never FAIL -- an unreadable scan is
+    not evidence of a wrong document.
+    """
+    name = "documents_match_their_type"
+
+    mismatched: list[dict[str, str]] = []
+    unreadable: list[str] = []
+
+    for key, document in documents.items():
+        markers = DOCUMENT_MARKERS.get(key)
+        if not markers or not isinstance(document, dict):
+            continue
+
+        text = _searchable_text(document)
+        if len(text) < MIN_READABLE_CHARS:
+            unreadable.append(key)
+            continue
+
+        if not any(_fold(marker) in text for marker in markers):
+            mismatched.append({"document": key, "label_fr": _document_label(key)})
+
+    if mismatched:
+        listed = ", ".join(entry["label_fr"] for entry in mismatched)
+        return CheckResult(
+            name,
+            CheckOutcome.FAIL,
+            f"Le contenu ne correspond pas au document attendu : {listed}. "
+            "Vérifiez que chaque pièce a été jointe au bon emplacement.",
+            "محتوى الوثيقة لا يطابق الوثيقة المطلوبة. تثبّت من إرفاق كل وثيقة في "
+            "مكانها الصحيح.",
+            {"mismatched": mismatched},
+        )
+
+    if unreadable:
+        listed = ", ".join(_document_label(key) for key in unreadable)
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            f"Texte illisible, nature du document non vérifiable : {listed}.",
+            "تعذّرت قراءة النص، ولم يمكن التثبّت من نوع الوثيقة.",
+            {"unreadable": unreadable},
+        )
+
+    return CheckResult(
+        name,
+        CheckOutcome.PASS,
+        "Chaque pièce correspond bien au document demandé.",
+        "كل وثيقة تطابق الوثيقة المطلوبة.",
+    )
+
+
+def _fold(value: str) -> str:
+    """Casefold and flatten accents, so "societe" matches "société"."""
+    decomposed = unicodedata.normalize("NFKD", str(value).casefold())
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def _searchable_text(document: dict[str, Any]) -> str:
+    """The page's own text, folded for comparison. Nothing else.
+
+    Extracted fields were included here at first, on the reasoning that a
+    vision model sometimes returns the structured answer and little raw text.
+    That made the check circular, and it failed in the most instructive way:
+    asked to read an identity card as an Extrait RNE, the model filled a notes
+    field with "This document is a national identity card, not an Extrait RNE
+    (registre national des entreprises)" -- and those words made this check
+    declare the page a valid Extrait. The model's explanation that the document
+    was wrong was what vouched for it.
+
+    So: the page's own text only. It is what the applicant actually uploaded,
+    and it cannot be contaminated by what the extractor was told to expect.
+    """
+    fields = document.get("fields")
+    raw = document.get("full_text")
+    if not raw and isinstance(fields, dict):
+        # Some extractors put the page text inside the field bag instead.
+        raw = fields.get("full_text")
+    return _fold(str(raw or ""))
+
+
+def _document_label(key: str) -> str:
+    return DOCUMENT_LABELS.get(key, {}).get("fr", key)
+
+
 _CHECK_IMPLEMENTATIONS = {
     "id_number_matches_across_documents": _check_id_number_matches,
     "statutes_reflect_new_representative_name": _check_statutes_name,
@@ -1010,6 +1165,7 @@ _CHECK_IMPLEMENTATIONS = {
     "shareholder_list_ids_present_for_each_entry": _check_shareholder_ids,
     "filed_within_7_months_of_fiscal_year_close": _check_financial_filing_deadline,
     "declaration_matches_documents": _check_declaration,
+    "documents_match_their_type": _check_document_types,
 }
 
 # Fail loudly at import time if a rule names a check nobody implemented.

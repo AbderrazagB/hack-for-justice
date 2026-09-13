@@ -9,6 +9,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 from app.services.ocr_service import OCRResult, OCRService
+from tests.conftest import document_text
 
 TXN = "RNE_FINANCIAL_STATEMENTS"
 ENDPOINT = f"/transactions/{TXN}/submissions"
@@ -34,6 +35,7 @@ def _fake_extract(fields_by_type):
         return OCRResult(
             document_type=document_type,
             fields=dict(fields_by_type.get(document_type, {})),
+            full_text=document_text(document_type),
             engine="test",
             page_count=1,
         )

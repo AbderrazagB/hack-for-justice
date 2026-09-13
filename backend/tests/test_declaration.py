@@ -22,11 +22,12 @@ from app.services.declaration import (
 from app.services.declaration_pdf import build_preparation_sheet, shape_arabic
 from app.services.ocr_service import OCRResult, OCRService
 from app.services.rules_engine import CheckOutcome, Status, check_completeness
+from tests.conftest import document_text, with_page_text
 
 TXN = "RNE_MODIFICATION_ENTREPRISE"
 TODAY = date(2026, 7, 1)
 
-DOCUMENTS = {
+DOCUMENTS = with_page_text({
     "id_new_representative": {
         "fields": {"id_number": "12345678", "person_name": "Amine Ben Salah"}
     },
@@ -42,7 +43,7 @@ DOCUMENTS = {
             "signature_date": "2026-06-12",
         }
     },
-}
+})
 
 DECLARATION = {
     "legal_representative": "Amine Ben Salah",
@@ -231,6 +232,7 @@ def _fake_extract(self, content, filename="", document_type="general", force_loc
     return OCRResult(
         document_type=document_type,
         fields=dict(DOCUMENTS.get(document_type, {}).get("fields", {})),
+        full_text=document_text(document_type),
         engine="test",
     )
 

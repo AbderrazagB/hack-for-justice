@@ -19,6 +19,7 @@ from app.services.rules_engine import (
     UnknownTransactionType,
     check_completeness,
 )
+from tests.conftest import with_page_text
 
 TODAY = date(2026, 7, 1)
 TXN = "RNE_MODIFICATION_ENTREPRISE"
@@ -26,7 +27,7 @@ TXN = "RNE_MODIFICATION_ENTREPRISE"
 
 def _submission(**overrides) -> dict:
     """A fully valid submission; override pieces to break one thing at a time."""
-    documents = {
+    documents = with_page_text({
         "id_new_representative": {
             "fields": {"id_number": "12345678", "person_name": "Amine Ben Salah"}
         },
@@ -47,7 +48,7 @@ def _submission(**overrides) -> dict:
                 "signature_date": "2026-06-12",
             }
         },
-    }
+    })
     documents.update(overrides.pop("documents", {}))
     submission = {
         "transaction_type": TXN,
@@ -77,6 +78,7 @@ def test_transaction_rules_match_the_official_checklist() -> None:
         "general_assembly_pv",
     ]
     assert rules["checks"] == [
+        "documents_match_their_type",
         "id_number_matches_across_documents",
         "statutes_reflect_new_representative_name",
         "rne_extract_not_older_than_90_days",
@@ -430,7 +432,7 @@ def test_result_serialises_for_the_api() -> None:
     assert payload["status"] == "COMPLETE"
     assert payload["official_reference"] == "RNE-M-005"
     assert payload["display_name_ar"] == "تحيين مؤسسة"
-    assert len(payload["checks"]) == 5
+    assert len(payload["checks"]) == 6
     assert all(c["label_fr"] and c["label_ar"] for c in payload["checks"])
 
 
@@ -589,3 +591,86 @@ def test_a_genuine_second_cin_still_fails() -> None:
     )
     result = check_completeness(submission, today=TODAY)
     assert _outcome(result, "id_number_matches_across_documents") is CheckOutcome.FAIL
+
+
+# ------------------------------------------- does each page look like itself
+
+def test_a_page_that_does_not_look_like_its_slot_is_flagged() -> None:
+    """An identity card filed as the Extrait RNE.
+
+    Every other check compares values between documents and so assumes each is
+    what it claims. Nothing verified that assumption, so this applicant used to
+    get a verdict about fields that were never going to be there.
+    """
+    submission = _submission(
+        documents={
+            "rne_extract": {
+                "full_text": "REPUBLIQUE TUNISIENNE CARTE D'IDENTITE NATIONALE",
+                "fields": {"issue_date": "2026-06-01"},
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+
+    check = next(c for c in result.checks if c.name == "documents_match_their_type")
+    assert check.outcome is CheckOutcome.FAIL
+    assert "Extrait RNE" in check.reason_fr
+    assert check.evidence["mismatched"][0]["document"] == "rne_extract"
+
+
+def test_the_right_page_in_the_right_slot_passes() -> None:
+    result = check_completeness(_submission(), today=TODAY)
+    check = next(c for c in result.checks if c.name == "documents_match_their_type")
+    assert check.outcome is CheckOutcome.PASS
+
+
+def test_an_unreadable_page_is_not_accused_of_being_the_wrong_document() -> None:
+    """An unreadable scan is not evidence that the wrong file was attached."""
+    submission = _submission(
+        documents={"rne_extract": {"full_text": "", "fields": {}}}
+    )
+    result = check_completeness(submission, today=TODAY)
+
+    check = next(c for c in result.checks if c.name == "documents_match_their_type")
+    assert check.outcome is CheckOutcome.INDETERMINATE
+    assert "rne_extract" in check.evidence["unreadable"]
+
+
+def test_accents_do_not_decide_whether_a_document_is_recognised() -> None:
+    """OCR drops accents often enough that "societe" must match "société"."""
+    submission = _submission(
+        documents={
+            "company_statutes": {
+                "full_text": "STATUTS DE LA SOCIETE ANONYME",
+                "fields": {"full_text": "Gérant: Amine Ben Salah"},
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    check = next(c for c in result.checks if c.name == "documents_match_their_type")
+    assert check.outcome is CheckOutcome.PASS
+
+
+def test_the_type_check_ignores_what_the_extractor_was_told_to_expect() -> None:
+    """The check must not be able to vouch for itself.
+
+    Asked to read an identity card as an Extrait RNE, the vision model filled a
+    notes field with "This document is a national identity card, not an Extrait
+    RNE (registre national des entreprises)" -- and when extracted fields were
+    part of the search, those words made this check declare the page a valid
+    Extrait. Only the page's own text counts.
+    """
+    submission = _submission(
+        documents={
+            "rne_extract": {
+                "full_text": "REPUBLIQUE TUNISIENNE CARTE D'IDENTITE NATIONALE",
+                "fields": {
+                    "notes": "Not an Extrait RNE (registre national des entreprises)",
+                    "issue_date": "2026-06-01",
+                },
+            }
+        }
+    )
+    result = check_completeness(submission, today=TODAY)
+    check = next(c for c in result.checks if c.name == "documents_match_their_type")
+    assert check.outcome is CheckOutcome.FAIL

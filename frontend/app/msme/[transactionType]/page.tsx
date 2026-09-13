@@ -16,14 +16,15 @@ import { ActionButton } from "@/components/action-button";
 import { ContextForm } from "@/components/context-form";
 import { DeclarationForm, declarationGroups } from "@/components/declaration-form";
 import { DocumentRail } from "@/components/document-rail";
+import { FilingProgress } from "@/components/filing-progress";
 import { FilingSteps, type FilingStep } from "@/components/filing-steps";
 import { FilingSummary, type SummaryRow } from "@/components/filing-summary";
 import { StatusTracker } from "@/components/status-tracker";
 import { Notice, Panel, SectionHeading } from "@/components/ui";
 import { VerdictPanel } from "@/components/verdict-panel";
 import { openAssistant, setActiveSubmission } from "@/lib/active-submission";
-import { createSubmission, listTransactions } from "@/lib/api";
-import type { SubmissionResult, TransactionInfo } from "@/lib/types";
+import { createSubmission, listTransactions, uploadProgress } from "@/lib/api";
+import type { SubmissionResult, TransactionInfo, UploadProgress } from "@/lib/types";
 
 export default function FilingFlow({
   params,
@@ -38,6 +39,8 @@ export default function FilingFlow({
   const [declaration, setDeclaration] = useState<Record<string, string>>({});
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [checking, setChecking] = useState(false);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
+  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState("");
   const [step, setStep] = useState(0);
   // Which section of the declaration is showing. Nine questions on one screen
@@ -235,8 +238,25 @@ export default function FilingFlow({
 
   async function check() {
     if (!transaction) return;
+    // The id the server reports against, so the panel below shows its real
+    // count of pages read rather than a timer pretending to be one.
+    const uploadId = crypto.randomUUID();
     setChecking(true);
+    setProgress(null);
+    setElapsed(0);
     setError("");
+
+    const started = Date.now();
+    const ticker = window.setInterval(
+      () => setElapsed(Math.round((Date.now() - started) / 1000)),
+      1000,
+    );
+    const poller = window.setInterval(() => {
+      uploadProgress(uploadId)
+        .then((update) => setProgress(update))
+        .catch(() => {});
+    }, 1200);
+
     try {
       const documents = Object.entries(files).map(([documentType, file]) => ({
         documentType,
@@ -248,6 +268,8 @@ export default function FilingFlow({
           documents,
           context,
           declaration,
+          undefined,
+          uploadId,
         ),
       );
       goTo(resultStep);
@@ -258,7 +280,10 @@ export default function FilingFlow({
           : "La vérification n'a pas abouti. Réessayez dans un instant.",
       );
     } finally {
+      window.clearInterval(ticker);
+      window.clearInterval(poller);
       setChecking(false);
+      setProgress(null);
     }
   }
 
@@ -364,7 +389,13 @@ export default function FilingFlow({
               >
                 Vos pièces
               </SectionHeading>
-              {required.length ? (
+              {checking ? (
+                <FilingProgress
+                  progress={progress}
+                  documents={required.filter((document) => files[document.key])}
+                  elapsedSeconds={elapsed}
+                />
+              ) : required.length ? (
                 <DocumentRail documents={required} files={files} onAttach={attach} />
               ) : (
                 <Panel className="p-5 text-[0.875rem] text-[var(--ink-muted)]">

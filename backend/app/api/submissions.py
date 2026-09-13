@@ -24,6 +24,7 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from app.api.auth import current_officer, current_user
+from app.core import progress
 from app.core.rate_limit import SUBMISSION_LIMIT, enforce
 from app.core.uploads import validate_batch, validate_upload
 from app.models.submission import (
@@ -273,6 +274,9 @@ async def create_submission(
     # RNE-F-005 answers, JSON-encoded: a multipart form cannot carry a nested
     # object, and the alternative is nine more flat fields per workflow.
     declaration: Annotated[str | None, Form()] = None,
+    # A caller-generated id it can poll on, so a minute of OCR is not a minute
+    # of a page saying nothing.
+    upload_id: Annotated[str | None, Form(max_length=64)] = None,
     store: SubmissionStore = Depends(get_store),
     upload_dir: Path = Depends(get_upload_dir),
     user: User = Depends(current_user),
@@ -323,7 +327,12 @@ async def create_submission(
     documents: dict[str, Any] = {}
     total_bytes = 0
 
+    if upload_id:
+        progress.start(upload_id, len(files))
+
     for upload, doc_type in zip(files, document_types):
+        if upload_id:
+            progress.reading(upload_id, doc_type)
         content = await upload.read()
         # Validate before writing anything: the declared Content-Type is
         # attacker-controlled, so the file's own bytes decide what it is.
@@ -345,6 +354,11 @@ async def create_submission(
             "size_bytes": len(content),
             **result.to_dict(),
         }
+        if upload_id:
+            progress.read(upload_id, doc_type)
+
+    if upload_id:
+        progress.checking(upload_id)
 
     context: dict[str, Any] = {}
     if company_type:
@@ -405,6 +419,9 @@ async def create_submission(
         context={**context, "declaration": declared} if declared else context,
         owner_id=str(user.id),
     )
+
+    if upload_id:
+        progress.finish(upload_id)
 
     return {
         "submission_id": submission.id,
@@ -491,6 +508,18 @@ def declaration_sheet(
             )
         },
     )
+
+
+@router.get("/uploads/{upload_id}/progress")
+def upload_progress(upload_id: str, user: User = Depends(current_user)) -> dict[str, Any]:
+    """How far along the read is.
+
+    Returns stage "unknown" rather than 404 for an id this process has never
+    seen: a poll that races ahead of the upload, or one that arrives after the
+    entry expired, is not an error the page should surface.
+    """
+    found = progress.get(Path(upload_id).name)
+    return found or {"total": 0, "done": 0, "current": None, "stage": "unknown"}
 
 
 # ----------------------------------------------------------------- evidence

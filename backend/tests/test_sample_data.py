@@ -24,13 +24,14 @@ from data.generate_sample_data import (
 
 from app.services.rules_engine import check_completeness
 from app.services.scoring import flag_inconsistencies
+from tests.conftest import with_page_text
 
 
 def _as_submission(case) -> dict:
     return {
         "transaction_type": "RNE_MODIFICATION_ENTREPRISE",
         "submitted_at": case.submitted_at,
-        "documents": {
+        "documents": with_page_text({
             "id_new_representative": {
                 "fields": {"id_number": case.cin, "person_name": case.new_representative}
             },
@@ -48,7 +49,7 @@ def _as_submission(case) -> dict:
                     "has_signature": case.signature_date is not None,
                 }
             },
-        },
+        }),
     }
 
 
@@ -158,7 +159,7 @@ def _as_financial_submission(case) -> dict:
 
     return {
         "transaction_type": "RNE_FINANCIAL_STATEMENTS",
-        "documents": documents,
+        "documents": with_page_text(documents),
         "submitted_at": case.submitted_at,
         "company_type": case.company_type,
         "auditor_required": case.auditor_required,

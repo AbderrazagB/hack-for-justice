@@ -1,6 +1,14 @@
 "use client";
 
-import { Download, FileWarning, ScanSearch } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Download,
+  FileWarning,
+  HelpCircle,
+  ScanSearch,
+  X,
+} from "lucide-react";
 import { useState } from "react";
 
 import BlurText from "@/components/BlurText";
@@ -18,6 +26,25 @@ import type { SubmissionResult } from "@/lib/types";
  * arriving. React Bits `BlurText` settles the headline word by word, once; the
  * findings beneath it are static. No other animation on this screen.
  */
+/**
+ * How each verified rule is marked. INDETERMINATE is its own state and not a
+ * failure: "we could not read enough to decide" is a different thing to say
+ * than "this is wrong", and collapsing the two would accuse people of faults
+ * the engine never found.
+ */
+const CHECK_MARKS: Record<
+  string,
+  { icon: typeof Check; color: string; label: string }
+> = {
+  PASS: { icon: Check, color: "var(--st-approved-ink)", label: "Conforme" },
+  FAIL: { icon: X, color: "var(--st-rejected-ink)", label: "Non conforme" },
+  INDETERMINATE: {
+    icon: HelpCircle,
+    color: "var(--st-correction-ink)",
+    label: "Non vérifiable",
+  },
+};
+
 export function VerdictPanel({ result }: { result: SubmissionResult }) {
   const reduced = useReducedMotion();
   const status = COMPLETENESS_STATUS[result.completeness.status];
@@ -25,6 +52,10 @@ export function VerdictPanel({ result }: { result: SubmissionResult }) {
   const { missing_documents: missing } = result.completeness;
   // Which finding the reader asked to see on the page, if any.
   const [shown, setShown] = useState<{ code: string; title: string } | null>(null);
+  const [showChecks, setShowChecks] = useState(false);
+  const passed = result.completeness.checks.filter(
+    (check) => check.outcome === "PASS",
+  ).length;
 
   return (
     <FloatingPanel accent={status.ink}>
@@ -150,6 +181,63 @@ export function VerdictPanel({ result }: { result: SubmissionResult }) {
                 )}
               </li>
             ))}
+          </ul>
+        </section>
+      )}
+
+      {/* Everything that was verified, not only what failed. A verdict that
+          lists three problems and nothing else leaves the reader unable to
+          tell what it actually looked at -- and a PASS is the part that says
+          the check ran and found nothing, which is different from not having
+          been checked. */}
+      {result.completeness.checks.length > 0 && (
+        <section className="border-t border-[var(--line)] p-5 sm:p-6">
+          <button
+            type="button"
+            onClick={() => setShowChecks((open) => !open)}
+            aria-expanded={showChecks}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span className="t-h3">Ce que nous avons vérifié</span>
+            <span className="flex shrink-0 items-center gap-1.5 text-[0.75rem] font-medium text-[var(--teal-ink)]">
+              {passed} sur {result.completeness.checks.length} sans réserve
+              <ChevronDown
+                size={13}
+                strokeWidth={2.2}
+                aria-hidden
+                className={`transition-transform ${showChecks ? "rotate-180" : ""}`}
+              />
+            </span>
+          </button>
+
+          <ul className="mt-3.5 space-y-3" hidden={!showChecks}>
+            {result.completeness.checks.map((check) => {
+              const mark = CHECK_MARKS[check.outcome];
+              return (
+                <li key={check.name} className="flex items-start gap-2.5">
+                  <span
+                    aria-hidden
+                    className="mt-0.5 flex size-4 shrink-0 items-center justify-center"
+                    style={{ color: mark.color }}
+                  >
+                    <mark.icon size={14} strokeWidth={2.4} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[0.8125rem] leading-snug text-[var(--ink)]">
+                      {check.label_fr}
+                    </p>
+                    {check.reason_fr && (
+                      <p className="mt-0.5 text-[0.75rem] leading-relaxed text-[var(--ink-muted)]">
+                        {check.reason_fr}
+                      </p>
+                    )}
+                  </div>
+                  <span className="ms-auto shrink-0 text-[0.6875rem] font-medium" style={{ color: mark.color }}>
+                    {mark.label}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

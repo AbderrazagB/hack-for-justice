@@ -39,6 +39,8 @@ class Severity(str, Enum):
 # Which document a given check's evidence points at, so the dashboard can jump
 # straight to the page that needs looking at.
 _CHECK_FOCUS: dict[str, str] = {
+    # No single document: the finding names whichever pages are wrong, and the
+    # flag's own documents list carries them.
     "id_number_matches_across_documents": "id_new_representative",
     "statutes_reflect_new_representative_name": "company_statutes",
     "rne_extract_not_older_than_90_days": "rne_extract",

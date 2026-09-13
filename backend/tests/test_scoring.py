@@ -11,10 +11,11 @@ from app.services.scoring import (
     flag_summary,
     flags_from_result,
 )
+from tests.conftest import with_page_text
 
 TODAY = date(2026, 7, 1)
 
-CLEAN = {
+CLEAN = with_page_text({
     "id_new_representative": {
         "fields": {"id_number": "12345678", "person_name": "Amine Ben Salah"}
     },
@@ -30,13 +31,13 @@ CLEAN = {
             "signature_date": "2026-06-12",
         }
     },
-}
+})
 
 
 def _with(**overrides) -> dict:
     documents = {key: dict(value) for key, value in CLEAN.items()}
     documents.update(overrides)
-    return documents
+    return with_page_text(documents)
 
 
 def _codes(flags) -> set[str]:
@@ -183,6 +184,13 @@ def test_fully_broken_submission_flags_every_declared_check() -> None:
         general_assembly_pv={
             "fields": {"decision_date": "2026-01-05", "id_number": "87654321"}
         },
+        # An identity card filed in the tax-card slot, so the type check has
+        # something to find too -- the test's claim is that every declared
+        # check fails, not that all but one do.
+        tax_registration_card={
+            "full_text": "REPUBLIQUE TUNISIENNE CARTE D'IDENTITE NATIONALE",
+            "fields": {"company_id": "1234567X"},
+        },
     )
     flags = flag_inconsistencies(documents, today=TODAY)
     # The declaration check only runs once a declaration exists, and this
@@ -191,7 +199,7 @@ def test_fully_broken_submission_flags_every_declared_check() -> None:
         "declaration_matches_documents"
     }
     assert _codes(flags) == expected
-    assert flag_summary(flags)["errors"] == 4
+    assert flag_summary(flags)["errors"] == 5
 
 
 # ---------------------------------------------------------------- plumbing

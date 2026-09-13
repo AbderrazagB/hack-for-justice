@@ -11,6 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from app.services.ocr_service import OCRResult, OCRService
+from tests.conftest import document_text
 
 TXN = "RNE_MODIFICATION_ENTREPRISE"
 ENDPOINT = f"/transactions/{TXN}/submissions"
@@ -35,7 +36,10 @@ def _fake_extract(fields_by_type: dict[str, dict]):
         return OCRResult(
             document_type=document_type,
             fields=dict(fields_by_type.get(document_type, {})),
-            full_text=str(fields_by_type.get(document_type, {}).get("full_text", "")),
+            full_text=document_text(
+                document_type,
+                str(fields_by_type.get(document_type, {}).get("full_text", "")),
+            ),
             engine="test",
             page_count=1,
         )
@@ -311,3 +315,44 @@ def test_path_traversal_is_refused(client, attack: str) -> None:
     response = client.get(attack)
     assert response.status_code in {404, 400}
     assert b"root:" not in response.content
+
+
+# ------------------------------------------------------------------ progress
+
+def test_progress_is_reported_per_document(client, png) -> None:
+    """A minute of OCR should not be a minute of the page saying nothing."""
+    doc_types = list(CLEAN_FIELDS)
+    files = [("files", (f"{d}.png", png, "image/png")) for d in doc_types]
+
+    seen: list[dict] = []
+
+    def extract(self, content, filename="", document_type="general", force_local=False):
+        # Poll from inside the read, which is the only moment it matters.
+        seen.append(client.get("/uploads/probe-1/progress").json())
+        return _fake_extract(CLEAN_FIELDS)(
+            self, content, filename, document_type, force_local
+        )
+
+    with patch.object(OCRService, "extract", extract):
+        client.post(
+            ENDPOINT,
+            files=files,
+            data={"document_types": doc_types, "upload_id": "probe-1"},
+        )
+
+    assert [entry["done"] for entry in seen] == list(range(len(doc_types)))
+    assert seen[0]["total"] == len(doc_types)
+    assert seen[0]["current"] == doc_types[0]
+    assert seen[0]["stage"] == "reading"
+
+    assert client.get("/uploads/probe-1/progress").json()["stage"] == "done"
+
+
+def test_progress_for_an_unknown_upload_is_not_an_error(client) -> None:
+    body = client.get("/uploads/never-seen/progress").json()
+    assert body["stage"] == "unknown"
+    assert body["done"] == 0
+
+
+def test_progress_requires_a_session(anon_client) -> None:
+    assert anon_client.get("/uploads/x/progress").status_code == 401

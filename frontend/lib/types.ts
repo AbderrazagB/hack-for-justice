@@ -194,6 +194,14 @@ export type ExplainResponse = {
   grounded: boolean;
 };
 
+export type UploadProgress = {
+  total: number;
+  done: number;
+  /** Document type being read right now, or null between stages. */
+  current: string | null;
+  stage: "reading" | "checking" | "done" | "unknown" | "upload";
+};
+
 export type EvidenceBox = {
   /** Fractions of the page, so an overlay tracks the image at any width. */
   x: number;

@@ -26,13 +26,19 @@ from app.core.uploads import (
 from app.main import app
 from app.models.user import User, UserRole
 from app.services.ocr_service import OCRResult, OCRService
+from tests.conftest import document_text
 
 TXN = "RNE_MODIFICATION_ENTREPRISE"
 ENDPOINT = f"/transactions/{TXN}/submissions"
 
 
 def _fake_extract(self, content, filename="", document_type="general", force_local=False):
-    return OCRResult(document_type=document_type, fields={}, engine="test")
+    return OCRResult(
+        document_type=document_type,
+        fields={},
+        full_text=document_text(document_type),
+        engine="test",
+    )
 
 
 # ------------------------------------------------- officer-only endpoints ---

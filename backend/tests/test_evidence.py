@@ -21,6 +21,7 @@ from app.services.evidence import (
     render_page,
 )
 from app.services.ocr_service import OCRResult, OCRService
+from tests.conftest import document_text
 
 TXN = "RNE_MODIFICATION_ENTREPRISE"
 ENDPOINT = f"/transactions/{TXN}/submissions"
@@ -160,7 +161,12 @@ def _fake_extract(self, content, filename="", document_type="general", force_loc
         "id_new_representative": {"id_number": "12345678", "person_name": "Amine Ben Salah"},
         "general_assembly_pv": {"id_number": "87654321", "person_name": "Amine Ben Salah"},
     }.get(document_type, {})
-    return OCRResult(document_type=document_type, fields=dict(fields), engine="test")
+    return OCRResult(
+        document_type=document_type,
+        fields=dict(fields),
+        full_text=document_text(document_type),
+        engine="test",
+    )
 
 
 def _create(client, png):

@@ -91,6 +91,43 @@ def png() -> bytes:
     return buffer.getvalue()
 
 
+# A line of text that makes each fake document recognisable as what it claims
+# to be, the way a real page is. Without it the doubles are pages carrying no
+# identifying words at all, which `documents_match_their_type` correctly
+# refuses -- the check exists precisely to catch a page that does not look like
+# the document it was filed as.
+DOCUMENT_TEXT: dict[str, str] = {
+    "id_new_representative": "REPUBLIQUE TUNISIENNE CARTE D'IDENTITE NATIONALE",
+    "company_statutes": "STATUTS DE LA SOCIETE - Gérant",
+    "rne_extract": "REGISTRE NATIONAL DES ENTREPRISES - Extrait",
+    "tax_registration_card": "CARTE D'IDENTIFICATION FISCALE - Déclaration d'existence",
+    "general_assembly_pv": "PROCES-VERBAL DE L'ASSEMBLEE GENERALE",
+    "general_assembly_pv_approval": "PROCES-VERBAL DE L'ASSEMBLEE GENERALE - approbation",
+    "financial_statements_signed": "ETATS FINANCIERS - Bilan et résultat",
+    "auditor_report": "RAPPORT DU COMMISSAIRE AUX COMPTES",
+    "updated_shareholder_list": "LISTE DES ASSOCIES - parts sociales",
+}
+
+
+def document_text(document_type: str, extra: str = "") -> str:
+    """Realistic page text for a fake OCR result."""
+    return f"{DOCUMENT_TEXT.get(document_type, document_type)}\n{extra}".strip()
+
+
+def with_page_text(documents: dict) -> dict:
+    """Give every document the page text a real one would carry.
+
+    Rules-engine tests build document dicts by hand, listing only the fields
+    the rule under test reads. That leaves pages with no identifying words,
+    which `documents_match_their_type` rightly refuses. This restores the part
+    of a real document those fixtures were never modelling.
+    """
+    return {
+        key: {"full_text": document_text(key), **value}
+        for key, value in documents.items()
+    }
+
+
 def _stub_user(role: UserRole) -> User:
     """A User instance that never touches the database.
 

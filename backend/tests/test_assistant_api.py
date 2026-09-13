@@ -12,6 +12,7 @@ from app.api.assistant import get_llm_client, get_retrieval_service
 from app.main import app
 from app.services.ocr_service import OCRResult, OCRService
 from app.services.retrieval_service import RetrievedPassage
+from tests.conftest import document_text
 
 TXN = "RNE_MODIFICATION_ENTREPRISE"
 ENDPOINT = f"/transactions/{TXN}/submissions"
@@ -50,7 +51,12 @@ class FakeLLM:
 
 
 def _fake_extract(self, content, filename="", document_type="general", force_local=False):
-    return OCRResult(document_type=document_type, fields={}, engine="test")
+    return OCRResult(
+        document_type=document_type,
+        fields={},
+        full_text=document_text(document_type),
+        engine="test",
+    )
 
 
 def _create(client, png, doc_types):

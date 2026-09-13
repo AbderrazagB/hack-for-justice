@@ -24,6 +24,7 @@ from app.services.rules_engine import (
     required_documents_for,
 )
 from app.services.scoring import flag_inconsistencies
+from tests.conftest import with_page_text
 
 TXN = "RNE_FINANCIAL_STATEMENTS"
 TODAY = date(2026, 7, 1)
@@ -51,6 +52,7 @@ def _submission(**overrides):
         },
     }
     documents.update(overrides.pop("documents", {}))
+    documents = with_page_text(documents)
 
     submission = {
         "transaction_type": TXN,
@@ -81,6 +83,7 @@ def test_transaction_is_registered_alongside_the_first_workflow() -> None:
         "updated_shareholder_list",
     ]
     assert rules["checks"] == [
+        "documents_match_their_type",
         "financial_statements_signed_and_stamped",
         "pv_registered_with_recette_des_finances_if_applicable",
         "auditor_report_present_if_required_by_company_type",
@@ -111,8 +114,10 @@ def test_missing_stamp_fails() -> None:
 
 
 def test_unreadable_statements_are_indeterminate() -> None:
+    # Genuinely unreadable: no page text and no extracted flags. The fixture
+    # has to say so explicitly now that documents carry page text by default.
     submission = _submission(
-        documents={"financial_statements_signed": {"fields": {}}}
+        documents={"financial_statements_signed": {"full_text": "", "fields": {}}}
     )
     result = check_completeness(submission, today=TODAY)
     assert _outcome(result, "financial_statements_signed_and_stamped") is CheckOutcome.INDETERMINATE
