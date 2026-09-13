@@ -92,21 +92,45 @@ the first version got it wrong.
   `rapidocr-onnxruntime` — no system dependency required
 - **LLM reasoning:** Mistral with a Google Gemini fallback
 
-## Local AI Infrastructure
+## Infrastructure
 
-Sahilli is designed to run against **locally self-hosted Qdrant and BGE-M3
-embedding containers rather than managed cloud services.** This is a deliberate
-architecture choice, not a hackathon shortcut: aside from the LLM reasoning
-layer, the entire platform can eventually be **fully self-hosted by an
-institution like RNE on its own infrastructure**, so that citizens' and
-companies' filing documents never leave national infrastructure. Data
-sovereignty is a hard requirement for a registry, and the retrieval stack is
-built that way from day one.
+Sahilli's stack is defined in this repository and needs nothing from anywhere
+else. The infrastructure services sit behind a Compose **profile**, so a fresh
+clone brings up its own and a machine that already runs them does not fight for
+the ports:
 
-The LLM reasoning layer currently runs on vendor APIs for hackathon speed. That
-layer has a credible self-hosting path too, because we deliberately use only
-**open-weight, Apache-2.0 models** there — so "sovereign Sahilli" is an
-incremental step, not a rewrite. See *Document OCR* below.
+```bash
+docker compose --profile infra up -d     # fresh clone: Postgres, Qdrant,
+                                         # BGE-M3 embeddings, MinIO
+docker compose up                        # already have them: app only
+```
+
+| Service | Image | Port | What it is for |
+|---|---|---|---|
+| `postgres` | `postgres:16-alpine` | 5432 | Accounts and revoked sessions |
+| `qdrant` | `qdrant/qdrant:v1.15.1` | 6333/6334 | The grounding corpus |
+| `embeddings` | `text-embeddings-inference:cpu-1.8` | 8090 | BAAI/bge-m3, 1024 dimensions |
+| `minio` | `quay.io/minio/minio` | 9000/9001 | Uploaded documents |
+
+Versions are pinned rather than `latest`: a demo that breaks because an
+upstream tag moved is a demo that breaks on the day. MinIO comes from **quay.io**
+because `minio/minio` no longer resolves on Docker Hub.
+
+Every published port is overridable — `QDRANT_PORT`, `MINIO_PORT` and the rest,
+listed at the bottom of `.env.example` — so a clone whose 6333 is already taken
+moves it without editing the compose file.
+
+### Reusing infrastructure you already run
+
+Nothing has to run in this stack. Point `.env` at whatever exists —
+`DATABASE_URL`, `QDRANT_URL`, `EMBEDDING_SERVICE_URL`, `S3_ENDPOINT_URL` — and
+start the app without the profile. That is how this was developed: against a
+Qdrant, Postgres, embeddings server and MinIO already on the machine. The
+embeddings container in particular is a multi-gigabyte image and a model
+download; if one is already serving BGE-M3, use it.
+
+The model matters. `EMBEDDING_DIM` and the Qdrant collection are built for
+BGE-M3's 1024 dimensions; a different model means reseeding the corpus.
 
 ### Document OCR
 
@@ -146,88 +170,15 @@ a live demo never hard-fails on a conference network.
 
 ### Document storage
 
-Uploaded pages go to an S3-compatible bucket — the MinIO already running
-alongside Qdrant and Postgres. Set `S3_ENDPOINT_URL` to use it; leave it empty
-and documents stay on the filesystem under `data/raw`, which is what a clone
-without MinIO gets.
+Uploaded pages go to the `minio` service, or to any S3-compatible endpoint
+`S3_ENDPOINT_URL` names. Leave it empty and documents stay on the filesystem
+under `data/raw`, which is what a clone that skips the infra profile gets.
 
-Sahilli creates and uses one bucket, `sahilli-documents`, and touches no other.
-Reads fall back to the filesystem whatever the setting, so dossiers filed before
-the bucket existed keep opening — there is no migration to run and therefore
-none to forget.
-
-### What this repo expects to already be running
-
-`docker-compose.yml` deliberately **does not define** Qdrant or an embedding
-service. It expects them to already exist on the host, and the backend simply
-points at them:
-
-| Service | Image | Host port | Used for |
-|---|---|---|---|
-| Qdrant | `qdrant/qdrant` | **6333** (HTTP), 6334 (gRPC) | `rne_procedures` collection |
-| Embeddings | `ghcr.io/huggingface/text-embeddings-inference` (`--model-id BAAI/bge-m3`) | **8090** | 1024-dim vectors |
-| Postgres | `postgres:16-alpine` | **5432** | `sahilli` / `sahilli_test` databases |
-
-Configure via `.env`:
-
-```bash
-QDRANT_URL=http://localhost:6333
-EMBEDDING_SERVICE_URL=http://localhost:8090
-EMBEDDING_DIM=1024
-```
-
-**If your ports differ,** change those two variables — that's the only wiring
-needed. Nothing else in the codebase hardcodes a port. When running the backend
-inside Docker, use `http://host.docker.internal:<port>` instead of `localhost`
-(compose already sets this up via `extra_hosts`). Leaving `QDRANT_URL` blank
-falls back to an in-memory Qdrant, which is enough to run the unit tests but
-loses all data on restart.
-
-### Embedding API shape
-
-The TEI container answers on two endpoints. Sahilli uses the **TEI-native
-`POST /embed`**:
-
-```bash
-curl -X POST http://localhost:8090/embed \
-  -H 'Content-Type: application/json' \
-  -d '{"inputs": ["premier document", "الوثيقة الثانية"]}'
-# -> [[0.008, -0.024, ...], [...]]   two 1024-dim vectors
-```
-
-The OpenAI-compatible `POST /v1/embeddings` (`{"input": ..., "model": ...}`)
-also works and returns the usual `{"data":[{"embedding":[...]}]}` envelope. We
-chose `/embed` because it batches a list of strings in one round-trip, returns
-a bare list of vectors with no envelope to unwrap, and needs no `model` field
-kept in sync with however the server was launched. This is documented in
-`backend/app/services/embedding_service.py`.
-
-### Fallback: if you don't have these containers yet
-
-This is the fallback path, not the primary one. If the host has no Qdrant or
-embedding server, start your own:
-
-```bash
-# Qdrant
-docker run -d --name sahilli-qdrant \
-  -p 6333:6333 -p 6334:6334 \
-  -v "$(pwd)/qdrant_storage:/qdrant/storage" \
-  qdrant/qdrant:v1.15.1
-
-# BGE-M3 embeddings (CPU build; drop `-cpu` and add `--gpus all` for NVIDIA)
-docker run -d --name sahilli-embeddings \
-  -p 8090:80 \
-  -v "$(pwd)/hf_cache:/data" \
-  ghcr.io/huggingface/text-embeddings-inference:cpu-1.8 \
-  --model-id BAAI/bge-m3 --port 80
-```
-
-First start downloads the BGE-M3 weights (~2.2 GB) — give it a few minutes, and
-check readiness with `curl http://localhost:8090/health`.
-
-> **Note on qdrant-client versions.** The client is pinned to `>=1.15,<1.17` to
-> stay within Qdrant's supported client/server version skew. If you run a newer
-> server, bump the pin in `backend/pyproject.toml` to match.
+Sahilli creates and uses one bucket, `sahilli-documents`, and touches no other —
+which matters when the endpoint is a MinIO shared with something else. Reads
+fall back to the filesystem whatever the setting, so dossiers filed before the
+bucket existed keep opening: there is no migration to run and therefore none to
+forget.
 
 ## Prerequisites
 
@@ -263,14 +214,20 @@ check readiness with `curl http://localhost:8090/health`.
    ./scripts/setup.sh
    ```
 
-4. Create the accounts databases (one-off):
+4. Start the infrastructure:
+
+   ```bash
+   docker compose --profile infra up -d
+   ```
+
+   Both databases are created on first boot and the tables the first time the
+   backend starts. Skip this step if you are pointing `.env` at services you
+   already run — but then create `sahilli` and `sahilli_test` yourself:
 
    ```bash
    docker exec -i <postgres-container> psql -U <user> -d postgres \
      -c "CREATE DATABASE sahilli;" -c "CREATE DATABASE sahilli_test;"
    ```
-
-   Tables are created automatically the first time the backend starts.
 
 5. Seed the RAG grounding corpus into Qdrant (one-off):
 
