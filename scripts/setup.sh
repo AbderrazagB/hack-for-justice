@@ -3,6 +3,11 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+if [ ! -f "$PROJECT_DIR/.env" ] && [ -f "$PROJECT_DIR/.env.example" ]; then
+  cp "$PROJECT_DIR/.env.example" "$PROJECT_DIR/.env"
+  echo "Created .env from .env.example -- add your MISTRAL_API_KEY before starting."
+fi
+
 echo "Syncing backend Python dependencies with uv..."
 (cd "$PROJECT_DIR/backend" && uv sync)
 
@@ -29,5 +34,11 @@ PYEOF
   echo "Generated a unique JWT_SECRET in .env (the shipped default was still in place)."
 fi
 
-echo "Setup complete."
+echo
+echo "Setup complete. Next:"
+echo "  docker compose --profile infra up -d   # Postgres, Qdrant, embeddings, MinIO"
+echo "  cd backend && uv run python ../scripts/seed_rag.py"
+echo "  cd backend && uv run uvicorn app.main:app --reload"
+echo
+echo "Already running those services? Point .env at them and skip the compose step."
 
