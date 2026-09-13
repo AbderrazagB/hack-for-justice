@@ -94,6 +94,23 @@ reproducible. A test asserts that only the three fields the cross-check actually
 compares say they are compared -- so a clean result is never read as more
 assurance than it is.
 
+**Evidence.** `GET /submissions/{id}/evidence/{check}` answers "show me". A
+flag already names the documents it concerns and carries the values in dispute,
+so the values are searched for inside those pages and returned as boxes in page
+fractions, which an overlay tracks at any render width. `GET
+/submissions/{id}/pages/{doc}/{n}.png` serves the page itself, rasterised at the
+same DPI the boxes were measured against; unlike `/documents/...` it is readable
+by the applicant, since checking your own dossier is the point.
+
+The boxes come from a separate OCR pass, not from the engine that extracted the
+field: Mistral's vision OCR returns values with no coordinates, and asking a
+language model for pixel positions invents them. Tesseract is used when its
+binary is installed (word-level, good Arabic); RapidOCR otherwise, which is
+pip-installable with no system dependency and returns whole lines. A value that
+cannot be found produces **no box** and the response says `located: false` --
+the page is then shown unmarked, because a rectangle over the wrong part of it
+would defeat the only thing this feature is for.
+
 **Review.** `POST /submissions/{id}/review` appends a decision and moves the
 status. History accumulates; stats derive from it live.
 

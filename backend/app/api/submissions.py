@@ -41,6 +41,7 @@ from app.services.declaration import (
     MODIFICATION_TYPES,
     TRANSACTION_MODIFICATION_TYPE,
 )
+from app.services.evidence import locate, needles_from_flag, page_count, render_page
 from app.services.ocr_service import OCRService
 from app.services.rules_engine import (
     COMPANY_TYPES,
@@ -490,6 +491,146 @@ def declaration_sheet(
             )
         },
     )
+
+
+# ----------------------------------------------------------------- evidence
+
+# A dossier page is a page; nobody needs the twentieth one highlighted, and
+# each costs an OCR pass.
+MAX_EVIDENCE_PAGES = 5
+
+
+
+@router.get("/submissions/{submission_id}/evidence/{check_code}")
+async def flag_evidence(
+    submission_id: str,
+    check_code: str,
+    store: SubmissionStore = Depends(get_store),
+    upload_dir: Path = Depends(get_upload_dir),
+    user: User = Depends(current_user),
+) -> dict[str, Any]:
+    """Where on the page the flagged values actually are.
+
+    A verdict saying two documents disagree about a CIN is only checkable if
+    you can see both. This returns, per document the flag names, the boxes of
+    the disputed values as fractions of the page -- so the reader looks at the
+    pixels instead of taking the rules engine's word for it.
+
+    A value that cannot be located produces no box rather than a guess: the
+    point is verification, and a rectangle over the wrong part of the page
+    would defeat it.
+    """
+    submission = _require(store.get(submission_id), submission_id)
+    _assert_may_read(submission, user)
+
+    payload = submission.to_dict()
+    flag = next(
+        (f for f in payload.get("flags", []) if f.get("code") == check_code), None
+    )
+    if flag is None:
+        raise HTTPException(
+            status_code=404, detail=f"No flag '{check_code}' on this submission"
+        )
+
+    stored = payload.get("documents") or {}
+    needles = needles_from_flag(flag, set(stored))
+
+    documents: list[dict[str, Any]] = []
+    for entry in flag.get("documents") or []:
+        key = entry.get("key")
+        record = stored.get(key)
+        if not record:
+            continue
+
+        content = _read_stored(upload_dir, key, record.get("stored_path", ""))
+        if content is None:
+            continue
+
+        pages: list[dict[str, Any]] = []
+        for index in range(min(page_count(content), MAX_EVIDENCE_PAGES)):
+            try:
+                image, _ = await run_in_threadpool(render_page, content, index)
+            except Exception as exc:  # noqa: BLE001 - one bad page is not fatal
+                logger.warning("Could not render page %s of %s: %s", index, key, exc)
+                continue
+            boxes = await run_in_threadpool(locate, image, needles)
+            pages.append(
+                {
+                    "page": index,
+                    "image_url": (
+                        f"/submissions/{submission_id}/pages/{key}/{index}.png"
+                    ),
+                    "boxes": [box.to_dict() for box in boxes],
+                }
+            )
+
+        documents.append(
+            {
+                "key": key,
+                "label_fr": entry.get("label_fr"),
+                "label_ar": entry.get("label_ar"),
+                "pages": pages,
+            }
+        )
+
+    return {
+        "submission_id": submission_id,
+        "code": check_code,
+        "values": needles,
+        "documents": documents,
+        # False when nothing could be located anywhere -- the UI then shows the
+        # page without pretending to point at something.
+        "located": any(page["boxes"] for doc in documents for page in doc["pages"]),
+    }
+
+
+@router.get("/submissions/{submission_id}/pages/{document_type}/{page}.png")
+async def document_page(
+    submission_id: str,
+    document_type: str,
+    page: int,
+    store: SubmissionStore = Depends(get_store),
+    upload_dir: Path = Depends(get_upload_dir),
+    user: User = Depends(current_user),
+) -> Response:
+    """One page of an uploaded document, as an image.
+
+    Rasterised at the same DPI the boxes were measured against, which is what
+    keeps an overlay aligned with what the reader sees. Unlike /documents/...,
+    this is readable by the applicant who filed it, because the whole point is
+    that they can check their own dossier.
+    """
+    submission = _require(store.get(submission_id), submission_id)
+    _assert_may_read(submission, user)
+
+    record = (submission.to_dict().get("documents") or {}).get(document_type)
+    if not record:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    content = _read_stored(upload_dir, document_type, record.get("stored_path", ""))
+    if content is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    try:
+        image, media_type = await run_in_threadpool(render_page, content, page)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail="Page not found") from exc
+
+    return Response(content=image, media_type=media_type)
+
+
+def _read_stored(upload_dir: Path, document_type: str, stored_path: str) -> bytes | None:
+    """Read an uploaded file, refusing anything outside the upload directory."""
+    safe_type = Path(document_type).name
+    safe_name = Path(stored_path).name
+    if not safe_type or not safe_name:
+        return None
+
+    root = upload_dir.resolve()
+    candidate = (root / safe_type / safe_name).resolve()
+    if not candidate.is_relative_to(root) or not candidate.is_file():
+        return None
+    return candidate.read_bytes()
 
 
 # ---------------------------------------------------------------- documents

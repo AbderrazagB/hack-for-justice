@@ -1,6 +1,7 @@
 import type {
   AuthUser,
   ExplainResponse,
+  FlagEvidence,
   ReviewAction,
   Stats,
   SessionResponse,
@@ -202,6 +203,16 @@ export async function currentUser(): Promise<AuthUser | null> {
     if (error instanceof ApiError && error.status === 401) return null;
     throw error;
   }
+}
+
+/** Where a flag's disputed values sit on the pages they came from. */
+export function flagEvidence(
+  submissionId: string,
+  code: string,
+): Promise<FlagEvidence> {
+  return request<FlagEvidence>(
+    `/submissions/${submissionId}/evidence/${encodeURIComponent(code)}`,
+  );
 }
 
 /** URL of the submission's RNE-F-005 preparation sheet. */

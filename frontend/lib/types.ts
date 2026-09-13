@@ -194,6 +194,36 @@ export type ExplainResponse = {
   grounded: boolean;
 };
 
+export type EvidenceBox = {
+  /** Fractions of the page, so an overlay tracks the image at any width. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+};
+
+export type EvidencePage = {
+  page: number;
+  image_url: string;
+  boxes: EvidenceBox[];
+};
+
+export type FlagEvidence = {
+  submission_id: string;
+  code: string;
+  /** The values the flag is about, as searched for on the page. */
+  values: string[];
+  documents: {
+    key: string;
+    label_fr: string;
+    label_ar: string;
+    pages: EvidencePage[];
+  }[];
+  /** False when nothing could be located; the page is shown unmarked. */
+  located: boolean;
+};
+
 export type ReviewAction = "approve" | "reject" | "request_correction";
 
 export type UserRole = "applicant" | "officer";

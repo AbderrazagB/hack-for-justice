@@ -293,6 +293,11 @@ Demo accounts for a local run come from `scripts/seed_accounts.py`, which
 prints the credentials it seeds. They are demo credentials in a public
 repository: fine on a laptop, not fine anywhere reachable.
 
+**Evidence.** A finding can be checked rather than believed: every flag that
+names a document offers "Voir sur la pièce", which shows the page with the
+disputed value outlined on it. Values that cannot be located are not outlined
+at all — the page is shown unmarked and says so.
+
 **Uploads.** Each file is capped at 10 MB, a submission at 12 files and 40 MB,
 and the request body at 48 MB. The declared `Content-Type` is ignored: the file
 is identified from its own magic bytes against an allowlist, so a script

@@ -1,9 +1,11 @@
 "use client";
 
-import { Download, FileWarning } from "lucide-react";
+import { Download, FileWarning, ScanSearch } from "lucide-react";
+import { useState } from "react";
 
 import BlurText from "@/components/BlurText";
 import { useReducedMotion } from "@/components/motion";
+import { EvidenceViewer } from "@/components/evidence-viewer";
 import { FloatingPanel, SeverityTag } from "@/components/ui";
 import { preparationSheetUrl } from "@/lib/api";
 import { COMPLETENESS_STATUS, DOCUMENT_SHORT_FR } from "@/lib/status";
@@ -21,6 +23,8 @@ export function VerdictPanel({ result }: { result: SubmissionResult }) {
   const status = COMPLETENESS_STATUS[result.completeness.status];
   const Icon = status.icon;
   const { missing_documents: missing } = result.completeness;
+  // Which finding the reader asked to see on the page, if any.
+  const [shown, setShown] = useState<{ code: string; title: string } | null>(null);
 
   return (
     <FloatingPanel accent={status.ink}>
@@ -132,6 +136,18 @@ export function VerdictPanel({ result }: { result: SubmissionResult }) {
                 <p className="ar mt-1 pl-1 text-[0.8125rem] text-[var(--ink-muted)]">
                   {flag.message_ar}
                 </p>
+                {/* Only where there is a page to point at. A missing document
+                    has none, and offering to show it would be a dead end. */}
+                {(flag.documents?.length ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShown({ code: flag.code, title: flag.message_fr })}
+                    className="mt-1.5 inline-flex items-center gap-1.5 text-[0.75rem] font-medium text-[var(--teal-ink)] underline-offset-2 hover:underline"
+                  >
+                    <ScanSearch size={13} strokeWidth={2} aria-hidden />
+                    Voir sur la pièce
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -146,6 +162,15 @@ export function VerdictPanel({ result }: { result: SubmissionResult }) {
           Les cinq pièces sont présentes et concordent. Vous pouvez déposer ce
           dossier sur le portail du RNE.
         </section>
+      )}
+
+      {shown && (
+        <EvidenceViewer
+          submissionId={result.submission_id}
+          code={shown.code}
+          title={shown.title}
+          onClose={() => setShown(null)}
+        />
       )}
     </FloatingPanel>
   );
