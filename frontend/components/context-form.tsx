@@ -25,6 +25,9 @@ export function ContextForm({
 }) {
   if (fields.length === 0) return null;
 
+  const choices = fields.filter((field) => field.type !== "checkbox");
+  const toggles = fields.filter((field) => field.type === "checkbox");
+
   return (
     <Panel className="p-5">
       <h2 className="t-h3 text-[var(--navy)]">Votre société</h2>
@@ -36,16 +39,33 @@ export function ContextForm({
         les pièces attendues et les délais applicables.
       </p>
 
-      <div className="mt-5 space-y-4">
-        {fields.map((field) => (
-          <Field
-            key={field.name}
-            field={field}
-            value={values[field.name]}
-            onChange={(value) => onChange(field.name, value)}
-          />
-        ))}
-      </div>
+      {/* Selects and dates pair up; checkboxes read as statements and keep the
+          full width, so the four questions take two rows rather than four. */}
+      {choices.length > 0 && (
+        <div className="mt-5 grid gap-x-5 gap-y-4 sm:grid-cols-2">
+          {choices.map((field) => (
+            <Field
+              key={field.name}
+              field={field}
+              value={values[field.name]}
+              onChange={(value) => onChange(field.name, value)}
+            />
+          ))}
+        </div>
+      )}
+
+      {toggles.length > 0 && (
+        <div className="mt-4 space-y-3 border-t border-[var(--line)] pt-4">
+          {toggles.map((field) => (
+            <Field
+              key={field.name}
+              field={field}
+              value={values[field.name]}
+              onChange={(value) => onChange(field.name, value)}
+            />
+          ))}
+        </div>
+      )}
     </Panel>
   );
 }

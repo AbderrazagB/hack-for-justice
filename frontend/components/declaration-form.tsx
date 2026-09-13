@@ -18,6 +18,12 @@ import type { DeclarationField } from "@/lib/types";
  * one thing reading the attachments alone can never catch. That comparison is
  * why the pieces are still required alongside the answers, so the three
  * questions it applies to say out loud which document they are held against.
+ *
+ * Laid out in two columns rather than one tall column. Nine stacked full-width
+ * inputs, each carrying a label, a badge and a line of help, ran to about a
+ * thousand pixels -- long enough that the end of the form was an act of faith.
+ * Pairing them and folding the help into the "Pourquoi ?" disclosure (it said
+ * roughly what the disclosure says at greater length) roughly halves that.
  */
 export function DeclarationForm({
   fields,
@@ -53,7 +59,7 @@ export function DeclarationForm({
   const comparedCount = fields.filter((field) => field.cross_checked).length;
 
   return (
-    <Panel className="p-5">
+    <Panel className="p-5 sm:p-6">
       <div className="flex items-start gap-3">
         <span
           aria-hidden
@@ -70,40 +76,41 @@ export function DeclarationForm({
       </div>
 
       <p className="mt-3 text-[0.8125rem] leading-relaxed text-[var(--ink-muted)]">
-        Ces informations constituent la déclaration officielle (formulaire
-        RNE-F-005). Vous n&apos;avez pas à le télécharger ni à le déchiffrer :
-        répondez ici, nous le remplissons.
+        Le formulaire officiel RNE-F-005, posé en questions. Vous n&apos;avez ni
+        à le télécharger ni à le déchiffrer&nbsp;: répondez ici, nous le
+        remplissons.
       </p>
 
-      {/* The obvious objection -- "pourquoi me demander ce qui figure déjà sur
-          mes pièces ?" -- answered where it is raised. */}
-      <p className="mt-3 flex items-start gap-2 rounded-[var(--r-control)] border-l-2 border-[var(--teal)] bg-[var(--teal-wash)] px-3 py-2 text-[0.75rem] leading-relaxed text-[var(--ink-muted)]">
-        <GitCompareArrows
-          size={13}
-          strokeWidth={2}
-          className="mt-0.5 shrink-0 text-[var(--teal-ink)]"
-          aria-hidden
-        />
-        <span>
-          {comparedCount} de ces réponses sont <strong className="font-medium text-[var(--ink)]">recoupées</strong>{" "}
-          avec vos pièces. C&apos;est la comparaison des deux — et non la lecture
-          des documents seuls — qui révèle les contradictions sur lesquelles le
-          registre rejette. Vos pièces restent donc exigées, comme sur la liste
-          officielle.
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[var(--r-control)] bg-[var(--canvas)] px-3 py-2.5 text-[0.75rem]">
+        {/* The obvious objection -- "pourquoi me demander ce qui figure déjà sur
+            mes pièces ?" -- answered where it is raised. */}
+        <span className="flex items-center gap-1.5 text-[var(--ink-muted)]">
+          <GitCompareArrows
+            size={13}
+            strokeWidth={2}
+            className="shrink-0 text-[var(--teal-ink)]"
+            aria-hidden
+          />
+          <span>
+            <strong className="font-medium text-[var(--ink)]">
+              {comparedCount} réponses
+            </strong>{" "}
+            sont recoupées avec vos pièces — d&apos;où la comparaison qui
+            détecte les contradictions.
+          </span>
         </span>
-      </p>
+        {modificationType && (
+          <span className="flex flex-wrap items-center gap-x-2 text-[var(--ink-muted)]">
+            <span>Nature&nbsp;:</span>
+            <span className="font-medium text-[var(--navy)]">{modificationType}</span>
+            {modificationTypeAr && (
+              <span className="ar text-[var(--ink-faint)]">{modificationTypeAr}</span>
+            )}
+          </span>
+        )}
+      </div>
 
-      {modificationType && (
-        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--r-control)] bg-[var(--canvas)] px-3 py-2 text-[0.8125rem]">
-          <span className="text-[var(--ink-muted)]">Nature de la mise à jour&nbsp;:</span>
-          <span className="font-medium text-[var(--navy)]">{modificationType}</span>
-          {modificationTypeAr && (
-            <span className="ar text-[var(--ink-faint)]">{modificationTypeAr}</span>
-          )}
-        </p>
-      )}
-
-      <div className="mt-6 space-y-7">
+      <div className="mt-6 space-y-6">
         {sections.map((section) => (
           <section key={section.key}>
             <div className="flex items-baseline gap-2 border-b border-[var(--line)] pb-1.5">
@@ -112,7 +119,14 @@ export function DeclarationForm({
                 {section.label_ar}
               </span>
             </div>
-            <div className="mt-4 space-y-4">
+            {/* A lone question keeps the full width; the rest pair up. */}
+            <div
+              className={`mt-3.5 ${
+                section.fields.length > 1
+                  ? "grid gap-x-5 gap-y-4 sm:grid-cols-2"
+                  : ""
+              }`}
+            >
               {section.fields.map((field) => (
                 <Field
                   key={field.name}
@@ -148,30 +162,36 @@ function Field({
   const inputType =
     field.type === "email" ? "email" : field.type === "tel" ? "tel" : "text";
   const whyId = `decl-${field.name}-why`;
+  const hasNote = Boolean(field.help_fr || field.why_fr);
 
   return (
-    <div>
-      {/* Label left, affordances right: nine of these stack, so the "Pourquoi ?"
-          controls need to land in one predictable column rather than trailing
-          help text of nine different lengths. */}
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <label htmlFor={`decl-${field.name}`} className="t-label text-[var(--ink)]">
+    <div className="min-w-0">
+      {/* Label left, disclosure right: the controls land in one predictable
+          column instead of trailing help text of nine different lengths. */}
+      <div className="flex items-baseline gap-x-2">
+        <label
+          htmlFor={`decl-${field.name}`}
+          className="t-label shrink-0 text-[var(--ink)]"
+        >
           {field.label_fr}
           {!field.required && (
             <span className="font-normal text-[var(--ink-faint)]"> (facultatif)</span>
           )}
         </label>
-        <span className="ar text-[0.75rem] text-[var(--ink-faint)]">
+        {/* The Arabic label yields first: truncating it keeps every label row to
+            exactly one line, which is what makes a two-column grid of them read
+            as a grid rather than as a ragged list. */}
+        <span className="ar min-w-0 flex-1 truncate text-[0.75rem] text-[var(--ink-faint)]">
           {field.label_ar}
         </span>
 
-        {field.why_fr && (
+        {hasNote && (
           <button
             type="button"
             onClick={() => setShowWhy((open) => !open)}
             aria-expanded={showWhy}
             aria-controls={whyId}
-            className="ms-auto inline-flex shrink-0 items-center gap-0.5 text-[0.75rem] font-medium text-[var(--teal-ink)] underline-offset-2 hover:underline"
+            className="inline-flex shrink-0 items-center gap-0.5 text-[0.75rem] font-medium text-[var(--teal-ink)] underline-offset-2 hover:underline"
           >
             Pourquoi&nbsp;?
             <ChevronDown
@@ -194,27 +214,37 @@ function Field({
       />
 
       {field.compared_with_fr && (
-        <p className="mt-1.5 flex items-start gap-1.5 text-[0.75rem] leading-relaxed text-[var(--teal-ink)]">
+        <p className="mt-1.5 flex items-start gap-1.5 text-[0.75rem] leading-snug text-[var(--teal-ink)]">
           <GitCompareArrows size={12} strokeWidth={2.1} className="mt-0.5 shrink-0" aria-hidden />
           <span>
-            Recoupé avec <span className="font-medium">{field.compared_with_fr}</span>
+            Recoupé&nbsp;: <span className="font-medium">{field.compared_with_fr}</span>
           </span>
         </p>
       )}
 
-      {field.help_fr && (
-        <p className="mt-1.5 text-[0.75rem] text-[var(--ink-faint)]">{field.help_fr}</p>
-      )}
-
-      {field.why_fr && (
+      {hasNote && (
         <div
           id={whyId}
           hidden={!showWhy}
           className="mt-2 rounded-[var(--r-control)] border-l-2 border-[var(--teal)] bg-[var(--canvas)] px-3 py-2"
         >
-          <p className="text-[0.75rem] leading-relaxed text-[var(--ink-muted)]">
-            {field.why_fr}
-          </p>
+          {/* help_fr says what the entry is, why_fr says why it is asked. Both
+              lived on screen at all times and said much the same thing; they
+              are one disclosure now. */}
+          {field.help_fr && (
+            <p className="text-[0.75rem] leading-relaxed font-medium text-[var(--ink)]">
+              {field.help_fr}
+            </p>
+          )}
+          {field.why_fr && (
+            <p
+              className={`text-[0.75rem] leading-relaxed text-[var(--ink-muted)] ${
+                field.help_fr ? "mt-1" : ""
+              }`}
+            >
+              {field.why_fr}
+            </p>
+          )}
           {field.why_ar && (
             <p className="ar ar-left mt-1.5 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
               {field.why_ar}
