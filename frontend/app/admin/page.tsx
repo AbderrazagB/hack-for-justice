@@ -1,10 +1,11 @@
-import { Flag, Inbox, LogIn, ShieldAlert } from "lucide-react";
+import { LogIn, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 
 import { AdminBar } from "@/components/chrome";
+import { DossierCard } from "@/components/dossier-card";
 import { HeroAurora } from "@/components/hero-aurora";
 import { StatBand, type Figure } from "@/components/stat-band";
-import { EmptyState, Notice, StatusBadge } from "@/components/ui";
+import { EmptyState, Notice } from "@/components/ui";
 import {
   ApiError,
   getStats,
@@ -12,7 +13,6 @@ import {
   listTransactions,
   serverAuthHeaders,
 } from "@/lib/api";
-import { statusStyle } from "@/lib/status";
 import type { Stats, SubmissionSummary, TransactionInfo } from "@/lib/types";
 
 /**
@@ -222,7 +222,7 @@ export default async function OfficerQueue({
           })}
         </div>
 
-        {/* --------------------------------------------- queue table --- */}
+        {/* ---------------------------------------------- the queue --- */}
         <div className="mt-5">
           {submissions.length === 0 && !error ? (
             <EmptyState title="Aucun dossier pour ce filtre">
@@ -233,72 +233,21 @@ export default async function OfficerQueue({
               pour remplir la file avec des dossiers de démonstration.
             </EmptyState>
           ) : (
-            <div className="overflow-hidden rounded-[var(--r-panel)] border border-[var(--line)]">
-              {/* The table is the one element allowed to scroll sideways on a
-                  narrow screen; the page body itself never does. */}
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[34rem] border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-[var(--line-strong)] bg-[var(--canvas)]">
-                      <Th className="w-[7.5rem]">Référence</Th>
-                      <Th>Démarche</Th>
-                      <Th className="hidden w-[11rem] sm:table-cell">Reçu le</Th>
-                      <Th className="w-[8.5rem]">Anomalies</Th>
-                      <Th className="w-[9rem]">État</Th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {submissions.map((submission) => {
-                      const tone = statusStyle(submission.status).ink;
-                      return (
-                        <tr
-                          key={submission.id}
-                          className="border-b border-[var(--line)] bg-[var(--surface)] last:border-b-0 hover:bg-[var(--canvas)]"
-                        >
-                          <td className="relative py-0 pl-4">
-                            <span
-                              aria-hidden
-                              className="absolute top-0 bottom-0 left-0 w-[3px]"
-                              style={{ background: tone }}
-                            />
-                            <Link
-                              href={`/admin/${submission.id}`}
-                              className="t-data block py-3.5 text-[var(--ink)] hover:text-[var(--teal-ink)]"
-                            >
-                              {submission.id}
-                            </Link>
-                          </td>
-                          <td className="px-3 py-3.5 text-[0.875rem]">
-                            {submission.display_name_fr}
-                            <span className="ar block text-[0.75rem] text-[var(--ink-faint)]">
-                              {submission.display_name_ar}
-                            </span>
-                          </td>
-                          <td className="hidden px-3 py-3.5 text-[0.8125rem] text-[var(--ink-muted)] sm:table-cell">
-                            {new Date(submission.created_at).toLocaleString("fr-FR", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </td>
-                          <td className="px-3 py-3.5">
-                            <FlagCell
-                              total={submission.flag_count}
-                              errors={submission.error_flag_count}
-                            />
-                          </td>
-                          <td className="px-3 py-3.5">
-                            <StatusBadge status={submission.status} size="sm" />
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    </tbody>
-                </table>
-              </div>
-            </div>
+            /* A grid of dossiers rather than a table of rows. The officer
+               triages on three things -- what is blocking, what state it is
+               in, how long it has waited -- and a card puts all three where
+               they can be seen without reading across columns. */
+            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {submissions.map((submission) => (
+                <li key={submission.id}>
+                  <DossierCard
+                    submission={submission}
+                    href={`/admin/${submission.id}`}
+                    showAge
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </main>
@@ -306,51 +255,6 @@ export default async function OfficerQueue({
   );
 }
 
-function Th({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <th
-      scope="col"
-      className={`px-3 py-2.5 text-[0.6875rem] font-semibold text-[var(--ink-muted)] first:pl-4 ${className}`}
-    >
-      {children}
-    </th>
-  );
-}
-
-function FlagCell({ total, errors }: { total: number; errors: number }) {
-  if (!total) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-[0.8125rem] text-[var(--ink-faint)]">
-        <Inbox size={13} strokeWidth={1.75} aria-hidden />
-        Aucune
-      </span>
-    );
-  }
-
-  const tone = errors > 0 ? "var(--st-rejected-ink)" : "var(--st-correction-ink)";
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium"
-      style={{ color: tone }}
-    >
-      <Flag size={13} strokeWidth={2} aria-hidden />
-      {total}
-      {errors > 0 && (
-        <span className="text-[0.75rem] font-normal">
-          ({errors} bloquant{errors > 1 ? "s" : ""})
-        </span>
-      )}
-    </span>
-  );
-}
-
-/** Build an /admin URL preserving whichever filters are not being changed. */
 function queryFor({
   status,
   transaction,

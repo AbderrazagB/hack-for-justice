@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { PortalBar } from "@/components/chrome";
-import { Notice, StatusBadge } from "@/components/ui";
+import { DossierCard } from "@/components/dossier-card";
+import { Notice } from "@/components/ui";
 import { mySubmissions } from "@/lib/api";
-import { COMPLETENESS_STATUS } from "@/lib/status";
 import type { SubmissionSummary } from "@/lib/types";
 
 /**
@@ -91,61 +91,15 @@ export function MyDossiers() {
         )}
 
         {submissions && submissions.length > 0 && (
-          <ul className="mt-6 space-y-3">
-            {submissions.map((submission) => {
-              // A dossier whose check never completed has no completeness
-              // status; it still deserves a row.
-              const completeness = submission.completeness_status
-                ? COMPLETENESS_STATUS[submission.completeness_status]
-                : null;
-              return (
-                <li key={submission.id}>
-                  {/* The row is the way in. A dossier you cannot reopen is a
-                      dossier you filed once, not one you own. */}
-                  <Link
-                    href={`/msme/dossiers/${submission.id}`}
-                    className="block rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-4 transition-colors hover:border-[var(--teal)] sm:p-5"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-                      <div className="min-w-0">
-                        <p className="text-[0.9375rem] font-medium text-[var(--navy)]">
-                          {submission.display_name_fr}
-                        </p>
-                        <p className="t-data mt-0.5 text-[0.75rem] text-[var(--ink-faint)]">
-                          {submission.id} · déposé le{" "}
-                          {new Date(submission.created_at).toLocaleDateString("fr-FR")}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap items-center gap-2">
-                        {submission.completeness_status && (
-                          <StatusBadge status={submission.completeness_status} />
-                        )}
-                        <StatusBadge status={submission.status} />
-                      </div>
-                    </div>
-
-                    <p className="mt-3 text-[0.8125rem] leading-relaxed text-[var(--ink-muted)]">
-                      {submission.flag_count === 0
-                        ? "Aucune anomalie relevée."
-                        : `${submission.flag_count} point${submission.flag_count > 1 ? "s" : ""} relevé${
-                            submission.flag_count > 1 ? "s" : ""
-                          }${
-                            submission.error_flag_count
-                              ? `, dont ${submission.error_flag_count} bloquant${
-                                  submission.error_flag_count > 1 ? "s" : ""
-                                }`
-                              : ""
-                          }.`}
-                      {completeness ? ` ${completeness.fr}.` : ""}
-                    </p>
-                    <p className="mt-2 inline-flex items-center gap-1 text-[0.75rem] font-medium text-[var(--teal-ink)]">
-                      Ouvrir et corriger
-                      <ArrowRight size={13} strokeWidth={2} aria-hidden />
-                    </p>
-                  </Link>
-                </li>
-              );
-            })}
+          <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {submissions.map((submission) => (
+              <li key={submission.id}>
+                <DossierCard
+                  submission={submission}
+                  href={`/msme/dossiers/${submission.id}`}
+                />
+              </li>
+            ))}
           </ul>
         )}
       </main>
