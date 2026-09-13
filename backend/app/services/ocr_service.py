@@ -159,7 +159,7 @@ _EXTRACTION_SCHEMA = """{
   "registration_reference": "recette des finances registration ref, else null",
   "shareholders": [{"name": "...", "id_number": "digits only or null", "shares": "or null"}],
   "other_id_numbers": ["any other ID numbers appearing anywhere"],
-  "notes": "anything illegible, missing, or suspicious"
+  "notes": "EN FRANÇAIS : ce qui est illisible, absent ou douteux. Écrire cette valeur en français, jamais en anglais -- elle est affichée telle quelle à un agent du registre."
 }"""
 
 
@@ -296,7 +296,10 @@ class OCRService:
             f"{_EXTRACTION_SCHEMA}\n\n"
             "Rules: use null for anything not present -- never guess or invent a "
             "value. Normalise every date to YYYY-MM-DD. Strip spaces and "
-            "separators from ID numbers."
+            "separators from ID numbers.\n"
+            "Every value you write in prose rather than copy off the page -- the "
+            "notes field above all -- must be in FRENCH. It is shown, unedited, "
+            "to a French-speaking registry officer; English there is a defect."
         )
 
         content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
@@ -436,5 +439,5 @@ def _fields_from_plain_text(text: str) -> dict[str, Any]:
         "registration_reference": None,
         "shareholders": [],
         "other_id_numbers": ids[1:],
-        "notes": "Extracted by local Tesseract fallback; fields are unverified.",
+        "notes": "Lecture locale (Tesseract) : champs non vérifiés.",
     }
