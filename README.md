@@ -48,6 +48,38 @@ anomalies, then each page beside the data read from it, then approve / request a
 correction / reject. The acting officer comes from the session, never the
 request body, so the audit trail cannot be forged.
 
+## As an API
+
+The same engine is sold as a service. An integrator — a bank onboarding a
+company, an accountant filing for a client, a legal-tech platform — sends the
+documents they already hold and gets back whether the registry would reject the
+filing, before anyone submits it.
+
+```bash
+curl -X POST https://api.sahilli.tn/v1/validate \
+  -H "Authorization: Bearer sk_sahilli_…" \
+  -F "transaction_type=RNE_MODIFICATION_ENTREPRISE" \
+  -F "files=@cin.png" -F "document_types=id_new_representative" \
+  …
+```
+
+```json
+{ "accepted": false,
+  "findings": [{ "code": "id_number_matches_across_documents",
+                 "severity": "ERROR",
+                 "message_fr": "Le numéro de CIN (31790642) ne correspond pas…" }],
+  "deadline": { "days_overdue": 154, "penalty_estimate_tnd": 150 },
+  "quota": { "used": 37, "remaining": 963 } }
+```
+
+`/v1` is versioned and separate from the app's own routes: the internals can
+change, the contract cannot. Keys are per integration, hashed at rest, with a
+monthly quota reported on every response. A validation belongs to the key that
+made it — another key gets 403, and dossiers filed through the web application
+are not readable over the API at all.
+
+**[Full API reference → `docs/api.md`](docs/api.md)**
+
 ## Design principles
 
 These are the rules the code actually enforces, and most of them exist because

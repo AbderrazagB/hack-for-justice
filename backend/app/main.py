@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import assistant, auth, brief, health, query, submissions, upload
+from app.api import assistant, auth, brief, health, public, query, submissions, upload
 from app.core.config import settings
 from app.core.database import dispose_engine, init_models
 
@@ -107,3 +107,4 @@ app.include_router(upload.router)
 app.include_router(submissions.router)
 app.include_router(assistant.router)
 app.include_router(brief.router)
+app.include_router(public.router)
