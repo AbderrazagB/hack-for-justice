@@ -93,6 +93,10 @@ class DeclarationFieldInfo(BaseModel):
     type: str
     required: bool
     help_fr: str | None = None
+    # Static, per-field justification. Shown on demand next to the question so
+    # an applicant can see why it is asked without having to ask anything.
+    why_fr: str | None = None
+    why_ar: str | None = None
 
 
 class TransactionInfo(BaseModel):
@@ -206,6 +210,8 @@ def list_transactions() -> list[TransactionInfo]:
                     type=spec.type,
                     required=spec.required,
                     help_fr=spec.help_fr,
+                    why_fr=spec.why_fr,
+                    why_ar=spec.why_ar,
                 )
                 for spec in DECLARATION_FIELDS
             ],

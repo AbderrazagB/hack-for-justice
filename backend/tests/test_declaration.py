@@ -304,3 +304,25 @@ def test_preparation_sheet_downloads(client, png) -> None:
 
 def test_preparation_sheet_of_an_unknown_submission_is_404(client) -> None:
     assert client.get("/submissions/nope/declaration.pdf").status_code == 404
+
+
+# ------------------------------------------------------------------- "pourquoi"
+
+def test_every_field_explains_why_it_is_asked() -> None:
+    """The disclosure next to each question is part of the contract, not decoration."""
+    for spec in DECLARATION_FIELDS:
+        assert spec.why_fr, f"{spec.name} has no French explanation"
+        assert spec.why_ar, f"{spec.name} has no Arabic explanation"
+
+
+def test_cross_checked_fields_say_so_and_the_others_do_not_pretend() -> None:
+    """A field we never compare must not read as though we verified it.
+
+    The three names below are the ones cross_check() actually compares against
+    a document; every other answer is only stored. Saying otherwise would turn
+    a clean result into false assurance.
+    """
+    compared = {"declarant_id", "unique_identifier", "legal_representative"}
+    for spec in DECLARATION_FIELDS:
+        mentions_comparison = "compar" in (spec.why_fr or "").lower()
+        assert mentions_comparison == (spec.name in compared), spec.name

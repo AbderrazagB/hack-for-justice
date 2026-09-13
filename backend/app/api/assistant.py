@@ -49,6 +49,9 @@ These rules apply identically in French and in Arabic.
 If the user needs a step you were not given, say plainly that they should check \
 with the RNE rather than guessing what it is called or where it is.
 
+- Restate every deadline, amount and date in EXACTLY the units the context \
+uses. If the context says "un mois", never write "30 jours"; if it gives a month \
+count, never convert it to days or weeks. The unit is part of the rule.
 - Cite only references that appear in the context, exactly as written there \
 (e.g. RNE-M-005, loi 52-2018) -- never a more precise citation than you were given.
 - Be concrete about what YOU were told: name the document and the correction needed.
@@ -56,8 +59,24 @@ with the RNE rather than guessing what it is called or where it is.
 - Keep it under 200 words."""
 
 
+# Stand-in for the verdict block when no filing has been checked yet. English,
+# like the rest of the prompt scaffolding, because only the model reads it.
+NO_SUBMISSION_VERDICT = (
+    "No filing has been checked yet. There is no validation result. "
+    "Answer the question from the procedural context only, and do not claim "
+    "anything about the user's documents."
+)
+
+# Retrieval query used when the assistant is opened with nothing to go on.
+GENERAL_QUERY = "pièces requises et délais de dépôt au registre national des entreprises"
+
+
 class ExplainRequest(BaseModel):
-    submission_id: str
+    # Optional: the floating assistant is reachable before anything has been
+    # uploaded. Without a submission there is no verdict to explain, so the
+    # answer rests on the retrieved RNE text alone -- which is also why the
+    # guardrails below are written to hold with or without one.
+    submission_id: str | None = None
     question: str = Field(
         default="",
         max_length=500,
@@ -74,7 +93,7 @@ class Citation(BaseModel):
 
 
 class ExplainResponse(BaseModel):
-    submission_id: str
+    submission_id: str | None = None
     answer: str
     lang: str
     citations: list[Citation]
@@ -102,25 +121,32 @@ def explain(
     # Each call costs an embedding round-trip and an LLM completion.
     enforce(http_request, "assistant", ASSISTANT_LIMIT)
 
-    submission = store.get(request.submission_id)
-    if submission is None:
-        raise HTTPException(
-            status_code=404, detail=f"No submission '{request.submission_id}'"
-        )
+    submission = None
+    if request.submission_id:
+        submission = store.get(request.submission_id)
+        if submission is None:
+            raise HTTPException(
+                status_code=404, detail=f"No submission '{request.submission_id}'"
+            )
 
-    query = request.question.strip() or _query_from_problems(submission.to_dict())
+    if submission is not None:
+        query = request.question.strip() or _query_from_problems(submission.to_dict())
+        verdict = _render_verdict(submission.to_dict(), request.lang)
+    else:
+        query = request.question.strip() or GENERAL_QUERY
+        verdict = NO_SUBMISSION_VERDICT
+
     passages = retrieval.search(query, limit=3)
-
-    verdict = _render_verdict(submission.to_dict(), request.lang)
     context = "\n\n".join(p.as_context(request.lang) for p in passages)
 
     if not passages:
         # No grounding available (corpus unseeded or embedding container down).
         # Report the deterministic verdict rather than letting the model
-        # improvise procedural facts.
+        # improvise procedural facts -- and with no verdict either, say so
+        # instead of answering from the model's own memory.
         return ExplainResponse(
-            submission_id=submission.id,
-            answer=_ungrounded_fallback(verdict, request.lang),
+            submission_id=request.submission_id,
+            answer=_fallback(submission is not None, verdict, request.lang),
             lang=request.lang,
             citations=[],
             grounded=False,
@@ -132,10 +158,10 @@ def explain(
         answer = (llm or LLMClient()).generate(prompt, system=SYSTEM_PROMPT)
     except Exception as exc:  # noqa: BLE001 - never 500 the demo on an API blip
         logger.warning("Assistant generation failed: %s", exc)
-        answer = _ungrounded_fallback(verdict, request.lang)
+        answer = _fallback(submission is not None, verdict, request.lang)
 
     return ExplainResponse(
-        submission_id=submission.id,
+        submission_id=request.submission_id,
         answer=answer.strip(),
         lang=request.lang,
         citations=[
@@ -220,8 +246,24 @@ def _build_prompt(verdict: str, context: str, question: str, lang: str) -> str:
     )
 
 
-def _ungrounded_fallback(verdict: str, lang: str) -> str:
-    """Deterministic answer used when retrieval or the LLM is unavailable."""
+def _fallback(has_submission: bool, verdict: str, lang: str) -> str:
+    """Deterministic answer used when retrieval or the LLM is unavailable.
+
+    With a filing in hand there is still something true to say -- the rules
+    engine already decided -- so we say that. Without one there is nothing left
+    but the model's own memory, which is exactly what this assistant is not
+    allowed to draw on, so it declines instead.
+    """
+    if not has_submission:
+        return (
+            "تعذّر الاطلاع على النصوص المرجعية للسجل الوطني للمؤسسات، ولا يمكنني "
+            "الإجابة دون سند. يُرجى المحاولة لاحقاً أو الاتصال بالسجل."
+            if lang == "ar"
+            else "Les textes de référence du RNE n'ont pas pu être consultés, et "
+            "je ne réponds pas sans source. Réessayez dans un instant ou "
+            "adressez-vous au RNE."
+        )
+
     header = (
         "نتيجة التحقق من الملف:"
         if lang == "ar"

@@ -42,7 +42,7 @@ _CHECK_FOCUS: dict[str, str] = {
     "id_number_matches_across_documents": "id_new_representative",
     "statutes_reflect_new_representative_name": "company_statutes",
     "rne_extract_not_older_than_90_days": "rne_extract",
-    "filed_within_30_days_of_decision_date": "general_assembly_pv",
+    "filed_within_legal_deadline_of_decision_date": "general_assembly_pv",
     "pv_is_signed": "general_assembly_pv",
     "financial_statements_signed_and_stamped": "financial_statements_signed",
     "pv_registered_with_recette_des_finances_if_applicable": "general_assembly_pv_approval",

@@ -155,8 +155,13 @@ export function reviewSubmission(
   return json(`/submissions/${id}/review`, "POST", { action, note, officer });
 }
 
+/**
+ * `submissionId` is null when the assistant is asked something before any
+ * filing exists -- the backend then answers from the RNE corpus alone and
+ * says nothing about documents it has not seen.
+ */
 export function explainSubmission(
-  submissionId: string,
+  submissionId: string | null,
   question = "",
   lang: "fr" | "ar" = "fr",
 ): Promise<ExplainResponse> {

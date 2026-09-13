@@ -17,12 +17,12 @@ TXN = "RNE_MODIFICATION_ENTREPRISE"
 ENDPOINT = f"/transactions/{TXN}/submissions"
 
 DEADLINE_PASSAGE = RetrievedPassage(
-    entry_id="rne-filing-deadline-30-days",
+    entry_id="rne-filing-deadline-one-month",
     topic="deadline",
-    title_fr="Délai légal de dépôt — 30 jours",
+    title_fr="Délai légal de dépôt — un mois",
     title_ar="الأجل القانوني للإيداع",
-    text_fr="Les dépôts doivent être effectués dans un délai de trente (30) jours...",
-    text_ar="يجب إيداع المطالب في أجل ثلاثين (30) يوماً...",
+    text_fr="Les dépôts doivent être effectués dans un délai d'un mois...",
+    text_ar="يجب إيداع المطالب في أجل شهر...",
     official_reference="Loi n° 52-2018 relative au Registre National des Entreprises",
     score=0.62,
     payload={},
@@ -100,7 +100,7 @@ def test_prompt_carries_retrieved_context_and_verdict(client, png) -> None:
 
     prompt = llm.calls[0]["prompt"]
     assert "RNE PROCEDURAL CONTEXT" in prompt
-    assert "trente (30) jours" in prompt          # the retrieved passage
+    assert "délai d'un mois" in prompt          # the retrieved passage
     assert "VALIDATION RESULT" in prompt
     assert "INCOMPLETE" in prompt                  # the rules-engine verdict
 
@@ -189,3 +189,77 @@ def test_invalid_language_is_rejected(client, png) -> None:
         "/assistant/explain", json={"submission_id": submission_id, "lang": "de"}
     )
     assert response.status_code == 422
+
+
+# ------------------------------------------------- assistant without a filing
+
+def test_explain_answers_without_a_submission(client) -> None:
+    """The floating assistant is reachable before anything is uploaded."""
+    llm = FakeLLM("Le dépôt se fait en ligne.")
+    _wire(llm=llm)
+
+    response = client.post(
+        "/assistant/explain", json={"question": "Quelles pièces dois-je fournir ?"}
+    )
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["answer"] == "Le dépôt se fait en ligne."
+    assert body["grounded"] is True
+    assert body["submission_id"] is None
+
+
+def test_prompt_without_a_submission_forbids_claims_about_documents(client) -> None:
+    llm = FakeLLM()
+    _wire(llm=llm)
+    client.post("/assistant/explain", json={"question": "Quel est le délai ?"})
+
+    prompt = llm.calls[0]["prompt"]
+    # No filing was checked, so the model must be told there is no verdict
+    # rather than being handed an empty one it could read as "all clear".
+    assert "No filing has been checked yet" in prompt
+    assert "do not claim anything about the user's documents" in prompt
+    assert "délai d'un mois" in prompt
+
+
+def test_question_without_a_submission_drives_retrieval(client) -> None:
+    retrieval = FakeRetrieval()
+    _wire(retrieval=retrieval)
+    client.post("/assistant/explain", json={"question": "Quelle est la pénalité ?"})
+
+    assert retrieval.queries == ["Quelle est la pénalité ?"]
+
+
+def test_empty_question_without_a_submission_still_retrieves(client) -> None:
+    retrieval = FakeRetrieval()
+    _wire(retrieval=retrieval)
+    body = client.post("/assistant/explain", json={}).json()
+
+    assert retrieval.queries and retrieval.queries[0]
+    assert body["grounded"] is True
+
+
+def test_ungrounded_without_a_submission_declines_rather_than_guessing(client) -> None:
+    """With neither a verdict nor retrieved text, there is nothing honest to say."""
+    _wire(retrieval=FakeRetrieval(passages=[]))
+
+    body = client.post(
+        "/assistant/explain", json={"question": "Quel est le délai ?"}
+    ).json()
+
+    assert body["grounded"] is False
+    assert "n'ont pas pu être consultés" in body["answer"]
+    # It must not fall back to a verdict block: there is no filing.
+    assert "Statut:" not in body["answer"]
+
+
+def test_ungrounded_with_a_submission_still_reports_the_verdict(client, png) -> None:
+    _wire(retrieval=FakeRetrieval(passages=[]))
+    submission_id = _create(client, png, ["id_new_representative"])
+
+    body = client.post(
+        "/assistant/explain", json={"submission_id": submission_id}
+    ).json()
+
+    assert body["grounded"] is False
+    assert "Statut:" in body["answer"]

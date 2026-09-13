@@ -35,7 +35,7 @@ TRANSACTION_RULES = {
             "id_number_matches_across_documents",
             "statutes_reflect_new_representative_name",
             "rne_extract_not_older_than_90_days",
-            "filed_within_30_days_of_decision_date",
+            "filed_within_legal_deadline_of_decision_date",
             "pv_is_signed",
             "declaration_matches_documents",
         ],
@@ -177,9 +177,9 @@ CHECK_LABELS: dict[str, dict[str, str]] = {
         "fr": "L'Extrait RNE date de moins de 90 jours",
         "ar": "مضمون السجل أقل من 90 يوماً",
     },
-    "filed_within_30_days_of_decision_date": {
-        "fr": "Dépôt dans les 30 jours suivant la décision",
-        "ar": "الإيداع في أجل 30 يوماً من تاريخ القرار",
+    "filed_within_legal_deadline_of_decision_date": {
+        "fr": "Dépôt dans le délai légal d'un mois suivant la décision",
+        "ar": "الإيداع في الأجل القانوني (شهر) من تاريخ القرار",
     },
     "pv_is_signed": {
         "fr": "Le procès-verbal est signé et daté",
@@ -510,7 +510,7 @@ def _check_filing_deadline(
     documents: dict[str, Any], submission: dict[str, Any], today: date
 ) -> CheckResult:
     """Law 52-2018 article 26: file within one month of the triggering decision."""
-    name = "filed_within_30_days_of_decision_date"
+    name = "filed_within_legal_deadline_of_decision_date"
     decision = _parse_date(_field(documents, "general_assembly_pv", "decision_date"))
     filed = _parse_date(submission.get("submitted_at")) or today
 
@@ -1002,7 +1002,7 @@ _CHECK_IMPLEMENTATIONS = {
     "id_number_matches_across_documents": _check_id_number_matches,
     "statutes_reflect_new_representative_name": _check_statutes_name,
     "rne_extract_not_older_than_90_days": _check_extract_age,
-    "filed_within_30_days_of_decision_date": _check_filing_deadline,
+    "filed_within_legal_deadline_of_decision_date": _check_filing_deadline,
     "pv_is_signed": _check_pv_signed,
     "financial_statements_signed_and_stamped": _check_statements_signed,
     "pv_registered_with_recette_des_finances_if_applicable": _check_pv_registered,

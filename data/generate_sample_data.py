@@ -5,7 +5,7 @@ renders each one as a simple image, so the OCR pipeline has something real to
 process end to end on stage rather than being fed pre-parsed JSON.
 
 Includes deliberately broken cases -- mismatched CIN, missing signature date,
-filed past the 30-day window, stale Extrait -- so the flagging logic visibly
+filed past the one-month window, stale Extrait -- so the flagging logic visibly
 catches something during the demo.
 
 Everything here is fabricated. Names, CIN numbers and company identifiers are
@@ -180,17 +180,17 @@ def build_cases(count: int = 8, seed: int = 2026) -> list[Case]:
     unsigned.expected_flags = ["pv_is_signed"]
     cases.append(unsigned)
 
-    # --- Broken case 3: filed well past the 30-day statutory window ---------
+    # --- Broken case 3: filed well past the one-month statutory window ------
     late = base(
         "DEMO-003",
-        "Filed 74 days after the decision, past the 30-day window",
+        "Filed 74 days after the decision, past the one-month window",
         "filed_late",
         "NEEDS_REVIEW",
     )
     late_decision = REFERENCE_DATE - timedelta(days=74)
     late.decision_date = late_decision.isoformat()
     late.signature_date = late_decision.isoformat()
-    late.expected_flags = ["filed_within_30_days_of_decision_date"]
+    late.expected_flags = ["filed_within_legal_deadline_of_decision_date"]
     cases.append(late)
 
     # --- Broken case 4: stale Extrait RNE + statutes naming the wrong person -

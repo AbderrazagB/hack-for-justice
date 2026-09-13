@@ -126,7 +126,7 @@ def test_late_filing_is_flagged_with_penalty_months() -> None:
     flag = next(
         f
         for f in flag_inconsistencies(documents, today=TODAY)
-        if f.code == "filed_within_30_days_of_decision_date"
+        if f.code == "filed_within_legal_deadline_of_decision_date"
     )
     assert flag.evidence["penalty_months"] == 5
     assert "52-2018" in flag.message_fr
@@ -208,7 +208,7 @@ def test_submitted_at_is_honoured_when_passed_as_submission() -> None:
         "submitted_at": "2026-06-20",
     }
     flags = flag_inconsistencies(submission, today=date(2026, 12, 31))
-    assert "filed_within_30_days_of_decision_date" not in _codes(flags)
+    assert "filed_within_legal_deadline_of_decision_date" not in _codes(flags)
 
 
 def test_flags_from_result_avoids_revalidating() -> None:

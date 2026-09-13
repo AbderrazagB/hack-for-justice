@@ -1,6 +1,7 @@
 "use client";
 
-import { FileSignature, Info } from "lucide-react";
+import { ChevronDown, FileSignature, Info } from "lucide-react";
+import { useState } from "react";
 
 import { Panel } from "@/components/ui";
 import type { DeclarationField } from "@/lib/types";
@@ -54,6 +55,11 @@ export function DeclarationForm({
         discordance avant le dépôt.
       </p>
 
+      <p className="mt-2 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
+        Chaque question indique, sur demande, pourquoi elle est posée et à quelle
+        pièce votre réponse sera comparée.
+      </p>
+
       {modificationType && (
         <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--r-control)] bg-[var(--canvas)] px-3 py-2 text-[0.8125rem]">
           <span className="text-[var(--ink-muted)]">Nature de la mise à jour&nbsp;:</span>
@@ -93,8 +99,10 @@ function Field({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const [showWhy, setShowWhy] = useState(false);
   const inputType =
     field.type === "email" ? "email" : field.type === "tel" ? "tel" : "text";
+  const whyId = `decl-${field.name}-why`;
 
   return (
     <div>
@@ -117,8 +125,45 @@ function Field({
         onChange={(event) => onChange(event.target.value)}
         className="mt-1.5 w-full rounded-[var(--r-control)] border border-[var(--line-strong)] bg-[var(--surface)] px-3 py-2.5 text-[0.9375rem] outline-none focus:border-[var(--teal)]"
       />
-      {field.help_fr && (
-        <p className="mt-1 text-[0.75rem] text-[var(--ink-faint)]">{field.help_fr}</p>
+
+      <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {field.help_fr && (
+          <p className="text-[0.75rem] text-[var(--ink-faint)]">{field.help_fr}</p>
+        )}
+        {field.why_fr && (
+          <button
+            type="button"
+            onClick={() => setShowWhy((open) => !open)}
+            aria-expanded={showWhy}
+            aria-controls={whyId}
+            className="inline-flex shrink-0 items-center gap-0.5 text-[0.75rem] font-medium text-[var(--teal-ink)] underline-offset-2 hover:underline"
+          >
+            Pourquoi&nbsp;?
+            <ChevronDown
+              size={12}
+              strokeWidth={2.2}
+              aria-hidden
+              className={`transition-transform ${showWhy ? "rotate-180" : ""}`}
+            />
+          </button>
+        )}
+      </div>
+
+      {field.why_fr && (
+        <div
+          id={whyId}
+          hidden={!showWhy}
+          className="mt-2 rounded-[var(--r-control)] border-l-2 border-[var(--teal)] bg-[var(--teal-wash)] px-3 py-2"
+        >
+          <p className="text-[0.75rem] leading-relaxed text-[var(--ink-muted)]">
+            {field.why_fr}
+          </p>
+          {field.why_ar && (
+            <p className="ar ar-left mt-1.5 text-[0.75rem] leading-relaxed text-[var(--ink-faint)]">
+              {field.why_ar}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

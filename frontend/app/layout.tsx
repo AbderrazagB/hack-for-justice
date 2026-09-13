@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Sans_Arabic, Space_Grotesk } from "next/font/google";
 
+import { FloatingAssistant } from "@/components/floating-assistant";
+
 import "./globals.css";
 
 /**
@@ -46,7 +48,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="fr"
       className={`${spaceGrotesk.variable} ${plexSans.variable} ${plexArabic.variable} h-full`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <FloatingAssistant />
+      </body>
     </html>
   );
 }

@@ -1,10 +1,9 @@
 "use client";
 
-import { ArrowLeft, FileCheck2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, FileCheck2, MessagesSquare, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 
-import { AssistantPanel } from "@/components/assistant-panel";
 import { PortalBar } from "@/components/chrome";
 import { SiteFooter } from "@/components/site-footer";
 import { ActionButton } from "@/components/action-button";
@@ -14,6 +13,7 @@ import { DocumentRail } from "@/components/document-rail";
 import { StatusTracker } from "@/components/status-tracker";
 import { Notice, Panel, SectionHeading } from "@/components/ui";
 import { VerdictPanel } from "@/components/verdict-panel";
+import { openAssistant, setActiveSubmission } from "@/lib/active-submission";
 import { createSubmission, listTransactions } from "@/lib/api";
 import type { SubmissionResult, TransactionInfo } from "@/lib/types";
 
@@ -41,6 +41,17 @@ export default function FilingFlow({
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [transactionType]);
+
+  /**
+   * Hand the verdict to the floating assistant, and take it back on the way
+   * out: an assistant that still thinks it is looking at a filing you have
+   * left would answer about the wrong one.
+   */
+  useEffect(() => {
+    setActiveSubmission(result?.submission_id ?? null);
+  }, [result]);
+
+  useEffect(() => () => setActiveSubmission(null), []);
 
   const contextFields = useMemo(
     () => transaction?.context_fields ?? [],
@@ -271,7 +282,7 @@ export default function FilingFlow({
                 <p className="text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
                   Le résultat s&apos;affichera ici : pièces manquantes,
                   informations qui ne concordent pas entre vos documents, et
-                  respect du délai légal de 30 jours.
+                  respect du délai légal de dépôt.
                 </p>
                 <p className="mt-3 text-[0.8125rem] text-[var(--ink-faint)]">
                   Rien n&apos;est transmis au registre à cette étape.
@@ -286,7 +297,18 @@ export default function FilingFlow({
             <SectionHeading hint="Réponses fondées sur les textes officiels du RNE">
               Comprendre le résultat
             </SectionHeading>
-            <AssistantPanel submissionId={result.submission_id} />
+            <Panel className="flex flex-wrap items-center justify-between gap-4 p-5">
+              <p className="max-w-prose text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
+                L&apos;assistant reprend ce résultat et vous explique, pièce par
+                pièce, ce qu&apos;il faut corriger. Chaque réponse cite le texte
+                du RNE sur lequel elle s&apos;appuie ; la décision, elle, vient
+                des règles de vérification et non du modèle.
+              </p>
+              <ActionButton onClick={openAssistant}>
+                <MessagesSquare size={17} strokeWidth={1.9} aria-hidden />
+                Ouvrir l&apos;assistant
+              </ActionButton>
+            </Panel>
           </section>
         )}
       </main>

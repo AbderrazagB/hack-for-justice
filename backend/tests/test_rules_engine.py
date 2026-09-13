@@ -80,7 +80,7 @@ def test_transaction_rules_match_the_official_checklist() -> None:
         "id_number_matches_across_documents",
         "statutes_reflect_new_representative_name",
         "rne_extract_not_older_than_90_days",
-        "filed_within_30_days_of_decision_date",
+        "filed_within_legal_deadline_of_decision_date",
         "pv_is_signed",
         "declaration_matches_documents",
     ]
@@ -291,7 +291,7 @@ def _filed(decision: str, filed: str) -> CheckOutcome:
         },
     )
     result = check_completeness(submission, today=date.fromisoformat(filed))
-    return _outcome(result, "filed_within_30_days_of_decision_date")
+    return _outcome(result, "filed_within_legal_deadline_of_decision_date")
 
 
 def test_deadline_is_one_month_not_thirty_days() -> None:
@@ -341,7 +341,7 @@ def _deadline_check(decision: str, filed: str = "2026-07-01"):
         for c in check_completeness(
             submission, today=date.fromisoformat(filed)
         ).checks
-        if c.name == "filed_within_30_days_of_decision_date"
+        if c.name == "filed_within_legal_deadline_of_decision_date"
     )
 
 
@@ -371,7 +371,7 @@ def test_deadline_measured_from_submitted_at_not_today() -> None:
     submission = _submission(submitted_at="2026-06-20")  # decision 2026-06-12
     late_review_day = date(2026, 12, 31)
     result = check_completeness(submission, today=late_review_day)
-    assert _outcome(result, "filed_within_30_days_of_decision_date") is CheckOutcome.PASS
+    assert _outcome(result, "filed_within_legal_deadline_of_decision_date") is CheckOutcome.PASS
 
 
 @pytest.mark.parametrize("written", ["2026-06-12", "12/06/2026", "12-06-2026", "12.06.2026"])
@@ -388,7 +388,7 @@ def test_common_date_formats_are_accepted(written: str) -> None:
         }
     )
     result = check_completeness(submission, today=TODAY)
-    assert _outcome(result, "filed_within_30_days_of_decision_date") is CheckOutcome.PASS
+    assert _outcome(result, "filed_within_legal_deadline_of_decision_date") is CheckOutcome.PASS
 
 
 def test_missing_decision_date_is_indeterminate() -> None:
@@ -400,7 +400,7 @@ def test_missing_decision_date_is_indeterminate() -> None:
         }
     )
     result = check_completeness(submission, today=TODAY)
-    assert _outcome(result, "filed_within_30_days_of_decision_date") is CheckOutcome.INDETERMINATE
+    assert _outcome(result, "filed_within_legal_deadline_of_decision_date") is CheckOutcome.INDETERMINATE
 
 
 # ------------------------------------------------------------- aggregation

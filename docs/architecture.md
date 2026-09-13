@@ -77,6 +77,23 @@ permitted source of procedural facts. If retrieval returns nothing, or the
 provider fails, the endpoint returns the deterministic verdict and sets
 `grounded: false` rather than letting the model improvise law.
 
+`submission_id` is optional: the assistant floats over the whole applicant-facing
+app, so it is reachable before anything has been uploaded. Without a filing there
+is no verdict block, the prompt says so explicitly, and the model is told to claim
+nothing about documents it has not seen. That case also loses the safety net --
+with a verdict, an ungrounded answer can still fall back on the rules engine; with
+neither, the endpoint declines instead of answering from the model's own memory.
+
+**Why the questions are not asked by the assistant.** The RNE-F-005 questions are
+a plain form, and each one's "pourquoi" is static text held next to the field in
+`services/declaration.py`. That is the point: an explanation of a rule has to be
+as reproducible as the rule itself. Routing the answers through a model would make
+the values that `cross_check()` compares model output, and a flag like *"le numéro
+déclaré (X) ne correspond pas à celui lu sur la carte (Y)"* would stop being
+reproducible. A test asserts that only the three fields the cross-check actually
+compares say they are compared -- so a clean result is never read as more
+assurance than it is.
+
 **Review.** `POST /submissions/{id}/review` appends a decision and moves the
 status. History accumulates; stats derive from it live.
 
@@ -90,8 +107,10 @@ status. History accumulates; stats derive from it live.
   open-weight multimodal models so the self-hosting path is real and free.
 - **90 days is not law.** The Extrait freshness rule is a registry expectation,
   kept in the rules engine and deliberately *out* of the RAG corpus so the
-  assistant never cites it to a user as statute. The 30-day deadline *is*
-  statutory (Law 52-2018) and is in the corpus.
+  assistant never cites it to a user as statute. The one-month deadline *is*
+  statutory (Law 52-2018, article 26) and is in the corpus. The prompt also
+  forbids restating a duration in units the context did not use -- the model
+  was observed turning "un mois" into "30 jours", which is a different rule.
 - **JSON storage.** Adequate for a hackathon, survives restarts, atomic writes.
   Replacing it means reimplementing `SubmissionStore` alone.
 

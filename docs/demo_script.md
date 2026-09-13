@@ -26,7 +26,7 @@ cd frontend && npm run dev
 ## Demo Flow
 
 **1. The problem (30s).** An MSME changes its legal representative. Five
-documents, a 30-day legal deadline, and a rejection costs weeks. Nobody finds
+documents, a one-month legal deadline, and a rejection costs weeks. Nobody finds
 out what was wrong until the registry says no.
 
 **2. The MSME side (2 min).** `localhost:3000/msme` → *Modification Entreprise*.
@@ -39,7 +39,9 @@ now `NEEDS_REVIEW`, with the real finding — *"Le numéro de CIN de la carte
 d'identité (X) ne correspond pas au numéro cité dans le procès-verbal (Y)"*.
 That is a cross-document check no single-document OCR tool catches.
 
-**3. The grounded assistant (1 min).** Ask *"Quel est le délai légal pour
+**3. The grounded assistant (1 min).** Open it from **Besoin d'aide ?** in the
+bottom-right -- it follows you across the applicant-facing app, and answers about
+the procedure even before anything is uploaded. Ask *"Quel est le délai légal pour
 déposer ?"* The answer cites **loi 52-2018** — pulled from the corpus, not the
 model's memory. Switch to **AR** and ask again. Point at the citation chips:
 every procedural claim traces to official text, and if retrieval fails the panel
@@ -67,7 +69,7 @@ in-house without a licensing negotiation.
 - **We won't accuse someone we can't read.** An unreadable scan returns
   `INDETERMINATE`, not `FAIL` — a warning for the officer, never "your ID
   doesn't match".
-- **Law vs. practice, kept separate.** The 30-day deadline is statutory and sits
+- **Law vs. practice, kept separate.** The one-month deadline is statutory and sits
   in the cited corpus. The 90-day Extrait freshness rule is registry practice
   and is deliberately kept out of it, so it's never cited as law.
 - **Bilingual by construction.** Every rule reason, flag and document label

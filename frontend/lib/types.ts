@@ -31,6 +31,8 @@ export type DeclarationField = {
   type: "text" | "email" | "tel" | "id";
   required: boolean;
   help_fr: string | null;
+  why_fr: string | null;
+  why_ar: string | null;
 };
 
 export type TransactionInfo = {
@@ -176,7 +178,7 @@ export type Citation = {
 };
 
 export type ExplainResponse = {
-  submission_id: string;
+  submission_id: string | null;
   answer: string;
   lang: "fr" | "ar";
   citations: Citation[];
