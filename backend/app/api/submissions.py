@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -20,14 +21,15 @@ from fastapi import (
     status,
 )
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.api.auth import current_officer, current_user
 from app.core import progress
 from app.core.audit import head, verify
 from app.core.rate_limit import SUBMISSION_LIMIT, enforce
-from app.core.uploads import validate_batch, validate_upload
+from app.core.storage import DocumentStorage, build_storage, object_key
+from app.core.uploads import sniff_type, validate_batch, validate_upload
 from app.models.submission import (
     DEFAULT_UPLOAD_DIR,
     TERMINAL_STATUSES,
@@ -342,7 +344,13 @@ async def create_submission(
         total_bytes += len(content)
         validate_batch(len(files), total_bytes)
 
-        stored_path = _persist(content, upload.filename or doc_type, doc_type, upload_dir)
+        stored_name = _persist(
+            content,
+            upload.filename or doc_type,
+            doc_type,
+            get_storage(upload_dir),
+            detected_type,
+        )
         # OCR is synchronous and can take seconds per page. Called directly it
         # would block the event loop and stall every other request behind it.
         result = await run_in_threadpool(
@@ -351,7 +359,7 @@ async def create_submission(
 
         documents[doc_type] = {
             "filename": Path(upload.filename or doc_type).name,
-            "stored_path": stored_path.name,
+            "stored_path": stored_name,
             "content_type": detected_type,
             "size_bytes": len(content),
             **result.to_dict(),
@@ -450,24 +458,39 @@ def _initial_status(completeness_status: Status) -> SubmissionStatus:
     )
 
 
-def _persist(content: bytes, filename: str, doc_type: str, upload_dir: Path) -> Path:
-    """Store the upload under <upload_dir>/<doc_type>/ with a unique name."""
+@lru_cache(maxsize=4)
+def get_storage(upload_dir: Path) -> DocumentStorage:
+    """The document store for this deployment.
+
+    Cached per upload directory: building an S3 client and checking the bucket
+    on every upload would add a round trip to each page. The tests point
+    `get_upload_dir` at a tmp directory, which gives them their own entry.
+    """
+    return build_storage(upload_dir)
+
+
+def _persist(
+    content: bytes,
+    filename: str,
+    doc_type: str,
+    storage: DocumentStorage,
+    content_type: str = "application/octet-stream",
+) -> str:
+    """Store the upload under its document type and return the name it took."""
     safe_name = Path(filename).name or f"{doc_type}.bin"
-    directory = upload_dir / doc_type
-    directory.mkdir(parents=True, exist_ok=True)
 
     # Derive the suffix from the ORIGINAL name each time. Re-stemming the
     # already-suffixed candidate compounds it into name_1_2_3_... until the
     # filename exceeds the filesystem limit.
     base = Path(safe_name)
-    destination = directory / safe_name
+    stored_name = safe_name
     counter = 1
-    while destination.exists():
-        destination = directory / f"{base.stem}_{counter}{base.suffix}"
+    while storage.exists(object_key(doc_type, stored_name)):
+        stored_name = f"{base.stem}_{counter}{base.suffix}"
         counter += 1
 
-    destination.write_bytes(content)
-    return destination
+    storage.put(object_key(doc_type, stored_name), content, content_type)
+    return stored_name
 
 
 def _parse_iso_date(value: str | None) -> date | None:
@@ -651,17 +674,12 @@ async def document_page(
 
 
 def _read_stored(upload_dir: Path, document_type: str, stored_path: str) -> bytes | None:
-    """Read an uploaded file, refusing anything outside the upload directory."""
-    safe_type = Path(document_type).name
-    safe_name = Path(stored_path).name
-    if not safe_type or not safe_name:
+    """Read a stored document, from wherever this deployment keeps them."""
+    try:
+        key = object_key(document_type, stored_path)
+    except ValueError:
         return None
-
-    root = upload_dir.resolve()
-    candidate = (root / safe_type / safe_name).resolve()
-    if not candidate.is_relative_to(root) or not candidate.is_file():
-        return None
-    return candidate.read_bytes()
+    return get_storage(upload_dir).get(key)
 
 
 # ---------------------------------------------------------------- documents
@@ -672,27 +690,24 @@ def get_document(
     filename: str,
     upload_dir: Path = Depends(get_upload_dir),
     officer: User = Depends(current_officer),
-) -> FileResponse:
+) -> Response:
     """Serve an uploaded document so the officer can read it beside the
     extracted fields.
 
-    Both path segments come from the URL, so they are treated as hostile: we
-    take only the final path component of each and then confirm the resolved
-    file really sits inside the upload directory. That blocks `../` traversal
+    Both path segments come from the URL, so they are treated as hostile:
+    object_key() reduces each to a bare filename, which blocks `../` traversal
     and absolute paths, including forms that survive one round of stripping.
     """
-    safe_type = Path(document_type).name
-    safe_name = Path(filename).name
-    if not safe_type or not safe_name:
+    try:
+        key = object_key(document_type, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Document not found") from exc
+
+    content = get_storage(upload_dir).get(key)
+    if content is None:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    root = upload_dir.resolve()
-    candidate = (root / safe_type / safe_name).resolve()
-
-    if not candidate.is_relative_to(root) or not candidate.is_file():
-        raise HTTPException(status_code=404, detail="Document not found")
-
-    return FileResponse(candidate)
+    return Response(content=content, media_type=sniff_type(content) or "application/octet-stream")
 
 
 # -------------------------------------------------------------------- queue

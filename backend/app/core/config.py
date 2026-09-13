@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     # Signing key for session tokens. MUST be overridden outside local dev --
     # the default is public knowledge and anyone could mint a valid token.
     # At least 32 bytes: PyJWT warns below that for HS256 (RFC 7518 §3.2).
+    # Object storage for uploaded documents. Unset means the filesystem, which
+    # is what a clone without MinIO gets.
+    s3_endpoint_url: str = Field(default="", validation_alias="S3_ENDPOINT_URL")
+    s3_access_key: str = Field(default="", validation_alias="S3_ACCESS_KEY")
+    s3_secret_key: str = Field(default="", validation_alias="S3_SECRET_KEY")
+    s3_bucket: str = Field(default="sahilli-documents", validation_alias="S3_BUCKET")
+    s3_region: str = Field(default="us-east-1", validation_alias="S3_REGION")
+
     jwt_secret: str = Field(
         default="sahilli-local-development-secret-do-not-use-in-production",
         validation_alias="JWT_SECRET",

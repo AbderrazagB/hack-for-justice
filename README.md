@@ -79,6 +79,7 @@ the first version got it wrong.
 - **Backend:** FastAPI, Python 3.11+, managed with uv
 - **Frontend:** Next.js (App Router), TypeScript, Tailwind CSS
 - **Accounts:** PostgreSQL 16, SQLAlchemy 2.0 (async), Argon2id, JWT sessions
+- **Document storage:** MinIO (S3-compatible, self-hosted), filesystem fallback
 - **Vector database:** Qdrant (self-hosted)
 - **Embeddings:** BAAI/bge-m3 via HuggingFace Text Embeddings Inference (self-hosted)
 - **OCR / vision:** an open-weight, Apache-2.0 multimodal model via Mistral's
@@ -138,6 +139,18 @@ path used when no API key is set, the API fails, or quota runs out. It is
 markedly weaker — raw text only, no structured fields — so its results are
 always marked `degraded=True` and should be treated as unverified. It exists so
 a live demo never hard-fails on a conference network.
+
+### Document storage
+
+Uploaded pages go to an S3-compatible bucket — the MinIO already running
+alongside Qdrant and Postgres. Set `S3_ENDPOINT_URL` to use it; leave it empty
+and documents stay on the filesystem under `data/raw`, which is what a clone
+without MinIO gets.
+
+Sahilli creates and uses one bucket, `sahilli-documents`, and touches no other.
+Reads fall back to the filesystem whatever the setting, so dossiers filed before
+the bucket existed keep opening — there is no migration to run and therefore
+none to forget.
 
 ### What this repo expects to already be running
 
