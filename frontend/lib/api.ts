@@ -1,6 +1,7 @@
 import type {
   AuthUser,
   ExplainResponse,
+  Brief,
   FlagEvidence,
   UploadProgress,
   ReviewAction,
@@ -207,6 +208,26 @@ export async function currentUser(): Promise<AuthUser | null> {
     if (error instanceof ApiError && error.status === 401) return null;
     throw error;
   }
+}
+
+/** The officer's thirty-second read of a dossier. Officer-only. */
+export function submissionBrief(submissionId: string): Promise<Brief> {
+  return request<Brief>(`/submissions/${submissionId}/brief`);
+}
+
+/** The caller's own dossiers. */
+export function mySubmissions(): Promise<{
+  count: number;
+  submissions: SubmissionSummary[];
+}> {
+  return request("/submissions/mine");
+}
+
+/** Hand a dossier to the registry for institutional review. */
+export function submitForReview(
+  submissionId: string,
+): Promise<{ submission_id: string; status: string }> {
+  return json(`/submissions/${submissionId}/submit`, "POST", {});
 }
 
 /** How far the server has got reading an upload it is still working on. */

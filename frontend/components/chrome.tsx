@@ -60,6 +60,16 @@ export function PortalBar({ immersive = false }: { immersive?: boolean }) {
           >
             Services
           </Link>
+          {/* Only where there is something to look at: a dossier list is for
+              someone who has a dossier. */}
+          {user?.role === "applicant" && (
+            <Link
+              href="/msme/dossiers"
+              className={`rounded-[var(--r-control)] px-2 py-1.5 text-[0.8125rem] font-medium whitespace-nowrap transition-colors sm:px-3 sm:text-[0.875rem] ${linkClass}`}
+            >
+              Mes dossiers
+            </Link>
+          )}
           <Link
             href="/admin"
             className={`rounded-[var(--r-control)] px-2 py-1.5 text-[0.8125rem] font-medium whitespace-nowrap transition-colors sm:px-3 sm:text-[0.875rem] ${linkClass}`}

@@ -4,8 +4,10 @@ import {
   ArrowLeft,
   ArrowRight,
   FileCheck2,
+  FolderOpen,
   MessagesSquare,
   PencilLine,
+  Send,
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,7 +25,12 @@ import { StatusTracker } from "@/components/status-tracker";
 import { Notice, Panel, SectionHeading } from "@/components/ui";
 import { VerdictPanel } from "@/components/verdict-panel";
 import { openAssistant, setActiveSubmission } from "@/lib/active-submission";
-import { createSubmission, listTransactions, uploadProgress } from "@/lib/api";
+import {
+  createSubmission,
+  listTransactions,
+  submitForReview,
+  uploadProgress,
+} from "@/lib/api";
 import type { SubmissionResult, TransactionInfo, UploadProgress } from "@/lib/types";
 
 export default function FilingFlow({
@@ -40,7 +47,30 @@ export default function FilingFlow({
   const [result, setResult] = useState<SubmissionResult | null>(null);
   const [checking, setChecking] = useState(false);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+
+  /**
+   * Hand the dossier to the registry. Pre-validation is Sahilli's own step and
+   * changes nothing outside it; this is the moment the applicant says they are
+   * done, which is what puts the dossier in front of an officer.
+   */
+  async function submit() {
+    if (!result) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await submitForReview(result.submission_id);
+      setSubmitted(true);
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : "Le dépôt n'a pas abouti. Réessayez.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
   const [error, setError] = useState("");
   const [step, setStep] = useState(0);
   // Which section of the declaration is showing. Nine questions on one screen
@@ -180,6 +210,10 @@ export default function FilingFlow({
   const toTop = useCallback(() => {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  const declarationRequired = (transaction?.declaration_fields ?? []).filter(
+    (field) => field.required,
+  ).length;
 
   const goTo = useCallback(
     (index: number) => {
@@ -412,6 +446,40 @@ export default function FilingFlow({
                 <VerdictPanel result={result} />
               </div>
               <div className="mt-6">
+                <SectionHeading>Transmettre au registre</SectionHeading>
+                <Panel className="p-5">
+                  {submitted ? (
+                    <>
+                      <p className="text-[0.875rem] leading-relaxed text-[var(--ink)]">
+                        Dossier transmis. Un agent du RNE l&apos;examinera et sa
+                        décision apparaîtra dans vos dossiers.
+                      </p>
+                      <ActionButton href="/msme/dossiers" className="mt-4">
+                        <FolderOpen size={17} strokeWidth={1.9} aria-hidden />
+                        Suivre mes dossiers
+                      </ActionButton>
+                    </>
+                  ) : (
+                    <>
+                      <p className="max-w-prose text-[0.875rem] leading-relaxed text-[var(--ink-muted)]">
+                        {result.flag_summary.errors > 0
+                          ? "Vous pouvez transmettre malgré les points relevés : Sahilli pré-valide, il ne décide pas à votre place. Corriger d'abord reste le plus sûr."
+                          : "Rien ne bloque. Transmettez le dossier pour qu'un agent du RNE l'examine."}
+                      </p>
+                      <ActionButton
+                        onClick={submit}
+                        disabled={submitting}
+                        className="mt-4"
+                      >
+                        <Send size={17} strokeWidth={1.9} aria-hidden />
+                        {submitting ? "Transmission en cours" : "Transmettre au registre"}
+                      </ActionButton>
+                    </>
+                  )}
+                </Panel>
+              </div>
+
+              <div className="mt-6">
                 <SectionHeading hint="Réponses fondées sur les textes officiels du RNE">
                   Comprendre le résultat
                 </SectionHeading>
@@ -490,6 +558,15 @@ export default function FilingFlow({
                   Joignez au moins une pièce.
                 </p>
               )}
+              {/* Said before the check, not discovered after it: an unanswered
+                  declaration means the cross-check simply does not happen. */}
+              {stepKey === "documents" &&
+                declarationGaps.length === declarationRequired && (
+                  <p className="max-w-prose text-[0.8125rem] text-[var(--st-correction-ink)]">
+                    Déclaration non renseignée : vos réponses ne seront pas
+                    comparées à vos pièces.
+                  </p>
+                )}
 
               {stepKey === "result" ? (
                 <ActionButton onClick={() => goTo(0)} variant="teal">

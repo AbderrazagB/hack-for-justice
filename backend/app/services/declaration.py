@@ -321,6 +321,42 @@ def missing_required(declaration: dict[str, Any]) -> list[DeclarationField]:
     ]
 
 
+def comparison_coverage(
+    declaration: dict[str, Any], documents: dict[str, Any]
+) -> dict[str, bool]:
+    """Which cross-checked answers actually had something to compare against.
+
+    cross_check() only reports a disagreement when both sides are readable,
+    which is right -- an unreadable page is not evidence that the applicant
+    declared wrongly. But it means silence has two meanings: "these agree" and
+    "we never compared them". Reporting the second as agreement is exactly the
+    false assurance this whole step exists to prevent, so the caller is told
+    which is which.
+    """
+    def field_of(doc: str, name: str) -> Any:
+        entry = documents.get(doc) or {}
+        fields = entry.get("fields") if isinstance(entry, dict) else None
+        return (fields or {}).get(name) if isinstance(fields, dict) else None
+
+    def declared(name: str) -> bool:
+        return bool(str(declaration.get(name) or "").strip())
+
+    return {
+        "declarant_id": declared("declarant_id")
+        and bool(_digits(field_of("id_new_representative", "id_number"))),
+        "unique_identifier": declared("unique_identifier")
+        and bool(
+            _digits(field_of("rne_extract", "company_id"))
+            or _digits(field_of("company_statutes", "company_id"))
+        ),
+        "legal_representative": declared("legal_representative")
+        and bool(
+            _normalise_name(field_of("id_new_representative", "person_name"))
+            or _normalise_name(field_of("general_assembly_pv", "person_name"))
+        ),
+    }
+
+
 def cross_check(
     declaration: dict[str, Any], documents: dict[str, Any]
 ) -> list[DeclarationIssue]:

@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 
 import { Logo } from "@/components/logo";
 import { ActionButton } from "@/components/action-button";
+import { OfficerBrief } from "@/components/officer-brief";
 import { StatusTracker } from "@/components/status-tracker";
 import {
   EmptyState,
@@ -104,6 +105,11 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
 
         <div className="mt-6">
           <StatusTracker status={submission.status} />
+        </div>
+
+        {/* The dossier in one read, before the officer starts reading it. */}
+        <div className="mt-7">
+          <OfficerBrief submissionId={submission.id} />
         </div>
 
         {/* ------------------------------------------------------ findings --- */}

@@ -369,3 +369,108 @@ def test_groups_are_contiguous_in_form_order() -> None:
         if not seen or seen[-1] != spec.group:
             seen.append(spec.group)
     assert len(seen) == len(set(seen)), seen
+
+
+# ----------------------------------- silence is not agreement
+
+def test_a_declaration_nothing_could_be_compared_against_is_not_concordant() -> None:
+    """The bug this pins: a fabricated declaration used to PASS.
+
+    cross_check() only reports a disagreement when both sides are readable,
+    which is right. But it made silence mean two things -- "these agree" and
+    "we never compared them" -- and the check reported the second as the first,
+    telling an applicant their invented answers concorded with pieces nobody
+    had read.
+    """
+    documents = {
+        key: {"full_text": text, "fields": {}}
+        for key, text in {
+            "id_new_representative": "CARTE D'IDENTITE NATIONALE",
+            "company_statutes": "STATUTS DE LA SOCIETE",
+            "rne_extract": "REGISTRE NATIONAL DES ENTREPRISES",
+            "tax_registration_card": "CARTE D'IDENTIFICATION FISCALE",
+            "general_assembly_pv": "PROCES-VERBAL DE L'ASSEMBLEE GENERALE",
+        }.items()
+    }
+    submission = {
+        "transaction_type": TXN,
+        "documents": documents,
+        "declaration": {
+            "legal_representative": "Quelqu'un D'Autre",
+            "email": "a@b.tn",
+            "phone": "20000000",
+            "declarant_name": "X Y",
+            "declarant_id": "99999999",
+            "unique_identifier": "1234567",
+        },
+    }
+
+    result = check_completeness(submission, today=TODAY)
+    check = next(
+        c for c in result.checks if c.name == "declaration_matches_documents"
+    )
+    assert check.outcome is CheckOutcome.INDETERMINATE
+    assert "n'a pu être comparée" in check.reason_fr
+
+
+def test_partial_coverage_is_reported_as_partial() -> None:
+    documents = {
+        "id_new_representative": {
+            "full_text": "CARTE D'IDENTITE NATIONALE",
+            "fields": {"id_number": "99999999", "person_name": "X Y"},
+        },
+        "rne_extract": {"full_text": "REGISTRE NATIONAL DES ENTREPRISES", "fields": {}},
+    }
+    submission = {
+        "transaction_type": TXN,
+        "documents": documents,
+        "declaration": {
+            "legal_representative": "X Y",
+            "email": "a@b.tn",
+            "phone": "20000000",
+            "declarant_name": "X Y",
+            "declarant_id": "99999999",
+            "unique_identifier": "1234567",
+        },
+    }
+    check = next(
+        c
+        for c in check_completeness(submission, today=TODAY).checks
+        if c.name == "declaration_matches_documents"
+    )
+    assert check.outcome is CheckOutcome.INDETERMINATE
+    assert "unique_identifier" in check.evidence["uncompared"]
+    assert "declarant_id" in check.evidence["compared"]
+
+
+def test_a_declaration_fully_compared_and_matching_passes() -> None:
+    """The coverage guard must not turn a genuine match into a doubt."""
+    submission = {
+        "transaction_type": TXN,
+        "documents": DOCUMENTS,
+        "declaration": {
+            "legal_representative": "Amine Ben Salah",
+            "email": "a@b.tn",
+            "phone": "20000000",
+            "declarant_name": "Amine Ben Salah",
+            "declarant_id": "12345678",
+            "unique_identifier": "1234567X",
+        },
+    }
+    check = next(
+        c
+        for c in check_completeness(submission, today=TODAY).checks
+        if c.name == "declaration_matches_documents"
+    )
+    assert check.outcome is CheckOutcome.PASS
+
+
+def test_a_skipped_check_is_named_rather_than_omitted() -> None:
+    """A check that is simply absent reads as a check that passed."""
+    result = check_completeness(
+        {"transaction_type": TXN, "documents": DOCUMENTS}, today=TODAY
+    )
+    skipped = result.to_dict()["skipped_checks"]
+
+    assert [entry["name"] for entry in skipped] == ["declaration_matches_documents"]
+    assert "Déclaration non renseignée" in skipped[0]["reason_fr"]

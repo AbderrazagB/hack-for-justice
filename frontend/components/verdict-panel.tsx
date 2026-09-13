@@ -190,6 +190,29 @@ export function VerdictPanel({ result }: { result: SubmissionResult }) {
           tell what it actually looked at -- and a PASS is the part that says
           the check ran and found nothing, which is different from not having
           been checked. */}
+      {/* A check we did not run is named, not omitted. Leaving it out reads
+          as a check that passed -- the applicant who skipped the declaration
+          screens was being told nothing at all about them. */}
+      {(result.completeness.skipped_checks?.length ?? 0) > 0 && (
+        <section className="border-t border-[var(--line)] bg-[var(--st-correction-wash)]/40 p-5 sm:p-6">
+          <h3 className="t-label text-[var(--st-correction-ink)]">
+            Non vérifié
+          </h3>
+          <ul className="mt-2 space-y-2">
+            {result.completeness.skipped_checks.map((skipped) => (
+              <li key={skipped.name}>
+                <p className="text-[0.8125rem] leading-snug text-[var(--ink)]">
+                  {skipped.label_fr}
+                </p>
+                <p className="mt-0.5 text-[0.75rem] leading-relaxed text-[var(--ink-muted)]">
+                  {skipped.reason_fr}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {result.completeness.checks.length > 0 && (
         <section className="border-t border-[var(--line)] p-5 sm:p-6">
           <button

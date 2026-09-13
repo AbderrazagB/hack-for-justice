@@ -278,6 +278,8 @@ class CompletenessResult:
     missing_documents: list[str] = field(default_factory=list)
     present_documents: list[str] = field(default_factory=list)
     checks: list[CheckResult] = field(default_factory=list)
+    # Declared checks this filing did not run, and why.
+    skipped: list[str] = field(default_factory=list)
 
     @property
     def failed_checks(self) -> list[CheckResult]:
@@ -305,6 +307,18 @@ class CompletenessResult:
             ],
             "present_documents": self.present_documents,
             "checks": [check.to_dict() for check in self.checks],
+            # Named, not omitted: a check that simply is not there reads as a
+            # check that passed.
+            "skipped_checks": [
+                {
+                    "name": name,
+                    "label_fr": CHECK_LABELS.get(name, {}).get("fr", name),
+                    "label_ar": CHECK_LABELS.get(name, {}).get("ar", name),
+                    "reason_fr": SKIP_REASONS.get(name, {}).get("fr", ""),
+                    "reason_ar": SKIP_REASONS.get(name, {}).get("ar", ""),
+                }
+                for name in self.skipped
+            ],
         }
 
 
@@ -353,6 +367,7 @@ def check_completeness(
         _CHECK_IMPLEMENTATIONS[name](documents, submission, today)
         for name in checks_for(rules, submission)
     ]
+    skipped = skipped_checks(rules, submission)
 
     if missing:
         status = Status.INCOMPLETE
@@ -367,6 +382,7 @@ def check_completeness(
         missing_documents=missing,
         present_documents=present,
         checks=checks,
+        skipped=skipped,
     )
 
 
@@ -950,7 +966,12 @@ def _check_declaration(
     checked here, and both are things no amount of reading the attachments
     alone could catch.
     """
-    from app.services.declaration import cross_check, missing_required
+    from app.services.declaration import (
+        CROSS_CHECKED,
+        comparison_coverage,
+        cross_check,
+        missing_required,
+    )
 
     name = "declaration_matches_documents"
     declaration = submission.get("declaration") or {}
@@ -995,6 +1016,37 @@ def _check_declaration(
                     for issue in issues
                 ]
             },
+        )
+
+    # No disagreement found -- but silence has two meanings, and only one of
+    # them is agreement. A declaration whose every answer had nothing to be
+    # compared against used to be reported as concording with the pieces.
+    coverage = comparison_coverage(declaration, documents)
+    compared = [field for field, ok in coverage.items() if ok]
+    uncompared = [field for field, ok in coverage.items() if not ok]
+
+    if not compared:
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            "Aucune de vos réponses n'a pu être comparée à vos pièces : les "
+            "valeurs correspondantes n'ont pas pu être lues sur les documents.",
+            "لم تتم مقارنة أي من إجاباتك بالوثائق: تعذّرت قراءة القيم المقابلة.",
+            {"uncompared": uncompared},
+        )
+
+    if uncompared:
+        listed = ", ".join(
+            CROSS_CHECKED[field]["fr"] for field in uncompared if field in CROSS_CHECKED
+        )
+        return CheckResult(
+            name,
+            CheckOutcome.INDETERMINATE,
+            f"{len(compared)} réponse(s) concordent avec vos pièces. Les autres "
+            f"n'ont pas pu être comparées : valeur illisible sur {listed}.",
+            "بعض الإجابات مطابقة للوثائق، والبقية تعذّرت مقارنتها لعدم قراءة "
+            "القيم المقابلة.",
+            {"compared": compared, "uncompared": uncompared},
         )
 
     return CheckResult(
@@ -1284,6 +1336,24 @@ def required_documents_for(
     ):
         declared.remove("general_assembly_pv_approval")
     return declared
+
+
+# Why a declared check did not run, in the applicant's words. A check that is
+# quietly absent reads as a check that passed, which is the one thing a
+# pre-validation tool must never imply.
+SKIP_REASONS: dict[str, dict[str, str]] = {
+    "declaration_matches_documents": {
+        "fr": "Déclaration non renseignée : vos réponses n'ont pas été "
+        "comparées à vos pièces.",
+        "ar": "لم يقع تعمير التصريح: لم تتم مقارنة إجاباتك بالوثائق.",
+    },
+}
+
+
+def skipped_checks(rules: dict[str, Any], submission: dict[str, Any]) -> list[str]:
+    """Declared checks that this filing did not run."""
+    ran = set(checks_for(rules, submission))
+    return [name for name in rules["checks"] if name not in ran]
 
 
 def checks_for(rules: dict[str, Any], submission: dict[str, Any]) -> list[str]:

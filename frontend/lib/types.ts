@@ -81,6 +81,14 @@ export type Completeness = {
   missing_documents: BilingualLabel[];
   present_documents: string[];
   checks: CheckResult[];
+  /** Declared checks this filing did not run, and why. */
+  skipped_checks: {
+    name: string;
+    label_fr: string;
+    label_ar: string;
+    reason_fr: string;
+    reason_ar: string;
+  }[];
 };
 
 export type Severity = "ERROR" | "WARNING" | "INFO";
@@ -191,6 +199,29 @@ export type ExplainResponse = {
   answer: string;
   lang: "fr" | "ar";
   citations: Citation[];
+  grounded: boolean;
+};
+
+export type AtAGlance = {
+  status: string;
+  completeness_status: string;
+  transaction_fr: string;
+  official_reference: string;
+  errors: number;
+  warnings: number;
+  checks_passed: number;
+  checks_total: number;
+  documents_present: number;
+  documents_missing: { key: string; label_fr: string }[];
+  blocking_documents: { key: string; label_fr: string }[];
+  waiting_hours: number | null;
+  reviewed: boolean;
+};
+
+export type Brief = {
+  submission_id: string;
+  at_a_glance: AtAGlance;
+  summary: string;
   grounded: boolean;
 };
 

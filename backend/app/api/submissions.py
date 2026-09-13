@@ -29,6 +29,7 @@ from app.core.rate_limit import SUBMISSION_LIMIT, enforce
 from app.core.uploads import validate_batch, validate_upload
 from app.models.submission import (
     DEFAULT_UPLOAD_DIR,
+    TERMINAL_STATUSES,
     ReviewAction,
     Submission,
     SubmissionStatus,
@@ -711,6 +712,59 @@ def list_submissions(
         "count": len(submissions),
         "submissions": [s.to_summary() for s in submissions],
     }
+
+
+@router.get("/submissions/mine")
+def my_submissions(
+    store: SubmissionStore = Depends(get_store),
+    user: User = Depends(current_user),
+) -> dict[str, Any]:
+    """The caller's own dossiers, newest first.
+
+    An applicant had no way to see a filing again once they left the page: the
+    id lived only in that tab. This is the list that makes a dossier something
+    you own rather than something you did once.
+    """
+    mine = [s for s in store.list() if s.owner_id == str(user.id)]
+    return {
+        "count": len(mine),
+        "submissions": [submission.to_summary() for submission in mine],
+    }
+
+
+@router.post("/submissions/{submission_id}/submit")
+def submit_for_review(
+    submission_id: str,
+    store: SubmissionStore = Depends(get_store),
+    user: User = Depends(current_user),
+) -> dict[str, Any]:
+    """Hand the dossier to the registry for institutional review.
+
+    Pre-validation is Sahilli's own step and changes nothing outside it. This
+    is the moment the applicant says they are done, which is what moves the
+    dossier into the officer's queue as awaiting a decision rather than merely
+    existing. Deliberately allowed even when the check found problems: an
+    applicant may disagree with a warning, and refusing to let them proceed
+    would make a pre-validation tool into a gatekeeper it has no standing to be.
+    """
+    submission = _require(store.get(submission_id), submission_id)
+
+    if submission.owner_id != str(user.id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ce dossier ne vous appartient pas.",
+        )
+
+    if submission.status in {s.value for s in TERMINAL_STATUSES}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ce dossier a déjà été tranché par un agent.",
+        )
+
+    updated = store.set_status(
+        submission_id, SubmissionStatus.UNDER_INSTITUTIONAL_REVIEW
+    )
+    return {"submission_id": submission_id, "status": updated.status}
 
 
 @router.get("/submissions/stats", response_model=StatsResponse)
