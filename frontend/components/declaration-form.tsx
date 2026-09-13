@@ -220,7 +220,7 @@ function Field({
     <div className="min-w-0">
       {/* Label left, disclosure right: the controls land in one predictable
           column instead of trailing help text of nine different lengths. */}
-      <div className="flex max-w-[28rem] items-baseline gap-x-2">
+      <div className="flex items-baseline gap-x-2">
         <label
           htmlFor={`decl-${field.name}`}
           className="t-label shrink-0 text-[var(--ink)]"
@@ -230,10 +230,10 @@ function Field({
             <span className="font-normal text-[var(--ink-faint)]"> (facultatif)</span>
           )}
         </label>
-        {/* The Arabic label yields first: truncating it keeps every label row to
-            exactly one line, which is what makes a two-column grid of them read
-            as a grid rather than as a ragged list. */}
-        <span className="ar min-w-0 flex-1 truncate text-[0.75rem] text-[var(--ink-faint)]">
+        {/* Beside its French pair, not adrift next to the button: the Arabic
+            label takes only the width it needs and truncates rather than
+            stretching, so every label row stays one line. */}
+        <span className="ar ar-left min-w-0 truncate text-[0.75rem] text-[var(--ink-faint)]">
           {field.label_ar}
         </span>
 
@@ -243,7 +243,7 @@ function Field({
             onClick={() => setShowWhy((open) => !open)}
             aria-expanded={showWhy}
             aria-controls={whyId}
-            className="inline-flex shrink-0 items-center gap-0.5 text-[0.75rem] font-medium text-[var(--teal-ink)] underline-offset-2 hover:underline"
+            className="ms-auto inline-flex shrink-0 items-center gap-0.5 text-[0.75rem] font-medium text-[var(--teal-ink)] underline-offset-2 hover:underline"
           >
             Pourquoi&nbsp;?
             <ChevronDown

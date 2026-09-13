@@ -12,7 +12,6 @@ import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 
 import { PortalBar } from "@/components/chrome";
-import { SiteFooter } from "@/components/site-footer";
 import { ActionButton } from "@/components/action-button";
 import { ContextForm } from "@/components/context-form";
 import { DeclarationForm, declarationGroups } from "@/components/declaration-form";
@@ -277,7 +276,6 @@ export default function FilingFlow({
           </Link>
           <Notice>{error}</Notice>
         </main>
-        <SiteFooter />
       </div>
     );
   }
@@ -290,32 +288,29 @@ export default function FilingFlow({
     <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
       <PortalBar />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
-        <Link
-          href="/msme"
-          className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--teal-ink)] hover:underline"
-        >
-          <ArrowLeft size={15} strokeWidth={2} aria-hidden />
-          Toutes les démarches
-        </Link>
-
-        <div className="mt-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-[var(--line)] pb-6">
-          <div>
-            <p className="mb-2 inline-flex items-center gap-2 text-[0.6875rem] font-semibold tracking-[0.14em] text-[var(--teal-ink)] uppercase">
-              <FileCheck2 size={14} strokeWidth={2} aria-hidden />
-              Pré-validation du dossier
-            </p>
-            <h1 className="t-h1">{transaction.display_name_fr}</h1>
-            <p className="ar mt-0.5 text-[1.0625rem] text-[var(--ink-muted)]">
-              {transaction.display_name_ar}
-            </p>
-          </div>
-          <p className="t-data rounded-[var(--r-control)] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1 text-[var(--ink-muted)]">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">
+        {/* One row. The eyebrow, the title and the reference used to stack into
+            three blocks and 149px of a 900px screen, on a page whose job is to
+            fit a form above the fold. */}
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-[var(--line)] pb-4">
+          <Link
+            href="/msme"
+            className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--teal-ink)] hover:underline"
+          >
+            <ArrowLeft size={15} strokeWidth={2} aria-hidden />
+            Démarches
+          </Link>
+          <h1 className="t-h2 text-[var(--navy)]">{transaction.display_name_fr}</h1>
+          <p className="ar text-[0.9375rem] text-[var(--ink-muted)]">
+            {transaction.display_name_ar}
+          </p>
+          <p className="t-data ms-auto flex items-center gap-1.5 text-[0.75rem] text-[var(--ink-faint)]">
+            <FileCheck2 size={13} strokeWidth={2} aria-hidden />
             {transaction.official_reference}
           </p>
         </div>
 
-        <div className="mt-7">
+        <div className="mt-5">
           <FilingSteps
             steps={steps}
             current={step}
@@ -330,8 +325,8 @@ export default function FilingFlow({
         <div
           className={
             stepKey === "result"
-              ? "mt-8"
-              : "mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]"
+              ? "mt-6"
+              : "mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_16rem]"
           }
         >
           <div className="min-w-0">
@@ -411,6 +406,13 @@ export default function FilingFlow({
             </div>
           )}
 
+          {/* The one line worth keeping from the rail when the rail is gone. */}
+          {stepKey !== "result" && (
+            <p className="mt-4 text-[0.75rem] leading-relaxed text-[var(--ink-faint)] lg:hidden">
+              Rien n&apos;est transmis au registre à cette étape.
+            </p>
+          )}
+
           {/* ------------------------------------------------- step footer --- */}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-[var(--line)] pt-5">
             {backLabel ? (
@@ -426,7 +428,11 @@ export default function FilingFlow({
               <span />
             )}
 
-            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+            {/* Left-aligned on a phone. The floating assistant is fixed to the
+                bottom-right corner, and a right-aligned primary button lands
+                underneath it -- it does not merely look crowded, the assistant
+                swallows the click. */}
+            <div className="flex flex-wrap items-center justify-start gap-x-3 gap-y-2 sm:justify-end">
               {stepKey === "context" && unanswered.length > 0 && (
                 <p className="text-[0.8125rem] text-[var(--ink-muted)]">
                   Renseignez{" "}
@@ -480,16 +486,18 @@ export default function FilingFlow({
           </div>
           </div>
 
+          {/* The rail is what a wide screen's spare width is for. On a phone
+              there is none: stacked under the form it added 237px and pushed
+              the step's own button off the screen, while the step bar above
+              already says how far along you are. */}
           {stepKey !== "result" && (
-            <aside className="lg:sticky lg:top-6">
+            <aside className="hidden lg:sticky lg:top-6 lg:block">
               <FilingSummary rows={summaryRows} />
             </aside>
           )}
         </div>
 
       </main>
-
-      <SiteFooter />
     </div>
   );
 }
@@ -501,7 +509,7 @@ function FilingSkeleton() {
       aria-busy="true"
     >
       <PortalBar />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">
         <div className="h-5 w-36 animate-pulse rounded bg-[var(--line)]" />
 
         <div className="mt-5 flex items-end justify-between gap-6 border-b border-[var(--line)] pb-6">
@@ -524,7 +532,7 @@ function FilingSkeleton() {
         </div>
 
         <div
-          className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]"
+          className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_16rem]"
           aria-hidden
         >
           <div className="animate-pulse rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-5">
@@ -544,7 +552,6 @@ function FilingSkeleton() {
 
         <p className="sr-only">Chargement du formulaire</p>
       </main>
-      <SiteFooter />
     </div>
   );
 }
