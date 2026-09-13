@@ -18,6 +18,7 @@ import { ContextForm } from "@/components/context-form";
 import { DeclarationForm } from "@/components/declaration-form";
 import { DocumentRail } from "@/components/document-rail";
 import { FilingSteps, type FilingStep } from "@/components/filing-steps";
+import { FilingSummary, type SummaryRow } from "@/components/filing-summary";
 import { StatusTracker } from "@/components/status-tracker";
 import { Notice, Panel, SectionHeading } from "@/components/ui";
 import { VerdictPanel } from "@/components/verdict-panel";
@@ -133,6 +134,39 @@ export default function FilingFlow({
     [transaction, declaration],
   );
 
+  const summaryRows = useMemo<SummaryRow[]>(() => {
+    const rows: SummaryRow[] = [];
+    if (contextFields.length > 0) {
+      rows.push({
+        key: "context",
+        label_fr: "Votre situation",
+        label_ar: "وضعيتك",
+        done: contextFields.filter((field) => context[field.name]).length,
+        total: contextFields.length,
+      });
+    }
+    const declarationFields = transaction?.declaration_fields ?? [];
+    if (declarationFields.length > 0) {
+      rows.push({
+        key: "declaration",
+        label_fr: "Réponses obligatoires",
+        label_ar: "الإجابات الوجوبية",
+        done: declarationFields.filter(
+          (field) => field.required && (declaration[field.name] ?? "").trim(),
+        ).length,
+        total: declarationFields.filter((field) => field.required).length,
+      });
+    }
+    rows.push({
+      key: "documents",
+      label_fr: "Pièces jointes",
+      label_ar: "الوثائق المرفقة",
+      done: attachedCount,
+      total: required.length,
+    });
+    return rows;
+  }, [contextFields, context, transaction, declaration, attachedCount, required]);
+
   const goTo = useCallback((index: number) => {
     setStep(index);
     setFurthest((reached) => Math.max(reached, index));
@@ -204,7 +238,7 @@ export default function FilingFlow({
     <div className="flex min-h-screen flex-col bg-[var(--canvas)]">
       <PortalBar />
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
         <Link
           href="/msme"
           className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--teal-ink)] hover:underline"
@@ -238,7 +272,17 @@ export default function FilingFlow({
           />
         </div>
 
-        <div className="mt-8">
+        {/* The form stays one column; the width a wide screen leaves over goes
+            to the rail rather than to a second column of questions. The result
+            step drops the rail and takes the full width for the verdict. */}
+        <div
+          className={
+            stepKey === "result"
+              ? "mt-8"
+              : "mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]"
+          }
+        >
+          <div className="min-w-0">
           {stepKey === "context" && (
             <ContextForm
               fields={contextFields}
@@ -279,9 +323,6 @@ export default function FilingFlow({
                   Chargement de la liste des pièces requises.
                 </Panel>
               )}
-              <p className="mt-4 text-[0.8125rem] text-[var(--ink-faint)]">
-                Rien n&apos;est transmis au registre à cette étape.
-              </p>
             </>
           )}
 
@@ -384,6 +425,13 @@ export default function FilingFlow({
               )}
             </div>
           </div>
+          </div>
+
+          {stepKey !== "result" && (
+            <aside className="lg:sticky lg:top-6">
+              <FilingSummary rows={summaryRows} />
+            </aside>
+          )}
         </div>
 
       </main>
@@ -400,7 +448,7 @@ function FilingSkeleton() {
       aria-busy="true"
     >
       <PortalBar />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
         <div className="h-5 w-36 animate-pulse rounded bg-[var(--line)]" />
 
         <div className="mt-5 flex items-end justify-between gap-6 border-b border-[var(--line)] pb-6">
@@ -422,12 +470,23 @@ function FilingSkeleton() {
           ))}
         </div>
 
-        <div className="mt-8 animate-pulse rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-5" aria-hidden>
-          <div className="h-4 w-3/5 rounded bg-[var(--line)]" />
-          <div className="mt-4 h-3 w-2/5 rounded bg-[var(--line)]" />
-          <div className="mt-7 h-12 rounded bg-[var(--canvas)]" />
-          <div className="mt-3 h-12 rounded bg-[var(--canvas)]" />
-          <div className="mt-3 h-12 rounded bg-[var(--canvas)]" />
+        <div
+          className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]"
+          aria-hidden
+        >
+          <div className="animate-pulse rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div className="h-4 w-3/5 rounded bg-[var(--line)]" />
+            <div className="mt-4 h-3 w-2/5 rounded bg-[var(--line)]" />
+            <div className="mt-7 h-12 w-4/5 rounded bg-[var(--canvas)]" />
+            <div className="mt-3 h-12 w-3/5 rounded bg-[var(--canvas)]" />
+            <div className="mt-3 h-12 w-2/5 rounded bg-[var(--canvas)]" />
+          </div>
+          <div className="hidden animate-pulse rounded-[var(--r-panel)] border border-[var(--line)] bg-[var(--surface)] p-5 lg:block">
+            <div className="h-3 w-24 rounded bg-[var(--line)]" />
+            <div className="mt-4 h-3 w-full rounded bg-[var(--canvas)]" />
+            <div className="mt-3 h-3 w-4/5 rounded bg-[var(--canvas)]" />
+            <div className="mt-3 h-3 w-3/5 rounded bg-[var(--canvas)]" />
+          </div>
         </div>
 
         <p className="sr-only">Chargement du formulaire</p>

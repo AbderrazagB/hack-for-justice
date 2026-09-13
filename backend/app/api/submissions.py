@@ -101,6 +101,7 @@ class DeclarationFieldInfo(BaseModel):
     # Section the question belongs to, and -- for the three answers actually
     # compared against a document -- which document.
     group: str = "entity"
+    width: str = "md"
     group_fr: str = ""
     group_ar: str = ""
     cross_checked: bool = False
@@ -222,6 +223,7 @@ def list_transactions() -> list[TransactionInfo]:
                     why_fr=spec.why_fr,
                     why_ar=spec.why_ar,
                     group=spec.group,
+                    width=spec.width,
                     group_fr=FIELD_GROUPS[spec.group]["fr"],
                     group_ar=FIELD_GROUPS[spec.group]["ar"],
                     cross_checked=spec.cross_checked,

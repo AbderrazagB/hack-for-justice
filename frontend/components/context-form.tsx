@@ -81,6 +81,8 @@ function Field({
 }) {
   const inputClass =
     "w-full rounded-[var(--r-control)] border border-[var(--line-strong)] bg-[var(--surface)] px-3 py-2.5 text-[0.9375rem] outline-none focus:border-[var(--teal)]";
+  // A date needs room for a date, a legal form for a legal form.
+  const width = field.type === "date" ? "max-w-[13rem]" : "max-w-[20rem]";
 
   if (field.type === "checkbox") {
     return (
@@ -120,7 +122,7 @@ function Field({
           id={field.name}
           value={String(value ?? "")}
           onChange={(event) => onChange(event.target.value)}
-          className={`${inputClass} mt-1.5`}
+          className={`${inputClass} ${width} mt-1.5`}
         >
           <option value="">Sélectionnez…</option>
           {field.options.map((option) => (
@@ -135,7 +137,7 @@ function Field({
           type="date"
           value={String(value ?? "")}
           onChange={(event) => onChange(event.target.value)}
-          className={`${inputClass} mt-1.5`}
+          className={`${inputClass} ${width} mt-1.5`}
         />
       )}
 

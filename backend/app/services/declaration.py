@@ -83,6 +83,11 @@ class DeclarationField:
     label_ar: str
     # Key into FIELD_GROUPS.
     group: str = "entity"
+    # How wide the input should be drawn: "sm" | "md" | "lg". An eight-digit CIN
+    # in a box built for a street address invites the wrong answer, so the box
+    # is sized to what is expected in it. Declared here because the backend
+    # describes the form and the frontend renders whatever it is told.
+    width: str = "md"
     # "text" | "email" | "tel" | "id"
     type: str = "text"
     required: bool = True
@@ -127,6 +132,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "Représentant légal",
         "الممثل القانوني",
         group="representative",
+        width="lg",
         help_fr="Nom du représentant légal tel qu'il figurera au registre.",
         why_fr=(
             "Nous comparons ce nom à ceux lus sur la carte d'identité et sur le "
@@ -143,6 +149,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "Adresse e-mail",
         "البريد الإلكتروني",
         group="contact",
+        width="lg",
         type="email",
         help_fr="Obligatoire : le RNE s'en sert pour vous notifier l'état du dossier.",
         why_fr=(
@@ -160,6 +167,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "Téléphone mobile",
         "الهاتف الجوال",
         group="contact",
+        width="sm",
         type="tel",
         help_fr="Obligatoire, au même titre que l'e-mail.",
         why_fr=(
@@ -176,6 +184,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "Nom et prénom du déclarant",
         "إسم و لقب المصرّح",
         group="declarant",
+        width="lg",
         why_fr=(
             "La personne qui signe la déclaration, et qui n'est pas forcément "
             "le représentant légal : un mandataire ou un comptable peut déposer. "
@@ -191,6 +200,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "Numéro d'identité du déclarant",
         "رقم بطاقة هوية المصرّح",
         group="declarant",
+        width="sm",
         type="id",
         why_fr=(
             "Nous le comparons au numéro lu sur la carte d'identité jointe. Un "
@@ -207,6 +217,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "Numéro d'identité",
         "رقم الهوية",
         group="declarant",
+        width="sm",
         type="id",
         required=False,
         why_fr=(
@@ -224,6 +235,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "Identifiant unique",
         "المعرّف الوحيد",
         group="entity",
+        width="md",
         help_fr="L'identifiant de l'entreprise au registre.",
         why_fr=(
             "Nous le comparons à l'identifiant lu sur l'Extrait RNE, puis sur "
@@ -240,6 +252,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "N° certificat de réservation",
         "رقم شهادة الحجز",
         group="entity",
+        width="md",
         required=False,
         help_fr="Le cas échéant.",
         why_fr=(
@@ -256,6 +269,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "RIB",
         "المعرّف البنكي",
         group="entity",
+        width="md",
         required=False,
         help_fr="Uniquement en cas de changement de compte bancaire.",
         why_fr=(

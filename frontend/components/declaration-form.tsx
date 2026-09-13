@@ -19,11 +19,15 @@ import type { DeclarationField } from "@/lib/types";
  * why the pieces are still required alongside the answers, so the three
  * questions it applies to say out loud which document they are held against.
  *
- * Laid out in two columns rather than one tall column. Nine stacked full-width
- * inputs, each carrying a label, a badge and a line of help, ran to about a
- * thousand pixels -- long enough that the end of the form was an act of faith.
- * Pairing them and folding the help into the "Pourquoi ?" disclosure (it said
- * roughly what the disclosure says at greater length) roughly halves that.
+ * One question per row, which is what a form meant to be filled from top to
+ * bottom should be -- two columns were tried here and reverted: they force a
+ * reader to decide where to look next at every row, and the pairing is
+ * arbitrary because the questions are not pairs.
+ *
+ * The height that cost is taken back elsewhere. Each input is drawn at the
+ * width of the answer expected in it, so a row is a short box and a label
+ * rather than a full-bleed field; and the standing help line folded into the
+ * "Pourquoi ?" disclosure, which said roughly the same thing at greater length.
  */
 export function DeclarationForm({
   fields,
@@ -119,14 +123,7 @@ export function DeclarationForm({
                 {section.label_ar}
               </span>
             </div>
-            {/* A lone question keeps the full width; the rest pair up. */}
-            <div
-              className={`mt-3.5 ${
-                section.fields.length > 1
-                  ? "grid gap-x-5 gap-y-4 sm:grid-cols-2"
-                  : ""
-              }`}
-            >
+            <div className="mt-3.5 space-y-4">
               {section.fields.map((field) => (
                 <Field
                   key={field.name}
@@ -149,6 +146,17 @@ export function DeclarationForm({
   );
 }
 
+/**
+ * An input as wide as the answer expected in it. An eight-digit CIN in a box
+ * built for a street address invites the wrong answer; the backend says which
+ * of the three sizes each entry takes.
+ */
+const WIDTHS: Record<string, string> = {
+  sm: "max-w-[11rem]",
+  md: "max-w-[20rem]",
+  lg: "max-w-[28rem]",
+};
+
 function Field({
   field,
   value,
@@ -168,7 +176,7 @@ function Field({
     <div className="min-w-0">
       {/* Label left, disclosure right: the controls land in one predictable
           column instead of trailing help text of nine different lengths. */}
-      <div className="flex items-baseline gap-x-2">
+      <div className="flex max-w-[28rem] items-baseline gap-x-2">
         <label
           htmlFor={`decl-${field.name}`}
           className="t-label shrink-0 text-[var(--ink)]"
@@ -210,7 +218,7 @@ function Field({
         inputMode={field.type === "id" ? "numeric" : undefined}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1.5 w-full rounded-[var(--r-control)] border border-[var(--line-strong)] bg-[var(--surface)] px-3 py-2.5 text-[0.9375rem] outline-none focus:border-[var(--teal)]"
+        className={`mt-1.5 w-full rounded-[var(--r-control)] border border-[var(--line-strong)] bg-[var(--surface)] px-3 py-2.5 text-[0.9375rem] outline-none focus:border-[var(--teal)] ${WIDTHS[field.width] ?? WIDTHS.md}`}
       />
 
       {field.compared_with_fr && (

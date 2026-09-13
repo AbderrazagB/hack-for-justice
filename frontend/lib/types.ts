@@ -34,6 +34,8 @@ export type DeclarationField = {
   why_fr: string | null;
   why_ar: string | null;
   group: string;
+  /** How wide to draw the input: "sm" | "md" | "lg". */
+  width: string;
   group_fr: string;
   group_ar: string;
   /** True when the answer is compared against an uploaded document. */
