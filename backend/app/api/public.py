@@ -216,9 +216,11 @@ async def validate(
             if key in known and value not in (None, "")
         }
 
+    from app.api.submissions import _persist, get_storage, get_upload_dir
     from app.core.uploads import validate_batch, validate_upload
 
     ocr = OCRService()
+    storage = get_storage(get_upload_dir())
     documents: dict[str, Any] = {}
     total_bytes = 0
 
@@ -228,11 +230,18 @@ async def validate(
         total_bytes += len(content)
         validate_batch(len(files), total_bytes)
 
+        # Stored like any other submission. Without this the validation could
+        # be retrieved but its pages could not be rendered, so /v1/validations
+        # returned findings pointing at documents that no longer existed.
+        stored_name = _persist(
+            content, upload.filename or doc_type, doc_type, storage, detected
+        )
         result = await run_in_threadpool(
             ocr.extract, content, upload.filename or "", doc_type
         )
         documents[doc_type] = {
             "filename": Path(upload.filename or doc_type).name,
+            "stored_path": stored_name,
             "content_type": detected,
             "size_bytes": len(content),
             **result.to_dict(),
@@ -266,7 +275,11 @@ async def validate(
         documents=documents,
         completeness=serialised,
         flags=[flag.to_dict() for flag in flags],
-        status="SUBMITTED",
+        # API_VALIDATED, not SUBMITTED: an integrator asking whether a dossier
+        # would be rejected has not filed anything, and a pre-validation must
+        # not appear in an officer's queue as something awaiting their
+        # decision.
+        status="API_VALIDATED",
         submitted_at=submitted_at,
         context={**context, "declaration": declared, "via": "api", "owner": caller.owner}
         if declared

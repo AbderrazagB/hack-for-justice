@@ -206,7 +206,7 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
 
           {document ? (
             <div className="mt-4 grid gap-4 lg:grid-cols-2">
-              <DocumentView document={document} />
+              <DocumentView document={document} submissionId={submission.id} />
               <FieldTable document={document} flagCount={flaggedHere.length} />
             </div>
           ) : (
@@ -304,9 +304,23 @@ export function SubmissionReview({ submission }: { submission: Submission }) {
   );
 }
 
-function DocumentView({ document }: { document: ExtractedDocument }) {
+function DocumentView({
+  document,
+  submissionId,
+}: {
+  document: ExtractedDocument;
+  submissionId: string;
+}) {
   const [unavailable, setUnavailable] = useState(false);
-  const source = `${API_URL}/documents/${document.document_type}/${encodeURIComponent(document.stored_path)}`;
+  const [page, setPage] = useState(0);
+
+  // The page render endpoint, not the raw file. Serving the stored bytes into
+  // an <img> works for a photographed identity card and cannot work for a PDF,
+  // so every PDF in the dossier fell into the error branch and claimed the
+  // file was missing -- while the thumbnail beside it, which already used this
+  // endpoint, displayed it perfectly.
+  const source = `${API_URL}/submissions/${submissionId}/pages/${document.document_type}/${page}.png`;
+  const pages = Math.max(1, document.page_count || 1);
 
   return (
     <Panel className="overflow-hidden">
@@ -321,12 +335,9 @@ function DocumentView({ document }: { document: ExtractedDocument }) {
       <div className="flex min-h-72 items-center justify-center bg-[var(--canvas)] p-3">
         {unavailable ? (
           <p className="max-w-xs px-6 py-10 text-center text-[0.8125rem] text-[var(--ink-muted)]">
-            Le fichier déposé n&apos;est plus accessible à cet emplacement. Il
-            reste enregistré sous{" "}
-            <span className="t-data text-[var(--ink)]">
-              data/raw/{document.document_type}/{document.stored_path}
-            </span>
-            .
+            Cette page n&apos;a pas pu être affichée. Le fichier reste
+            enregistré sous{" "}
+            <span className="t-data text-[var(--ink)]">{document.stored_path}</span>.
           </p>
         ) : (
           /* The applicant's own uploaded file, not decorative imagery. */
@@ -339,6 +350,30 @@ function DocumentView({ document }: { document: ExtractedDocument }) {
           />
         )}
       </div>
+
+      {pages > 1 && !unavailable && (
+        <div className="flex items-center justify-between gap-3 border-t border-[var(--line)] px-4 py-2">
+          <button
+            type="button"
+            onClick={() => setPage((n) => Math.max(0, n - 1))}
+            disabled={page === 0}
+            className="rounded-[var(--r-control)] border border-[var(--line-strong)] px-2.5 py-1 text-[0.75rem] font-medium transition-colors hover:bg-[var(--canvas)] disabled:opacity-40"
+          >
+            Page précédente
+          </button>
+          <span className="t-data text-[0.75rem] text-[var(--ink-muted)]">
+            {page + 1} / {pages}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((n) => Math.min(pages - 1, n + 1))}
+            disabled={page >= pages - 1}
+            className="rounded-[var(--r-control)] border border-[var(--line-strong)] px-2.5 py-1 text-[0.75rem] font-medium transition-colors hover:bg-[var(--canvas)] disabled:opacity-40"
+          >
+            Page suivante
+          </button>
+        </div>
+      )}
     </Panel>
   );
 }
@@ -415,7 +450,26 @@ function FieldTable({
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
   if (typeof value === "boolean") return value ? "oui" : "non";
+
+  // A shareholder list is an array of objects, and joining those printed
+  // "[object Object], [object Object]" where an officer needed the names and
+  // the ID numbers the rules were checking.
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    return value.map(describe).join(" · ");
+  }
+  if (typeof value === "object") return describe(value);
   return String(value);
+}
+
+function describe(entry: unknown): string {
+  if (entry === null || typeof entry !== "object") return String(entry);
+  const record = entry as Record<string, unknown>;
+  return (
+    Object.entries(record)
+      .filter(([, v]) => v !== null && v !== undefined && v !== "")
+      .map(([k, v]) => `${FIELD_LABELS[k] ?? k}: ${v}`)
+      .join(", ") || "—"
+  );
 }

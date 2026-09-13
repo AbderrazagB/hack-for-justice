@@ -36,6 +36,9 @@ class SubmissionStatus(str, Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     NEEDS_CORRECTION = "NEEDS_CORRECTION"
+    # Produced through the public API. Never enters the officer queue: the
+    # caller asked a question about a dossier, they did not file one.
+    API_VALIDATED = "API_VALIDATED"
 
 
 class ReviewAction(str, Enum):
@@ -285,8 +288,17 @@ class SubmissionStore:
         self,
         status: str | None = None,
         transaction_type: str | None = None,
+        include_api: bool = False,
     ) -> list[Submission]:
         submissions = [Submission.from_dict(raw) for raw in self._read_all().values()]
+        if not include_api:
+            # A pre-validation answered over the API is not a filing. It is
+            # stored so the integrator can fetch it again, not so an officer
+            # has to triage it.
+            submissions = [
+                s for s in submissions
+                if s.status != SubmissionStatus.API_VALIDATED.value
+            ]
         if status:
             submissions = [s for s in submissions if s.status == status]
         if transaction_type:

@@ -290,6 +290,40 @@ def test_a_dossier_filed_in_the_web_app_is_not_readable_over_the_api(
     assert client.get(f"/v1/validations/{submission.id}").status_code == 403
 
 
+def test_an_api_validation_stores_its_pages(client, store) -> None:
+    """Retrievable but unrenderable is not retrievable.
+
+    The first version skipped persistence, so /v1/validations returned findings
+    that pointed at documents whose pages no longer existed anywhere.
+    """
+    _as(_stub_key())
+    validation_id = _validate(client).json()["validation_id"]
+
+    stored = store.get(validation_id).documents
+    name = stored["id_new_representative"]["stored_path"]
+    assert name
+
+    # Present in the document store, which is what the findings point at.
+    from app.api.submissions import get_storage, get_upload_dir
+    from app.core.storage import object_key
+
+    assert get_storage(get_upload_dir()).get(
+        object_key("id_new_representative", name)
+    )
+
+
+def test_an_api_validation_never_enters_the_officer_queue(
+    client, officer_client
+) -> None:
+    """An integrator asking whether a dossier would be rejected has not filed
+    one; it must not appear as something awaiting a decision."""
+    _as(_stub_key())
+    validation_id = _validate(client).json()["validation_id"]
+
+    queue = officer_client.get("/submissions").json()["submissions"]
+    assert all(entry["id"] != validation_id for entry in queue)
+
+
 def test_an_unknown_validation_is_404(client) -> None:
     _as(_stub_key())
     assert client.get("/v1/validations/doesnotexist").status_code == 404
