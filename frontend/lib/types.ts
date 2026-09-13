@@ -33,6 +33,13 @@ export type DeclarationField = {
   help_fr: string | null;
   why_fr: string | null;
   why_ar: string | null;
+  group: string;
+  group_fr: string;
+  group_ar: string;
+  /** True when the answer is compared against an uploaded document. */
+  cross_checked: boolean;
+  compared_with_fr: string | null;
+  compared_with_ar: string | null;
 };
 
 export type TransactionInfo = {

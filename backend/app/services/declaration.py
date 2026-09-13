@@ -51,11 +51,38 @@ TRANSACTION_MODIFICATION_TYPE: dict[str, str] = {
 }
 
 
+# The sections the nine questions fall into. The official form prints them in
+# an order that already groups this way, so nothing is reordered to achieve it.
+FIELD_GROUPS: dict[str, dict[str, str]] = {
+    "representative": {"fr": "Le représentant légal", "ar": "الممثل القانوني"},
+    "contact": {"fr": "Vos coordonnées", "ar": "بيانات الاتصال"},
+    "declarant": {"fr": "Le déclarant", "ar": "المصرّح"},
+    "entity": {"fr": "L'entreprise", "ar": "المؤسسة"},
+}
+
+# The answers cross_check() actually compares against a document. Declared here,
+# beside the comparison, so the badge the UI draws cannot drift from what the
+# code does -- a test asserts the two agree.
+# Which document each compared answer is held against, short enough to sit in a
+# badge next to the question. This is the direct answer to "why do you want the
+# document as well?" -- because the answer alone proves nothing.
+CROSS_CHECKED: dict[str, dict[str, str]] = {
+    "legal_representative": {
+        "fr": "la carte d'identité et le procès-verbal",
+        "ar": "بطاقة التعريف والمحضر",
+    },
+    "declarant_id": {"fr": "la carte d'identité", "ar": "بطاقة التعريف"},
+    "unique_identifier": {"fr": "l'Extrait RNE", "ar": "مضمون السجل"},
+}
+
+
 @dataclass(frozen=True)
 class DeclarationField:
     name: str
     label_fr: str
     label_ar: str
+    # Key into FIELD_GROUPS.
+    group: str = "entity"
     # "text" | "email" | "tel" | "id"
     type: str = "text"
     required: bool = True
@@ -71,6 +98,27 @@ class DeclarationField:
     why_fr: str | None = None
     why_ar: str | None = None
 
+    @property
+    def compared_with_fr(self) -> str | None:
+        entry = CROSS_CHECKED.get(self.name)
+        return entry["fr"] if entry else None
+
+    @property
+    def compared_with_ar(self) -> str | None:
+        entry = CROSS_CHECKED.get(self.name)
+        return entry["ar"] if entry else None
+
+    @property
+    def cross_checked(self) -> bool:
+        """Whether this answer is compared against an uploaded document.
+
+        Surfaced to the UI because it is the answer to the obvious objection --
+        "why ask me this if you also want the document?" The answer is only
+        true of three fields, and pretending otherwise about the rest would be
+        the kind of false assurance this whole step exists to prevent.
+        """
+        return self.name in CROSS_CHECKED
+
 
 # Exactly the fields printed on RNE-F-005, in the order the form prints them.
 DECLARATION_FIELDS: list[DeclarationField] = [
@@ -78,6 +126,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "legal_representative",
         "Représentant légal",
         "الممثل القانوني",
+        group="representative",
         help_fr="Nom du représentant légal tel qu'il figurera au registre.",
         why_fr=(
             "Nous comparons ce nom à ceux lus sur la carte d'identité et sur le "
@@ -93,6 +142,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "email",
         "Adresse e-mail",
         "البريد الإلكتروني",
+        group="contact",
         type="email",
         help_fr="Obligatoire : le RNE s'en sert pour vous notifier l'état du dossier.",
         why_fr=(
@@ -109,6 +159,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "phone",
         "Téléphone mobile",
         "الهاتف الجوال",
+        group="contact",
         type="tel",
         help_fr="Obligatoire, au même titre que l'e-mail.",
         why_fr=(
@@ -124,6 +175,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "declarant_name",
         "Nom et prénom du déclarant",
         "إسم و لقب المصرّح",
+        group="declarant",
         why_fr=(
             "La personne qui signe la déclaration, et qui n'est pas forcément "
             "le représentant légal : un mandataire ou un comptable peut déposer. "
@@ -138,6 +190,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "declarant_id",
         "Numéro d'identité du déclarant",
         "رقم بطاقة هوية المصرّح",
+        group="declarant",
         type="id",
         why_fr=(
             "Nous le comparons au numéro lu sur la carte d'identité jointe. Un "
@@ -153,6 +206,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "entity_id",
         "Numéro d'identité",
         "رقم الهوية",
+        group="declarant",
         type="id",
         required=False,
         why_fr=(
@@ -169,6 +223,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "unique_identifier",
         "Identifiant unique",
         "المعرّف الوحيد",
+        group="entity",
         help_fr="L'identifiant de l'entreprise au registre.",
         why_fr=(
             "Nous le comparons à l'identifiant lu sur l'Extrait RNE, puis sur "
@@ -184,6 +239,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "reservation_certificate",
         "N° certificat de réservation",
         "رقم شهادة الحجز",
+        group="entity",
         required=False,
         help_fr="Le cas échéant.",
         why_fr=(
@@ -199,6 +255,7 @@ DECLARATION_FIELDS: list[DeclarationField] = [
         "rib",
         "RIB",
         "المعرّف البنكي",
+        group="entity",
         required=False,
         help_fr="Uniquement en cas de changement de compte bancaire.",
         why_fr=(

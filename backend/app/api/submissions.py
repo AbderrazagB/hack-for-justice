@@ -37,6 +37,7 @@ from app.models.submission import (
 from app.models.user import User, UserRole
 from app.services.declaration import (
     DECLARATION_FIELDS,
+    FIELD_GROUPS,
     MODIFICATION_TYPES,
     TRANSACTION_MODIFICATION_TYPE,
 )
@@ -97,6 +98,14 @@ class DeclarationFieldInfo(BaseModel):
     # an applicant can see why it is asked without having to ask anything.
     why_fr: str | None = None
     why_ar: str | None = None
+    # Section the question belongs to, and -- for the three answers actually
+    # compared against a document -- which document.
+    group: str = "entity"
+    group_fr: str = ""
+    group_ar: str = ""
+    cross_checked: bool = False
+    compared_with_fr: str | None = None
+    compared_with_ar: str | None = None
 
 
 class TransactionInfo(BaseModel):
@@ -212,6 +221,12 @@ def list_transactions() -> list[TransactionInfo]:
                     help_fr=spec.help_fr,
                     why_fr=spec.why_fr,
                     why_ar=spec.why_ar,
+                    group=spec.group,
+                    group_fr=FIELD_GROUPS[spec.group]["fr"],
+                    group_ar=FIELD_GROUPS[spec.group]["ar"],
+                    cross_checked=spec.cross_checked,
+                    compared_with_fr=spec.compared_with_fr,
+                    compared_with_ar=spec.compared_with_ar,
                 )
                 for spec in DECLARATION_FIELDS
             ],

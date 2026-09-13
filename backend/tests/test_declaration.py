@@ -13,7 +13,9 @@ from unittest.mock import patch
 from pypdf import PdfReader
 
 from app.services.declaration import (
+    CROSS_CHECKED,
     DECLARATION_FIELDS,
+    FIELD_GROUPS,
     cross_check,
     missing_required,
 )
@@ -318,11 +320,50 @@ def test_every_field_explains_why_it_is_asked() -> None:
 def test_cross_checked_fields_say_so_and_the_others_do_not_pretend() -> None:
     """A field we never compare must not read as though we verified it.
 
-    The three names below are the ones cross_check() actually compares against
-    a document; every other answer is only stored. Saying otherwise would turn
-    a clean result into false assurance.
+    Saying otherwise would turn a clean result into false assurance, which is
+    the one failure mode this step exists to prevent.
     """
-    compared = {"declarant_id", "unique_identifier", "legal_representative"}
     for spec in DECLARATION_FIELDS:
         mentions_comparison = "compar" in (spec.why_fr or "").lower()
-        assert mentions_comparison == (spec.name in compared), spec.name
+        assert mentions_comparison == spec.cross_checked, spec.name
+        assert bool(spec.compared_with_fr) == spec.cross_checked, spec.name
+
+
+def test_cross_checked_set_matches_what_cross_check_actually_compares() -> None:
+    """The badge is derived from CROSS_CHECKED, so CROSS_CHECKED must be true.
+
+    Feed a declaration that disagrees with the documents on every field and
+    assert the issues raised name exactly the fields advertised as compared.
+    """
+    documents = {
+        "id_new_representative": {
+            "fields": {"id_number": "11111111", "person_name": "Salah Ben Amine"}
+        },
+        "rne_extract": {"fields": {"company_id": "7777777"}},
+        "general_assembly_pv": {"fields": {"person_name": "Salah Ben Amine"}},
+    }
+    declaration = {spec.name: "Zzz Contradiction" for spec in DECLARATION_FIELDS}
+    declaration["declarant_id"] = "22222222"
+    declaration["unique_identifier"] = "8888888"
+
+    raised = {issue.field_name for issue in cross_check(declaration, documents)}
+    assert raised == set(CROSS_CHECKED)
+
+
+def test_every_field_belongs_to_a_known_group() -> None:
+    for spec in DECLARATION_FIELDS:
+        assert spec.group in FIELD_GROUPS, spec.name
+
+
+def test_groups_are_contiguous_in_form_order() -> None:
+    """Sections must not reorder the form.
+
+    RNE-F-005 prints the nine entries in an order that already groups cleanly;
+    the UI draws headings over that order rather than rearranging it, so a
+    group appearing twice would mean the list has drifted from the form.
+    """
+    seen: list[str] = []
+    for spec in DECLARATION_FIELDS:
+        if not seen or seen[-1] != spec.group:
+            seen.append(spec.group)
+    assert len(seen) == len(set(seen)), seen
