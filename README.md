@@ -304,6 +304,13 @@ check readiness with `curl http://localhost:8090/health`.
 
 Open http://localhost:3000. The FastAPI docs are at http://localhost:8000/docs.
 
+The queue fills up quickly once you start testing. To empty it — accounts and
+uploaded pages are untouched, only the dossier records go:
+
+```bash
+cd backend && uv run python ../scripts/clear_submissions.py
+```
+
 ### Five-minute demo
 
 Sign in at `/login` — the two buttons under the form fill the credentials.
