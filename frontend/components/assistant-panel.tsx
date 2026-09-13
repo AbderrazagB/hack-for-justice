@@ -3,6 +3,7 @@
 import { BookOpen, CornerDownLeft, Info } from "lucide-react";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
+import { Markdown } from "@/components/markdown";
 import { Notice, Panel } from "@/components/ui";
 import { explainSubmission } from "@/lib/api";
 import type { ExplainResponse } from "@/lib/types";
@@ -123,13 +124,11 @@ export function AssistantPanel({
         {turns.map((turn, index) => (
           <div key={index}>
             <p className="t-label text-[var(--ink-muted)]">{turn.question}</p>
-            <div
-              className={`mt-2 text-[0.9375rem] leading-relaxed whitespace-pre-wrap ${
-                turn.response.lang === "ar" ? "ar" : ""
-              }`}
-            >
-              {turn.response.answer}
-            </div>
+            <Markdown
+              text={turn.response.answer}
+              rtl={turn.response.lang === "ar"}
+              className="mt-2 text-[0.9375rem] leading-relaxed"
+            />
 
             {turn.response.citations.length > 0 && (
               <div className="mt-3 flex flex-wrap items-center gap-1.5">
